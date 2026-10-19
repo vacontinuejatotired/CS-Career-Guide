@@ -30,6 +30,8 @@ db.sqlite3-journal
 venv/
 env/
 ENV/
+.venv/
+.runtime/
 
 # Node
 node_modules/
@@ -46,7 +48,7 @@ dist/
 *.swo
 
 # Environment variables
-.env
-.env.local
+.env*
+!.env.example
 
 frontend\public\models\vad
