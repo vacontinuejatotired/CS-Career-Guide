@@ -1,17 +1,18 @@
 import axios from 'axios'
+import { API_BASE_URL, COMPANY_API_BASE_URL, API_TIMEOUT, COMPANY_API_TIMEOUT, apiUrl } from '../config'
 import { createApiFetch, installAuthInterceptors } from './transport.js'
 
 const api = axios.create({
-  baseURL: '/api',
-  timeout: 120000,
+  baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json'
   }
 })
 
 const dbApi = axios.create({
-  baseURL: 'http://localhost:3000/api',
-  timeout: 30000,
+  baseURL: COMPANY_API_BASE_URL,
+  timeout: COMPANY_API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -20,7 +21,7 @@ const dbApi = axios.create({
 installAuthInterceptors(api)
 installAuthInterceptors(dbApi)
 
-export const apiFetch = createApiFetch(endpoint => `/api/${endpoint.replace(/^\/+/, '')}`)
+export const apiFetch = createApiFetch(apiUrl)
 
 export const authAPI = {
   login: (data) => api.post('/users/auth/login/', data, { publicAuth: true }),
@@ -50,9 +51,9 @@ export const aiAPI = {
     })
   },
   getHistory: (sessionId) => api.get(`/ai/llm/chat/history/?session_id=${sessionId}`),
-  careerRecommendation: (self_introduction) => api.post('/ai/llm/career/recommendation/', { self_introduction }, { timeout: 120000 }),
-  careerPlanGeneration: (self_introduction, selected_careers) => api.post('/ai/llm/career/plan/', { self_introduction, selected_careers }, { timeout: 120000 }),
-  careerReport: (user_profile, target_job) => api.post('/career-report/', { user_profile, target_job }, { timeout: 120000 }),
+  careerRecommendation: (self_introduction) => api.post('/ai/llm/career/recommendation/', { self_introduction }),
+  careerPlanGeneration: (self_introduction, selected_careers) => api.post('/ai/llm/career/plan/', { self_introduction, selected_careers }),
+  careerReport: (user_profile, target_job) => api.post('/career-report/', { user_profile, target_job }),
   saveChatRecord: (session_id, user_message, assistant_message, mode) => api.post('/ai/llm/save-chat/', { session_id, user_message, assistant_message, mode }),
   saveCareerEvaluation: (session_id, selected_careers, evaluation_result) => api.post('/ai/records/save-evaluation/', { session_id, selected_careers, evaluation_result }),
   saveCareerPlan: (session_id, report_content, radar_data) => api.post('/ai/records/save-plan/', { session_id, report_content, radar_data }),

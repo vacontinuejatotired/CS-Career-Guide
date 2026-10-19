@@ -354,6 +354,7 @@
 </template>
 
 <script setup>
+import { VAD_ASSET_BASE_URL, ENABLE_TTS } from '@/config'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import api, { aiAPI, userAPI, apiFetch } from '@/api'
@@ -700,8 +701,7 @@ const sessionId = ref('')
 const showReview = ref(false)
 const reviewContent = ref('')
 
-// 语音合成开关 - 设置为 false 即可关闭语音合成
-const ENABLE_TTS = true // true = 开启语音合成, false = 关闭语音合成
+// 语音合成由 VITE_ENABLE_TTS 控制；后端需同时设置 ENABLE_TTS。
 
 // 语音识别相关
 const isSpeaking = ref(false)
@@ -1327,7 +1327,7 @@ function getStyleDescription(style) {
 
 // 语音识别相关函数
 const startRecording = async () => {
-  const baseUrl = 'http://localhost:3002/models/vad/';
+  const baseUrl = VAD_ASSET_BASE_URL;
   try {
     const { MicVAD } = await import('@ricky0123/vad-web');
     

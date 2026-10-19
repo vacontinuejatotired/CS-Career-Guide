@@ -188,6 +188,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { apiUrl, AVATAR_MODEL_URL } from '@/config'
 import { apiFetch } from '@/api'
 
 const isOpen = ref(false)
@@ -294,7 +295,7 @@ const sendMessage = async () => {
     }
     
     console.log('发送API请求:', {
-      url: '/api/ai/llm/chat/',
+      url: apiUrl('/ai/llm/chat/'),
       mode: mode,
       message: message.substring(0, 50) + '...',
       session_id: sessionId.value
@@ -522,7 +523,7 @@ function initScene() {
   scene.add(directionalLight)
   
   const loader = new GLTFLoader()
-  loader.load('/models/d51675667acfc8a42b8e40d4c3e9799a.glb', (gltf) => {
+  loader.load(AVATAR_MODEL_URL, (gltf) => {
     model = gltf.scene
     scene.add(model)
     

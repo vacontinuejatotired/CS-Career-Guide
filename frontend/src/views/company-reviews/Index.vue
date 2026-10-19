@@ -642,6 +642,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { jobFairAPI, computerCareerAPI, apiFetch } from '@/api'
+import { IP_GEOLOCATION_URL } from '@/config'
 import api from '@/api'
 
 const router = useRouter()
@@ -700,9 +701,10 @@ const currentCity = ref('')
 const locationJobs = ref([])
 
 const getCityFromIP = async () => {
+  if (!IP_GEOLOCATION_URL) return null
   try {
     console.log('[Geolocation Debug] 使用 IP 地址获取城市（仅精确到市）')
-    const response = await fetch('http://ip-api.com/json/?lang=zh-CN&fields=status,city,regionName')
+    const response = await fetch(IP_GEOLOCATION_URL)
     const data = await response.json()
     console.log('[Geolocation Debug] IP 地理定位响应:', data)
     
