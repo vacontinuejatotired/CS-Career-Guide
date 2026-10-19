@@ -1,12 +1,12 @@
 import asyncio
 import json
-import os
 import uuid
 
 import websockets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.conf import settings
 
 
 class ASRView(APIView):
@@ -56,13 +56,15 @@ class ASRView(APIView):
 
     async def run_asr_tasks(self, pcm_data):
         task_id = uuid.uuid4().hex
-        api_key = os.getenv('api_key')
-        wss_url = os.getenv('WSS_URL')
+        api_key = settings.ASR_API_KEY
+        wss_url = settings.ASR_WSS_URL
         
         if not api_key:
-            raise ValueError("api_key environment variable not set")
+            raise ValueError("ASR_API_KEY or LLM_API_KEY environment variable not set")
         if not wss_url:
-            raise ValueError("WSS_URL environment variable not set")
+            raise ValueError("ASR_WSS_URL environment variable not set")
+        if not settings.ASR_MODEL:
+            raise ValueError("ASR_MODEL environment variable not set")
             
         headers = {
             "Authorization": f"Bearer {api_key}"
@@ -75,7 +77,7 @@ class ASRView(APIView):
                     "action": "run-task"
                 },
                 "payload": {
-                    "model": "gummy-realtime-v1",
+                    "model": settings.ASR_MODEL,
                     "parameters": {
                         "sample_rate": 16000,
                         "format": "pcm",

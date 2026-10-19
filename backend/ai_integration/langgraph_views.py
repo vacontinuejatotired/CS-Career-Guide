@@ -13,6 +13,10 @@ from concurrent.futures import ThreadPoolExecutor
 from django.http import StreamingHttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+from cs_career_guide.ai_config import get_llm_kwargs
+from cs_career_guide.vector_store import CAREER_TABLE_NAME, open_career_table
 from ai_integration.models import AIConversation, AITag, CareerEvaluationRecord, CareerPlanReport, AIUsageRecord, CareerRecommendationRecord, AIChatPair, InterviewReviewRecord
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -35,7 +39,7 @@ from ai_integration.arag_integration import get_career_search, ARAGCareerSearch
 logger = logging.getLogger(__name__)
 
 # 全局线程池
-_thread_pool = ThreadPoolExecutor(max_workers=3)
+_thread_pool = ThreadPoolExecutor(max_workers=settings.SEARCH_MAX_WORKERS)
 
 # 内存缓存
 _memory_cache = {}
@@ -83,47 +87,32 @@ def _set_cached_result(query: str, result):
 def init_lancedb():
     """初始化LanceDB数据库"""
     # 创建LanceDB数据库目录
-    db_path = os.path.join(os.path.dirname(__file__), "lancedb")
+    db_path = str(settings.LANCEDB_PATH)
     os.makedirs(db_path, exist_ok=True)
     
     # 连接到LanceDB
     db = lancedb.connect(db_path)
     
-    # 创建表（如果不存在）
-    table_name = "career_recommendations"
-    if table_name not in db.table_names():
-        # 定义表结构
-        schema = pa.schema([
-            ("id", pa.string()),
-            ("user_id", pa.string()),
-            ("self_introduction", pa.string()),
-            ("recommendations", pa.string()),
-            ("analysis_result", pa.string()),
-            ("created_at", pa.string())
-        ])
-        db.create_table(table_name, schema=schema)
+    open_career_table(db, settings.EMBEDDING_DIMENSION)
     
     return db
 
 def add_to_lancedb(record):
     """将职业推荐记录添加到LanceDB中"""
     try:
-        # 初始化LanceDB
-        db = init_lancedb()
-        table = db["career_recommendations"]
-        
         # 准备数据
         data = {
             "id": str(record.id),
             "user_id": str(record.user.id) if record.user else "",
             "self_introduction": record.self_introduction,
-            "recommendations": str(record.recommendations),
+            "introduction_preview": record.introduction_preview or "",
+            "recommendations": json.dumps(record.recommendations, ensure_ascii=False),
             "analysis_result": record.analysis_result or "",
             "created_at": record.created_at.isoformat()
         }
         
         # 添加数据到LanceDB
-        table.add([data])
+        get_career_search().add_record(data)
         logger.info(f"Successfully added career recommendation record {record.id} to LanceDB")
     except Exception as e:
         logger.error(f"Error adding career recommendation record to LanceDB: {str(e)}")
@@ -372,23 +361,7 @@ def llm_chat(request):
             
             def llm_chat_tts_work(llm, messages, mq, is_interview_mode_flag):
                 async def run_tts_tasks():
-                    # ==============================================
-                    # TTS 已强制禁用 - 防止产生费用
-                    # 如需启用，请将下面的 True 改为 False
-                    # ==============================================
-                    TTS_FORCE_DISABLED = False
-                    
-                    if TTS_FORCE_DISABLED:
-                        logger.info("TTS IS FORCE DISABLED - No audio will be generated")
-                        for chunk in llm.stream(messages):
-                            if hasattr(chunk, "content") and chunk.content:
-                                mq.put_nowait({'content': chunk.content})
-                        return
-                    
-                    # ==============================================
-                    # 以下代码已被禁用，不会执行
-                    # ==============================================
-                    enable_tts = os.getenv('ENABLE_TTS', 'false').lower() == 'true'
+                    enable_tts = settings.ENABLE_TTS
                     
                     if not is_interview_mode_flag or not enable_tts:
                         logger.info(f"TTS disabled - interview_mode={is_interview_mode_flag}, enable_tts={enable_tts}")
@@ -399,13 +372,15 @@ def llm_chat(request):
                     
                     logger.warning("WARNING: TTS IS ENABLED - This will incur costs!")
                     
-                    tts_api_key = os.getenv('api_key')
-                    wss_url = os.getenv('WSS_URL')
+                    tts_api_key = settings.TTS_API_KEY
+                    wss_url = settings.TTS_WSS_URL
              
                     headers = {"Authorization": f"Bearer {tts_api_key}"}
                     
                     try:
                     
+                        if not all((tts_api_key, wss_url, settings.TTS_MODEL, settings.TTS_VOICE)):
+                            raise ImproperlyConfigured("Configure TTS_API_KEY, TTS_WSS_URL, TTS_MODEL and TTS_VOICE")
                         llm_stream = llm.stream(messages)
 
                         
@@ -422,10 +397,10 @@ def llm_chat(request):
                                     "task_group": "audio",
                                     "task": "tts",
                                     "function": "SpeechSynthesizer",
-                                    "model": "cosyvoice-v3-flash",
+                                    "model": settings.TTS_MODEL,
                                     "parameters": {
                                         "text_type": "PlainText",
-                                        "voice": "longanyang",
+                                        "voice": settings.TTS_VOICE,
                                         "format": "mp3",
                                         "sample_rate": 22050,
                                         "volume": 50,
@@ -506,14 +481,9 @@ def llm_chat(request):
                 
                 from langchain_openai import ChatOpenAI
                 
-                api_key = os.getenv('api_key')
-                base_url = os.getenv('base_url')
-                
                 llm = ChatOpenAI(
-                    model="qwen-turbo-2025-07-15", 
                     temperature=0.7,
-                    api_key=api_key,
-                    base_url=base_url
+                    **get_llm_kwargs(),
                 )
                 
                 from ai_integration.langgraph.utils.prompt_manager import get_prompt

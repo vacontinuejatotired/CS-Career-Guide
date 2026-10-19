@@ -23,7 +23,7 @@ django.setup()
 
 # 导入 SQLAlchemy 用于连接池管理
 try:
-    from sqlalchemy import create_engine, text
+    from sqlalchemy import create_engine, text, URL
     from sqlalchemy.pool import QueuePool
     SQLALCHEMY_AVAILABLE = True
 except ImportError:
@@ -45,11 +45,11 @@ _db_charset = _db_settings.get('OPTIONS', {}).get('charset', 'utf8mb4')
 
 # 连接池参数配置
 POOL_CONFIG = {
-    'max_connections': 20,       # 最大连接数
-    'min_connections': 5,        # 最小空闲连接数
+    'max_connections': settings.DATABASE_MAX_OVERFLOW,  # 连接池溢出连接上限
+    'min_connections': settings.DATABASE_POOL_SIZE,    # 连接池大小
     'idle_timeout': 300,         # 空闲连接超时时间（秒）
-    'pool_timeout': 30,          # 获取连接超时时间（秒）
-    'recycle': 3600,             # 连接回收时间（秒），防止 MySQL 8小时超时
+    'pool_timeout': settings.DATABASE_POOL_TIMEOUT,
+    'recycle': settings.DATABASE_POOL_RECYCLE,
 }
 
 # ==================== 全局连接池实例 ====================
@@ -65,7 +65,15 @@ def get_connection_pool():
             if _connection_pool is None and SQLALCHEMY_AVAILABLE:
                 try:
                     # 创建 MySQL 连接字符串
-                    db_url = f"mysql+pymysql://{_db_user}:{_db_password}@{_db_host}:{_db_port}/{_db_name}?charset={_db_charset}"
+                    db_url = URL.create(
+                        'mysql+pymysql',
+                        username=_db_user,
+                        password=_db_password,
+                        host=_db_host,
+                        port=int(_db_port),
+                        database=_db_name,
+                        query={'charset': _db_charset},
+                    )
                     
                     # 创建连接池
                     _connection_pool = create_engine(

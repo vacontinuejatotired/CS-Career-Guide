@@ -10,6 +10,8 @@ import hashlib
 from concurrent.futures import ThreadPoolExecutor
 from django.http import JsonResponse
 from django.core.cache import cache
+from django.conf import settings
+from cs_career_guide.ai_config import get_llm_kwargs
 from ai_integration.models import AIUsageRecord, CareerRecommendationRecord, SeniorAdvice
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -25,7 +27,7 @@ from ai_integration.arag_agent import get_arag_agent
 logger = logging.getLogger(__name__)
 
 # 全局线程池
-_thread_pool = ThreadPoolExecutor(max_workers=3)
+_thread_pool = ThreadPoolExecutor(max_workers=settings.SEARCH_MAX_WORKERS)
 
 # 内存缓存
 _memory_cache = {}
@@ -83,17 +85,9 @@ def _simple_llm_recommendation(self_introduction: str) -> dict:
     try:
         from langchain_openai import ChatOpenAI
         from langchain_core.prompts import ChatPromptTemplate
-        import os
-        
-        # 确保环境变量被加载 - 使用绝对路径
-        from dotenv import load_dotenv
-        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-        logger.info(f"Loading .env from: {env_path}")
-        load_dotenv(env_path)
-        
         # 获取环境变量
-        api_key = os.getenv('api_key')
-        base_url = os.getenv('base_url')
+        api_key = settings.LLM_API_KEY
+        base_url = settings.LLM_BASE_URL
         
         logger.info(f"API Key available: {bool(api_key)}")
         logger.info(f"Base URL: {base_url}")
@@ -103,11 +97,8 @@ def _simple_llm_recommendation(self_introduction: str) -> dict:
         
         # 创建LLM实例
         llm = ChatOpenAI(
-            model='qwen-turbo-2025-07-15',
             temperature=0.7,
-            api_key=api_key,
-            base_url=base_url,
-            timeout=60
+            **get_llm_kwargs(),
         )
         
         # 构建提示词（注意：JSON中的大括号需要转义为{{和}}）
@@ -214,8 +205,8 @@ def _generate_llm_recommendation(self_introduction: str, user=None) -> dict:
         chat_workflow = create_chat_workflow()
         
         # 检查环境变量
-        api_key = os.getenv('api_key')
-        base_url = os.getenv('base_url')
+        api_key = settings.LLM_API_KEY
+        base_url = settings.LLM_BASE_URL
         logger.warning(f"API Key: {'Set' if api_key else 'Not set'}")
         logger.warning(f"Base URL: {base_url}")
         
@@ -1023,13 +1014,8 @@ def voice_to_resume(request):
         from langchain_core.output_parsers import JsonOutputParser
         
         # 配置大模型
-        api_key = os.getenv('api_key')
-        base_url = os.getenv('base_url')
-        
         llm = ChatOpenAI(
-            model="qwen-turbo-2025-07-15",
-            api_key=api_key,
-            base_url=base_url
+            **get_llm_kwargs(),
         )
         
         # 创建提示模板
