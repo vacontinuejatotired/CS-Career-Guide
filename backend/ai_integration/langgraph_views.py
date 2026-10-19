@@ -17,7 +17,7 @@ from ai_integration.models import AIConversation, AITag, CareerEvaluationRecord,
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 import logging
 import lancedb
 import pyarrow as pa
@@ -616,7 +616,7 @@ def llm_chat(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def save_chat_record(request):
     """保存聊天记录的API接口"""
     if request.method != 'POST':
@@ -691,7 +691,7 @@ def save_chat_record(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def save_career_evaluation(request):
     """保存职业评测记录的API接口"""
     if request.method != 'POST':
@@ -749,7 +749,7 @@ def save_career_evaluation(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def career_recommendation(request):
     """职业推荐API接口 - 先从LanceDB检索匹配记录，再调用agent处理"""
     # 记录开始时间
@@ -1023,7 +1023,7 @@ def career_recommendation(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def career_plan_generation(request):
     """生成个性化职业规划API接口"""
     if request.method != 'POST':
@@ -1139,7 +1139,7 @@ JSON 数据结构要求如下：
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def save_career_recommendation(request):
     """保存职业推荐记录的API接口"""
     if request.method != 'POST':
@@ -1200,7 +1200,7 @@ def save_career_recommendation(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def save_career_plan(request):
     """保存职业生涯规划报告的API接口"""
     if request.method != 'POST':
@@ -1258,7 +1258,7 @@ def save_career_plan(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_user_ai_records(request):
     """获取用户的AI使用记录"""
     if request.method != 'GET':
@@ -1290,7 +1290,7 @@ def get_user_ai_records(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_chat_records(request):
     """获取用户的聊天记录"""
     if request.method != 'GET':
@@ -1346,7 +1346,7 @@ def get_chat_records(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_evaluation_records(request):
     """获取用户的职业评测记录"""
     if request.method != 'GET':
@@ -1378,7 +1378,7 @@ def get_evaluation_records(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_plan_reports(request):
     """获取用户的职业生涯规划报告"""
     if request.method != 'GET':
@@ -1410,7 +1410,7 @@ def get_plan_reports(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def add_tag_to_record(request):
     """为AI使用记录添加标签"""
     if request.method != 'POST':
@@ -1462,7 +1462,7 @@ def add_tag_to_record(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def delete_record(request):
     """删除AI使用记录"""
     if request.method != 'POST':
@@ -1510,7 +1510,7 @@ def delete_record(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_chat_history(request):
     """获取对话历史（短期记忆）"""
     if request.method != 'GET':
@@ -1559,7 +1559,7 @@ def get_chat_history(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_long_term_memory(request):
     """获取长期记忆"""
     if request.method != 'GET':
@@ -1584,7 +1584,7 @@ def get_long_term_memory(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def update_memory(request):
     """更新长期记忆"""
     if request.method != 'POST':
@@ -1612,7 +1612,7 @@ def update_memory(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def delete_memory(request):
     """删除长期记忆"""
     if request.method != 'POST':
@@ -1639,7 +1639,7 @@ def delete_memory(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_user_interview_reviews(request):
     """
     获取用户的面试复盘记录列表
@@ -1687,7 +1687,7 @@ def get_user_interview_reviews(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_interview_review_detail(request, session_id):
     """
     获取单个面试复盘记录的详细内容
@@ -1755,7 +1755,7 @@ def get_interview_review_detail(request, session_id):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def save_interview_review(request):
     """
     保存面试复盘记录到数据库

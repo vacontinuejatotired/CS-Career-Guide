@@ -52,7 +52,7 @@
 
         <div class="text-center text-sm">
           <span class="text-base-content/70">还没有账号？</span>
-          <router-link to="/register" class="link link-primary font-medium ml-1">立即注册</router-link>
+          <router-link :to="{ path: '/register', query: { redirect: safeRedirect(route.query.redirect) } }" class="link link-primary font-medium ml-1">立即注册</router-link>
         </div>
       </form>
       
@@ -68,10 +68,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { authAPI } from '@/api'
+import { clearSession, safeRedirect } from '@/auth/session.js'
 
 const router = useRouter()
+const route = useRoute()
 const form = ref({
   username: '',
   password: ''
@@ -84,12 +86,12 @@ const login = async () => {
   error.value = ''
   try {
     const response = await authAPI.login(form.value)
-    // 清除之前的用户数据，包括自我介绍
-    localStorage.removeItem('selfIntroduction')
+    clearSession()
     // 设置新用户信息
     localStorage.setItem('token', response.token)
     localStorage.setItem('user', JSON.stringify(response.user))
-    router.push('/')
+    const redirect = safeRedirect(route.query.redirect)
+    await router.replace(router.resolve(redirect).matched.length ? redirect : '/')
   } catch (err) {
     if (err.response) {
       error.value = err.response.data?.non_field_errors?.[0] || '登录失败，请检查用户名和密码'

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { createApiFetch, installAuthInterceptors } from './transport.js'
 
 const api = axios.create({
   baseURL: '/api',
@@ -16,51 +17,19 @@ const dbApi = axios.create({
   }
 })
 
-api.interceptors.request.use(
-  config => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Token ${token}`
-    }
-    return config
-  },
-  error => Promise.reject(error)
-)
+installAuthInterceptors(api)
+installAuthInterceptors(dbApi)
 
-api.interceptors.response.use(
-  response => response.data,
-  error => {
-    // 处理 401 错误：Token 过期或无效
-    if (error.response && error.response.status === 401) {
-      console.error('Token 已过期或无效，自动登出')
-      // 清除本地存储的用户数据
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      localStorage.removeItem('selfIntroduction')
-      localStorage.removeItem('careerAnalysis')
-      localStorage.removeItem('careerRecommendations')
-      // 跳转到登录页（避免无限循环）
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-        window.location.href = '/login'
-      }
-    }
-    return Promise.reject(error)
-  }
-)
-
-dbApi.interceptors.response.use(
-  response => response.data,
-  error => Promise.reject(error)
-)
+export const apiFetch = createApiFetch(endpoint => `/api/${endpoint.replace(/^\/+/, '')}`)
 
 export const authAPI = {
-  login: (data) => api.post('/users/auth/login/', data),
-  register: (data) => api.post('/users/auth/register/', data),
+  login: (data) => api.post('/users/auth/login/', data, { publicAuth: true }),
+  register: (data) => api.post('/users/auth/register/', data, { publicAuth: true }),
   logout: () => api.post('/users/auth/logout/')
 }
 
 export const userAPI = {
-  getProfile: () => api.get('/users/profile/'),
+  getProfile: (config) => api.get('/users/profile/', config),
   updateProfile: (data) => api.put('/users/profile/', data),
   uploadAvatar: (formData) => api.post('/users/profile/', formData, {
     headers: {
@@ -72,11 +41,10 @@ export const userAPI = {
 export const aiAPI = {
   chat: (message, mode, interview_style, session_id) => api.post('/ai/llm/chat/', { message, mode, interview_style, session_id }),
   chatStream: (message, mode, interview_style, session_id) => {
-    return fetch('/api/ai/llm/chat/', {
+    return apiFetch('/ai/llm/chat/', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('token') ? { 'Authorization': `Token ${localStorage.getItem('token')}` } : {})
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ message, mode, interview_style, session_id })
     })

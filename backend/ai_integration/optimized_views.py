@@ -14,7 +14,7 @@ from ai_integration.models import AIUsageRecord, CareerRecommendationRecord, Sen
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 import logging
 
 from ai_integration.langgraph.graphs.graph import create_chat_workflow
@@ -454,7 +454,7 @@ def _save_recommendation_record(self_introduction: str, recommendations: list,
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def optimized_career_recommendation(request):
     """
     优化后的职业推荐API接口 - 直接调用LLM生成推荐
@@ -637,7 +637,7 @@ def optimized_career_recommendation(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def read_career_chunk(request, record_id):
     """
     Chunk Read API - 根据ID读取完整的职业推荐记录
@@ -681,7 +681,7 @@ def read_career_chunk(request, record_id):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def read_career_chunks_batch(request):
     """
     批量Chunk Read API - 根据多个ID读取完整的职业推荐记录
@@ -736,7 +736,7 @@ def read_career_chunks_batch(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def arag_career_recommendation(request):
     """
     A-RAG职业推荐API - 使用A-RAG代理进行职业推荐
@@ -855,7 +855,7 @@ def arag_career_recommendation(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def health_check(request):
     """
     健康检查端点
@@ -881,7 +881,7 @@ def health_check(request):
 
 @api_view(['GET', 'POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def senior_advice_list(request):
     """
     学长学姐建议列表API
@@ -949,7 +949,7 @@ def senior_advice_list(request):
 
 @api_view(['PATCH'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def approve_senior_advice(request, advice_id):
     """
     审核学长学姐建议API
@@ -988,7 +988,7 @@ def approve_senior_advice(request, advice_id):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def voice_to_resume(request):
     """
     语音生成简历API

@@ -188,6 +188,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { apiFetch } from '@/api'
 
 const isOpen = ref(false)
 const inputMessage = ref('')
@@ -299,11 +300,10 @@ const sendMessage = async () => {
       session_id: sessionId.value
     })
     
-    const response = await fetch('/api/ai/llm/chat/', {
+    const response = await apiFetch('/ai/llm/chat/', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('token') ? { 'Authorization': `Token ${localStorage.getItem('token')}` } : {})
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
         message: message,
@@ -420,11 +420,10 @@ async function saveChatRecord() {
   if (userMsg?.type !== 'user' || aiMsg?.type !== 'ai') return
   
   try {
-    await fetch('/api/ai/llm/save-chat/', {
+    await apiFetch('/ai/llm/save-chat/', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('token') ? { 'Authorization': `Token ${localStorage.getItem('token')}` } : {})
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         session_id: sessionId.value,

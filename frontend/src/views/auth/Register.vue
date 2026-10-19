@@ -62,7 +62,7 @@
 
         <div class="text-center text-sm">
           <span class="text-base-content/70">已有账号？</span>
-          <router-link to="/login" class="link link-primary font-medium ml-1">立即登录</router-link>
+          <router-link :to="{ path: '/login', query: { redirect: safeRedirect(route.query.redirect) } }" class="link link-primary font-medium ml-1">立即登录</router-link>
         </div>
       </form>
       
@@ -78,10 +78,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { authAPI } from '@/api'
+import { clearSession, safeRedirect } from '@/auth/session.js'
 
 const router = useRouter()
+const route = useRoute()
 const form = ref({
   username: '',
   password: '',
@@ -95,12 +97,12 @@ const register = async () => {
   error.value = ''
   try {
     const response = await authAPI.register(form.value)
-    // 清除之前的用户数据，包括自我介绍
-    localStorage.removeItem('selfIntroduction')
+    clearSession()
     // 设置新用户信息
     localStorage.setItem('token', response.token)
     localStorage.setItem('user', JSON.stringify(response.user))
-    router.push('/')
+    const redirect = safeRedirect(route.query.redirect)
+    await router.replace(router.resolve(redirect).matched.length ? redirect : '/')
   } catch (err) {
     if (err.response) {
       if (err.response.data?.username) {

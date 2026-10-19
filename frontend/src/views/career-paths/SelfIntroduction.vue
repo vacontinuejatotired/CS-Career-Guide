@@ -350,28 +350,23 @@ async function nextToAssessment() {
   loading.value = true
   error.value = ''
   try {
-    // 检查用户是否登录
-    const token = localStorage.getItem('token')
-    
     // 保存自我介绍到localStorage
     localStorage.setItem('selfIntroduction', JSON.stringify(formData.value))
     
-    if (token) {
-      const userData = {
-        name: formData.value.name || '',
-        gender: formData.value.gender || '',
-        school: formData.value.school || '',
-        major: formData.value.major || '',
-        grade: formData.value.grade || '',
-        skills: formData.value.skills.join(',') || '',
-        other_skills: formData.value.otherSkills || '',
-        self_introduction: formData.value.selfDescription || '',
-        career_goal: formData.value.goal || ''
-      }
-      
-      await userAPI.updateProfile(userData)
+    const userData = {
+      name: formData.value.name || '',
+      gender: formData.value.gender || '',
+      school: formData.value.school || '',
+      major: formData.value.major || '',
+      grade: formData.value.grade || '',
+      skills: formData.value.skills.join(',') || '',
+      other_skills: formData.value.otherSkills || '',
+      self_introduction: formData.value.selfDescription || '',
+      career_goal: formData.value.goal || ''
     }
     
+    await userAPI.updateProfile(userData)
+
     // 构建用户自我介绍文本（包含专业和年级信息，供大模型识别）
     const selfIntroductionText = `姓名: ${formData.value.name || ''}\n学校: ${formData.value.school || ''}\n专业: ${formData.value.major || ''}\n年级: ${formData.value.grade || ''}\n性别: ${formData.value.gender || ''}\n技能: ${formData.value.skills.join('、') || '无'}\n其他技能: ${formData.value.otherSkills || '无'}\n条件自述: ${formData.value.selfDescription || '无'}\n职业期望: ${formData.value.goal || '无'}`
     

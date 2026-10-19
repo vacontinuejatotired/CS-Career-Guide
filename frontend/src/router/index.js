@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { userAPI } from '../api'
+import { createAuthGuard } from './guard.js'
 
 const routes = [
   {
@@ -78,17 +80,6 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('token')
-  const publicPaths = ['/login', '/register']
-  const selfIntroductionPath = /^\/career-paths\/[^\/]+\/self-introduction$/
-  const careerPathDetailPath = /^\/career-paths\/[^\/]+$/  
-  
-  if (!token && !publicPaths.includes(to.path) && !selfIntroductionPath.test(to.path) && !careerPathDetailPath.test(to.path)) {
-    next('/login')
-  } else {
-    next()
-  }
-})
+router.beforeEach(createAuthGuard(() => userAPI.getProfile({ redirectOnUnauthorized: false })))
 
 export default router

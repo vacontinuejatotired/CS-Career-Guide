@@ -410,12 +410,6 @@ onMounted(async () => {
   } catch (err) {
     console.error('获取用户信息失败:', err)
     console.error('错误详情:', err.response?.data || err.message)
-    // 如果是401错误，重定向到登录页面
-    if (err.response?.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      router.push('/login')
-    }
   }
 })
 

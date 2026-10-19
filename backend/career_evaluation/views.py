@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from .models import CareerCategory, ComputerCareer
 from .serializers import CareerCategorySerializer, ComputerCareerSerializer
 
@@ -25,7 +25,7 @@ class ComputerCareerViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ComputerCareer.objects.all()
     serializer_class = ComputerCareerSerializer
     pagination_class = StandardPagination
-    permission_classes = [AllowAny]  # 允许任何请求
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         queryset = super().get_queryset()

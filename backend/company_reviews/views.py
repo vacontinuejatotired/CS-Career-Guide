@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from .models import Company, CompanyInfo, JobFair
 from .serializers import CompanySerializer, CompanyInfoSerializer, JobFairSerializer
@@ -19,8 +19,8 @@ class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
     pagination_class = StandardPagination
-    authentication_classes = []  # 不需要认证
-    permission_classes = [AllowAny]  # 允许任何请求
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -121,8 +121,8 @@ class CompanyInfoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CompanyInfo.objects.all()
     serializer_class = CompanyInfoSerializer
     pagination_class = StandardPagination
-    authentication_classes = []  # 不需要认证
-    permission_classes = [AllowAny]  # 允许任何请求
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -255,8 +255,8 @@ class JobFairViewSet(viewsets.ModelViewSet):
     queryset = JobFair.objects.all()
     serializer_class = JobFairSerializer
     pagination_class = StandardPagination
-    authentication_classes = []  # 不需要认证
-    permission_classes = [AllowAny]  # 允许任何请求
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         queryset = super().get_queryset()

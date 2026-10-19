@@ -40,13 +40,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api, { authAPI, userAPI } from '@/api'
+import { clearSession, getToken, isPublicPath } from '@/auth/session.js'
 
 const router = useRouter()
 const route = useRoute()
 const user = ref(null)
 
 const isLoggedIn = computed(() => {
-  return !!localStorage.getItem('token')
+  return !isPublicPath(route.path) && !!getToken()
 })
 
 // 从 localStorage 更新用户数据
@@ -111,11 +112,8 @@ const logout = async () => {
   } catch (err) {
     console.error('登出失败:', err)
   } finally {
-    // 清除所有用户相关数据，包括自我介绍
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    localStorage.removeItem('selfIntroduction')
-    router.push('/login')
+    clearSession()
+    router.replace('/login')
   }
 }
 </script>

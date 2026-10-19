@@ -641,7 +641,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { jobFairAPI, computerCareerAPI } from '@/api'
+import { jobFairAPI, computerCareerAPI, apiFetch } from '@/api'
 import api from '@/api'
 
 const router = useRouter()
@@ -905,15 +905,14 @@ const loadJobsByCity = async (location) => {
       console.log(`[Geolocation Debug] 正在查询 ${level.label}: ${level.value}`)
       
       // 使用后端API的address参数进行查询
-      const apiUrl = `/api/career-evaluation/computer-careers/?address=${encodeURIComponent(level.value)}`
-      console.log(`[Geolocation Debug] API地址: ${apiUrl}`)
+      const searchUrl = `/career-evaluation/computer-careers/?address=${encodeURIComponent(level.value)}`
+      console.log(`[Geolocation Debug] API地址: ${searchUrl}`)
       
       try {
-        const searchResponse = await fetch(apiUrl, {
+        const searchResponse = await apiFetch(searchUrl, {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
-            ...(localStorage.getItem('token') ? { 'Authorization': `Token ${localStorage.getItem('token')}` } : {})
+            'Content-Type': 'application/json'
           }
         })
         

@@ -356,7 +356,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import api, { aiAPI, userAPI } from '@/api'
+import api, { aiAPI, userAPI, apiFetch } from '@/api'
 
 const router = useRouter()
 
@@ -1295,11 +1295,10 @@ async function saveReviewRecord(reviewContent) {
     const token = localStorage.getItem('token')
     console.log('[REVIEW] 保存复盘记录 - session_id:', sessionId.value, 'token:', token ? '存在' : '不存在')
     
-    const response = await fetch('/api/ai/interview/save_review/', {
+    const response = await apiFetch('/ai/interview/save_review/', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Token ${token}` : ''
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(data)
     })
