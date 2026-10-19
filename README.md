@@ -72,14 +72,19 @@
 
 ### 环境要求
 
-- Python >= 3.8
-- Node.js >= 18
+- Python 3.11（当前 requirements.txt 中 NumPy / Pandas 要求至少 3.11）
+- Node.js >= 22.12（当前 Vite 版本的要求）
 - MySQL >= 8.0
 
 ### 后端启动
 
 ```bash
-pip install . 
+python -m venv .venv
+# Linux/macOS: source .venv/bin/activate
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+cp backend/.env.example backend/.env
+# 编辑 backend/.env，填入 SECRET_KEY、数据库密码和所需 AI 服务配置。
 cd backend
 python manage.py migrate
 python manage.py runserver 0.0.0.0:8000
@@ -89,23 +94,22 @@ python manage.py runserver 0.0.0.0:8000
 
 ```bash
 cd frontend
-npm install
+cp .env.example .env
+npm ci
 npm run dev
 ```
 
 ### 配置说明
 
-1. 创建 `backend/.env` 文件：
+复制 `backend/.env.example` 和 `frontend/.env.example` 为各自目录下的 `.env`，然后填写真实配置；真实 `.env` 文件已被 Git 忽略，示例文件可以提交。
 
-```env
-DEBUG=True
-SECRET_KEY=your-secret-key
-DATABASE_NAME=cs_career_guide
-DATABASE_USER=root
-DATABASE_PASSWORD=your-password
-DATABASE_HOST=localhost
-DATABASE_PORT=3306
-```
+- 后端读取 `backend/.env`，系统环境变量优先。`SECRET_KEY`、`DATABASE_NAME`、`DATABASE_USER` 和 `DATABASE_PASSWORD` 缺失时会明确报错。
+- 所有聊天代理统一读取 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。语音接口和模型、本地向量模型、数据目录、并发数均可单独配置。
+- 前端读取 `VITE_API_BASE_URL`、`VITE_COMPANY_API_BASE_URL` 和模型资源地址；流式聊天同样使用配置后的 API 地址。
+- **`VITE_*` 会进入浏览器代码，不得放密钥。修改前端配置后需重新构建；修改后端配置后需重启服务。**
+- 云服务器上使用 `DEBUG=False`、明确的 `ALLOWED_HOSTS`，通过 Nginx 提供前端构建产物并反向代理 API；开发用的 Vite 代理不会随构建产物部署。
+
+完整变量说明、兼容规则和部署示例见 [环境变量配置](docs/environment.md)。
 
 ## 🌟 技术亮点
 
