@@ -47,6 +47,9 @@ dist/
 *.swp
 *.swo
 
+# Local tooling artifacts
+.acl-recovery/
+
 # Environment variables
 .env*
 !.env.example
