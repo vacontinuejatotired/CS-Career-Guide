@@ -14,7 +14,7 @@ crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-c
 标签规则：
 
 - `latest`：演示环境跟踪标签，Watchtower 默认关注它。
-- `sha-<7位提交>`：不可变回滚标签。
+- `sha-<7位提交>`：源码追踪标签，可能被覆盖；精确回滚使用发布记录中的 `repository@sha256:<digest>`。
 - 手动触发时可额外指定一个 tag。
 
 ## 后端镜像

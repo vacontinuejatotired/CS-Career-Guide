@@ -109,13 +109,14 @@ mysql-data   # 只有启用 MySQL profile 时使用
 SQLite 建议在应用停止时冷备份：
 
 ```bash
+docker compose stop watchtower
 docker compose stop backend
 docker run --rm -v <PROJECT>_sqlite-data:/data -v "$PWD/backups:/backup" alpine \
   sh -c 'cp /data/cs-career-guide.sqlite3 /backup/cs-career-guide.sqlite3'
 docker compose start backend
 ```
 
-先用 `docker volume ls` 确认真实卷名，不要直接使用占位符。媒体卷和静态卷有用户内容时也要分别备份。
+先用 `docker volume ls` 确认真实卷名，不要直接使用占位符。媒体卷和静态卷有用户内容时也要分别备份；后端恢复并检查通过后，才恢复 Watchtower。
 
 ## 以后切换 MySQL
 
@@ -139,6 +140,8 @@ MYSQL_ROOT_PASSWORD=<服务器密钥>
 
 只加 `--profile mysql` 不会让 Django 自动改用 MySQL。不要自动迁移现有 SQLite 数据；迁移必须单独设计、备份和验证。
 
+Compose 会把 `DATABASE_NAME`、`DATABASE_USER`、`DATABASE_PASSWORD`、`DATABASE_HOST`、`DATABASE_PORT` 传入 backend；空密码不会破坏默认 SQLite profile，但 MySQL profile 必须提供独立密码。CI 只验证配置接线，不代表已有 MySQL 数据或真实迁移已经验收。
+
 ## 更新与回滚
 
 Watchtower 负责演示环境更新，详见 [Watchtower 与回滚](watchtower-rollback.md)。手动拉取：
@@ -149,7 +152,7 @@ docker compose pull
 docker compose up -d --no-build
 ```
 
-按 SHA 回滚时，把 `BACKEND_TAG` 和/或 `FRONTEND_TAG` 改成已验证的不可变 tag，先暂停 Watchtower，再重建受影响服务，避免它自动把容器拉回 `latest`。
+精确回滚使用一次完整发布记录中的两份 digest，并加载 `docker-compose.digest.yml`；SHA tag 仅用于源码追踪，不保证不可变。恢复 latest 时必须先拉取并重建应用容器，再恢复 Watchtower，详见 [Watchtower 与回滚](watchtower-rollback.md)。
 
 ## 当前限制
 

@@ -1,6 +1,6 @@
 # Watchtower 与回滚
 
-> 状态：草案。Compose 定义已在工作区，但尚未在服务器实际启动 Watchtower。
+> 状态：演示配置与操作说明。尚未在服务器启动或验证 Watchtower，也没有执行真实镜像回滚。
 
 ## 适用范围
 
@@ -39,9 +39,25 @@ master push
 
 Compose 给 Watchtower 使用 `network_mode: bridge`，允许它访问 ACR Registry API 检查镜像。`network_mode: none` 会阻断这类出站请求。Watchtower 不映射宿主机端口，通过 Docker socket 管理带标签的容器，通过只读凭据目录完成仓库鉴权。
 
-## 回滚到不可变 SHA
+## 按 digest 精确回滚
 
-1. 从 Actions Summary 或 ACR 找到已验证的 `sha-<7位SHA>`。
+从一次成功发布的 `published-images.json` 获取两个 `images.<组件>.reference`，确认 `complete` 为 `true`，并核对完整源码提交。将这两个 `repository@sha256:<64位digest>` 引用分别填入服务器部署 `.env` 的 `BACKEND_IMAGE`、`FRONTEND_IMAGE`。
+
+使用同一份发布记录中的一对镜像，不自行拼接不同版本。先暂停 Watchtower，确认数据库备份与目标代码的 schema 兼容后再操作：
+
+```bash
+cd deploy
+docker compose stop watchtower
+docker compose -f docker-compose.yml -f docker-compose.digest.yml pull backend frontend
+docker compose -f docker-compose.yml -f docker-compose.digest.yml up -d --no-build backend frontend
+docker compose -f docker-compose.yml -f docker-compose.digest.yml ps
+```
+
+保持 Watchtower 停止，验证登录、受保护 API、静态/媒体资源和已有数据。该流程不包含数据卷删除或数据库降级；本项目尚未在真实服务器演练。
+
+## 按源码标签选择版本
+
+1. 从成功发布记录或 ACR 找到已验证的 `sha-<7位SHA>`；这种 tag 可以被重新推送，不能代替 digest 固定。
 2. 在服务器 `.env` 设置 `BACKEND_TAG` 和/或 `FRONTEND_TAG`。
 3. 重建前先停止 Watchtower，否则它可能再把容器切回 `latest`。
 
@@ -53,13 +69,21 @@ docker compose up -d --no-build backend frontend
 docker compose ps
 ```
 
-回滚验证完成后，在合适时机把 tag 恢复成 `latest` 并重新启动 Watchtower：
+## 恢复 latest 自动更新
+
+在服务器部署 `.env` 中把 `BACKEND_TAG`、`FRONTEND_TAG` 都恢复为 `latest`。使用基础 Compose 文件，停止加载 digest override；先拉取并重建应用容器、检查运行状态，再启动 Watchtower：
 
 ```bash
-docker compose start watchtower
+cd deploy
+docker compose stop watchtower
+docker compose -f docker-compose.yml pull backend frontend
+docker compose -f docker-compose.yml up -d --no-build backend frontend
+docker compose -f docker-compose.yml ps
+# 完成业务验证后，再执行：
+docker compose -f docker-compose.yml start watchtower
 ```
 
-不要只通过改镜像 tag 回滚数据库 schema。SQLite/MySQL schema 变更需要单独制定恢复方案。
+只编辑 `.env` 或启动 Watchtower 不会改变现有应用容器的镜像引用，必须重建。不要只通过改镜像 tag/digest 回滚数据库 schema；SQLite/MySQL schema 变更需要单独制定恢复方案。
 
 ## 查看状态与日志
 
@@ -71,12 +95,14 @@ docker compose logs --tail=200 backend
 docker compose logs --tail=200 frontend
 ```
 
-确认实际运行的镜像 digest：
+确认运行容器的镜像引用和本地镜像 ID（镜像 ID 不是 Registry manifest digest）：
 
 ```bash
 docker inspect cs-career-guide-backend --format '{{.Config.Image}} {{.Image}}'
 docker inspect cs-career-guide-frontend --format '{{.Config.Image}} {{.Image}}'
 ```
+
+Registry manifest digest 以成功发布记录中的 `digest`/`reference` 为准；也可检查对应镜像的 RepoDigests。不要把容器 `.Image` 字段当作发布 digest。
 
 ## 停止自动更新
 

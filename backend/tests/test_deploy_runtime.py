@@ -43,6 +43,18 @@ class SqliteSettingsTests(unittest.TestCase):
             self.assertTrue((root / 'static').is_dir())
             self.assertTrue((root / 'media').is_dir())
 
+    def test_blank_optional_mysql_credentials_do_not_break_sqlite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = self.load(
+                DATABASE_NAME='', DATABASE_USER='', DATABASE_PASSWORD='',
+                DB_PATH=str(root / 'demo.sqlite3'),
+                STATIC_ROOT=str(root / 'static'), MEDIA_ROOT=str(root / 'media'),
+                LANCEDB_PATH=str(root / 'lancedb'),
+            )
+            self.assertEqual(config['DATABASES']['default']['ENGINE'], 'django.db.backends.sqlite3')
+            self.assertEqual(config['DATABASES']['default']['NAME'], str(root / 'demo.sqlite3'))
+
     def test_sqlite_settings_only_pass_supported_connection_options(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

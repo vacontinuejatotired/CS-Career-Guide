@@ -12,9 +12,9 @@ from django.db.backends.signals import connection_created
 # The shared MySQL settings module is imported for common Django configuration.
 # Supply inert values only while loading it; DATABASES is replaced with SQLite
 # immediately below, so the demo profile never needs MySQL credentials.
-os.environ.setdefault('DATABASE_NAME', 'sqlite-profile-unused')
-os.environ.setdefault('DATABASE_USER', 'sqlite-profile-unused')
-os.environ.setdefault('DATABASE_PASSWORD', 'sqlite-profile-unused')
+for _database_variable in ('DATABASE_NAME', 'DATABASE_USER', 'DATABASE_PASSWORD'):
+    if not os.environ.get(_database_variable):
+        os.environ[_database_variable] = 'sqlite-profile-unused'
 
 from .settings import *  # noqa: F401,F403
 

@@ -11,6 +11,11 @@ services:
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
       DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-cs_career_guide.settings_sqlite}
+      DATABASE_NAME: ${DATABASE_NAME:-cs_career_guide}
+      DATABASE_USER: ${DATABASE_USER:-cs_career_guide}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-}
+      DATABASE_HOST: ${DATABASE_HOST:-mysql}
+      DATABASE_PORT: ${DATABASE_PORT:-3306}
       DB_PATH: ${DB_PATH:-/data/cs-career-guide.sqlite3}
       STATIC_ROOT: ${STATIC_ROOT:-/data/staticfiles}
       MEDIA_ROOT: ${MEDIA_ROOT:-/data/media}
