@@ -11,9 +11,21 @@ from typing import List, Dict, Any, Optional
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor
 
-import lancedb
-import pyarrow as pa
-import numpy as np
+try:
+    import lancedb
+    import pyarrow as pa
+    import numpy as np
+    VECTOR_IMPORT_ERROR = None
+except ImportError as exc:
+    lancedb = None
+    pa = None
+    np = None
+    VECTOR_IMPORT_ERROR = exc
+    import logging
+    logging.getLogger(__name__).warning(
+        'LanceDB/PyArrow/NumPy unavailable; semantic search will return empty results: %s', exc
+    )
+
 from django.conf import settings
 from django.core.cache import cache
 from cs_career_guide.vector_store import (
@@ -37,7 +49,10 @@ class ARAGCareerSearch:
         """
         if db_path is None:
             db_path = str(settings.LANCEDB_PATH)
-        
+
+        if lancedb is None:
+            raise ImportError(f'LanceDB dependencies are unavailable: {VECTOR_IMPORT_ERROR}')
+
         self.db_path = db_path
         self.db = lancedb.connect(db_path)
         self.table_name = CAREER_TABLE_NAME

@@ -34,23 +34,24 @@ from ai_integration.arag_integration import ARAGCareerSearch
 from django.conf import settings
 
 # ==================== 连接池配置 ====================
-# 从 Django settings 中读取数据库配置
+# Normalize the default database so SQLite demo mode never requires MySQL keys.
 _db_settings = settings.DATABASES['default']
-_db_user = _db_settings['USER']
-_db_password = _db_settings['PASSWORD']
-_db_host = _db_settings['HOST']
-_db_port = _db_settings.get('PORT', '3306')
-_db_name = _db_settings['NAME']
+_db_engine = str(_db_settings.get('ENGINE', '')).lower()
+_db_is_mysql = _db_engine.endswith('.mysql')
+_db_user = _db_settings.get('USER', '')
+_db_password = _db_settings.get('PASSWORD', '')
+_db_host = _db_settings.get('HOST', '')
+_db_port = _db_settings.get('PORT') or '3306'
+_db_name = _db_settings.get('NAME', '')
 _db_charset = _db_settings.get('OPTIONS', {}).get('charset', 'utf8mb4')
-
-# 连接池参数配置
 POOL_CONFIG = {
-    'max_connections': settings.DATABASE_MAX_OVERFLOW,  # 连接池溢出连接上限
-    'min_connections': settings.DATABASE_POOL_SIZE,    # 连接池大小
-    'idle_timeout': 300,         # 空闲连接超时时间（秒）
-    'pool_timeout': settings.DATABASE_POOL_TIMEOUT,
-    'recycle': settings.DATABASE_POOL_RECYCLE,
+    'max_connections': getattr(settings, 'DATABASE_MAX_OVERFLOW', 20),
+    'min_connections': getattr(settings, 'DATABASE_POOL_SIZE', 5),
+    'idle_timeout': 300,
+    'pool_timeout': getattr(settings, 'DATABASE_POOL_TIMEOUT', 30),
+    'recycle': getattr(settings, 'DATABASE_POOL_RECYCLE', 3600),
 }
+
 
 # ==================== 全局连接池实例 ====================
 # 整个应用只会初始化一次，多个工具函数共享
@@ -62,7 +63,7 @@ def get_connection_pool():
     global _connection_pool
     if _connection_pool is None:
         with _pool_lock:
-            if _connection_pool is None and SQLALCHEMY_AVAILABLE:
+            if _connection_pool is None and SQLALCHEMY_AVAILABLE and globals().get("_db_is_mysql", True):
                 try:
                     # 创建 MySQL 连接字符串
                     db_url = URL.create(
@@ -74,7 +75,6 @@ def get_connection_pool():
                         database=_db_name,
                         query={'charset': _db_charset},
                     )
-                    
                     # 创建连接池
                     _connection_pool = create_engine(
                         db_url,
@@ -151,7 +151,7 @@ def keyword_search(
     """
     try:
         # 优先使用连接池进行 MySQL 全文索引搜索
-        if SQLALCHEMY_AVAILABLE and get_connection_pool():
+        if SQLALCHEMY_AVAILABLE and globals().get("_db_is_mysql", True) and get_connection_pool():
             return _keyword_search_with_pool(query, threshold, top_k)
         else:
             # 回退到 ARAG 搜索器

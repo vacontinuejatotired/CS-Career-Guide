@@ -111,6 +111,18 @@ npm run dev
 
 完整变量说明、兼容规则和部署示例见 [环境变量配置](docs/environment.md)。
 
+## 🚀 部署与运维
+
+演示部署仍在实施中。基线提交 `3480b91` 已通过 [GitHub Actions 构建与容器冒烟](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39540701547)；ACR 镜像发布、服务器部署和 Watchtower 自动更新尚未验证。请先阅读：
+
+- [部署与运维总览](docs/deployment.md)
+- [CI/CD 流水线](docs/ci-cd.md)
+- [Docker 镜像](docs/docker-images.md)
+- [服务器拉取部署](docs/server-pull.md)
+- [Watchtower 与回滚](docs/watchtower-rollback.md)
+
+真实密钥、ACR 密码、数据库密码和服务器 `.env` 不得提交到仓库。
+
 ## 🌟 技术亮点
 
 - **多智能体协作**: 基于LangGraph构建的面试代理、职业代理、推荐代理等专业智能体

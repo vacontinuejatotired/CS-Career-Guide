@@ -23,8 +23,19 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 import logging
-import lancedb
-import pyarrow as pa
+
+try:
+    import lancedb
+    import pyarrow as pa
+    VECTOR_IMPORT_ERROR = None
+except ImportError as exc:
+    lancedb = None
+    pa = None
+    VECTOR_IMPORT_ERROR = exc
+    logging.getLogger(__name__).warning(
+        'LanceDB/PyArrow unavailable; semantic vector storage is disabled: %s', exc
+    )
+
 import websockets
 
 # LangGraph integration
@@ -86,6 +97,8 @@ def _set_cached_result(query: str, result):
 # LanceDB integration
 def init_lancedb():
     """初始化LanceDB数据库"""
+    if lancedb is None:
+        raise RuntimeError('LanceDB is not installed in this runtime')
     # 创建LanceDB数据库目录
     db_path = str(settings.LANCEDB_PATH)
     os.makedirs(db_path, exist_ok=True)
