@@ -370,11 +370,33 @@ jobs:
           backend="frontend-smoke-backend-${GITHUB_RUN_ID}"
           container="frontend-smoke-${GITHUB_RUN_ID}"
           docker network create "$network" >/dev/null
+          cleanup() {
+            result=$?
+            if [ "$result" -ne 0 ]; then
+              docker logs "$backend" 2>&1 || true
+              docker logs "$container" 2>&1 || true
+            fi
+            docker rm -f "$container" "$backend" >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
           docker run -d --name "$backend" --network "$network" --network-alias backend \
             python:3.11-alpine python -m http.server 8000 >/dev/null
+          # Nginx can serve the SPA before its placeholder upstream is ready.
+          backend_ready=false
+          for i in $(seq 1 30); do
+            if docker exec "$backend" python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=2).close()" >/dev/null 2>&1; then
+              backend_ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$backend_ready" != true ]; then
+            echo 'Frontend smoke placeholder backend did not become ready' >&2
+            exit 1
+          fi
           docker run -d --name "$container" --network "$network" -p 18080:80 \
             "$IMAGE:sha-${GITHUB_SHA::7}" >/dev/null
-          trap 'docker rm -f "$container" "$backend" >/dev/null 2>&1 || true; docker network rm "$network" >/dev/null 2>&1 || true' EXIT
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:18080/ >/dev/null 2>&1; then break; fi
             status="$(docker inspect --format '{{.State.Status}}' "$container")"
@@ -393,8 +415,17 @@ jobs:
           fi
           curl -fsS http://127.0.0.1:18080/ | grep -q '<div id="app"></div>'
           curl -fsS http://127.0.0.1:18080/login | grep -q '<div id="app"></div>'
-          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/)" = 404
-          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/company-api)" = 503
+          expect_status() {
+            path="$1"
+            expected="$2"
+            actual="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:18080$path")"
+            if [ "$actual" != "$expected" ]; then
+              echo "$path: expected HTTP $expected, got $actual" >&2
+              return 1
+            fi
+          }
+          expect_status /api/ 404
+          expect_status /company-api 503
           curl -fsS http://127.0.0.1:18080/models/vad/silero_vad_legacy.onnx -o /dev/null
           curl -fsS http://127.0.0.1:18080/models/d51675667acfc8a42b8e40d4c3e9799a.glb -o /dev/null
       - name: Export tested frontend image
