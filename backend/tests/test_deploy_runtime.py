@@ -50,6 +50,7 @@ class SqliteSettingsTests(unittest.TestCase):
                 DB_PATH=str(root / 'demo.sqlite3'),
                 STATIC_ROOT=str(root / 'static'),
                 MEDIA_ROOT=str(root / 'media'),
+                LANCEDB_PATH=str(root / 'lancedb'),
             )
             self.assertEqual(config['DATABASES']['default']['OPTIONS'], {'timeout': 20})
 

@@ -48,6 +48,7 @@ CACHES = {
 
 STATIC_ROOT = Path(os.getenv('STATIC_ROOT', '/data/staticfiles'))
 MEDIA_ROOT = Path(os.getenv('MEDIA_ROOT', '/data/media'))
+LANCEDB_PATH = Path(os.getenv('LANCEDB_PATH', '/data/lancedb'))
 STATIC_ROOT.mkdir(parents=True, exist_ok=True)
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
 

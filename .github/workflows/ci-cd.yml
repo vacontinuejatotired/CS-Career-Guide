@@ -223,6 +223,7 @@ jobs:
             -e DB_PATH=/tmp/cs-career-guide.sqlite3 \
             -e STATIC_ROOT=/tmp/staticfiles \
             -e MEDIA_ROOT=/tmp/media \
+            -e LANCEDB_PATH=/tmp/lancedb \
             "$IMAGE:sha-${GITHUB_SHA::7}"
           trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
           for i in $(seq 1 90); do
