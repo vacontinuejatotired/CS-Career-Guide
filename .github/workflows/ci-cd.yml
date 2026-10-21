@@ -302,9 +302,21 @@ jobs:
           docker run -d --name "$container" -p 18080:80 "$IMAGE:sha-${GITHUB_SHA::7}"
           trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:18080/ >/dev/null; then break; fi
+            if curl -fsS http://127.0.0.1:18080/ >/dev/null 2>&1; then break; fi
+            status="$(docker inspect --format '{{.State.Status}}' "$container")"
+            if [ "$status" = "exited" ]; then
+              docker inspect "$container" --format '{{json .State}}'
+              docker logs "$container"
+              exit 1
+            fi
             sleep 1
           done
+          if ! curl -fsS http://127.0.0.1:18080/ >/dev/null 2>&1; then
+            docker inspect "$container" --format '{{json .State}}'
+            docker logs "$container"
+            echo 'Frontend container did not start serving HTTP' >&2
+            exit 1
+          fi
           curl -fsS http://127.0.0.1:18080/ | grep -q '<div id="app"></div>'
           curl -fsS http://127.0.0.1:18080/login | grep -q '<div id="app"></div>'
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/)" = 502
