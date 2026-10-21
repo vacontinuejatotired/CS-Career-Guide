@@ -15,9 +15,6 @@ class SqliteSettingsTests(unittest.TestCase):
     def load(self, **overrides):
         values = {
             'SECRET_KEY': 'deploy-test-only-key',
-            'DATABASE_NAME': 'unused',
-            'DATABASE_USER': 'unused',
-            'DATABASE_PASSWORD': 'unused',
             **overrides,
         }
         with patch.dict(os.environ, values, clear=True), patch('dotenv.load_dotenv'):
