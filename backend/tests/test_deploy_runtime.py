@@ -61,7 +61,15 @@ class DeployFileTests(unittest.TestCase):
         self.assertIn('cs-career-guide-backend', text)
         self.assertIn('cs-career-guide-frontend', text)
         self.assertIn('profiles: ["mysql"]', text)
-        self.assertIn('network_mode: none', text)
+
+    def test_watchtower_can_check_registry_with_mounted_credentials(self):
+        text = (BACKEND_DIR.parent / 'deploy' / 'docker-compose.yml').read_text(encoding='utf-8')
+        watchtower = text.split('\n  watchtower:\n', 1)[1].split('\n  mysql:\n', 1)[0]
+        self.assertIn('network_mode: bridge', watchtower)
+        self.assertIn('DOCKER_CONFIG: /config', watchtower)
+        self.assertIn(':/config:ro', watchtower)
+        self.assertIn('--interval 30 --label-enable', watchtower)
+        self.assertNotIn('ports:', watchtower)
 
     def test_image_excludes_large_optional_dependencies(self):
         runtime = (BACKEND_DIR.parent / 'requirements-runtime.txt').read_text(encoding='utf-8')

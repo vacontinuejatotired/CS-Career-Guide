@@ -1,15 +1,15 @@
 # CI/CD 流水线
 
-> 状态：草案。工作流文件已在工作区，但尚未提交、推送，也尚未在 GitHub Actions 实际运行。
+> 状态：演示部署实施中。基线提交 `3480b91` 已于 2026-10-21 通过 [Actions 39540701547](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39540701547)：前后端测试、双镜像构建和容器冒烟通过，两个镜像均为 `push: false`。ACR 发布和服务器部署尚未验证。
 
 ## 触发规则
 
 | 事件 | 目标分支 | 测试 | 构建镜像 | 推送 ACR |
 | --- | --- | --- | --- | --- |
-| PR 到 `master` | 任意分支 | 是 | 是，仅构建不推送 | 否 |
+| PR 到 `master` | 任意分支 | 是 | 有代码变更时，仅构建不推送 | 否 |
 | push 到 `master`，有代码变更 | `master` | 是 | 是 | 是 |
 | push 到 `master`，只有 README/docs | `master` | 是 | 否 | 否 |
-| push 到其他分支 | 任意 ref | 是 | 是，仅构建不推送 | 否 |
+| push 到其他分支 | 任意 ref | 是 | 有代码变更时，仅构建不推送 | 否 |
 | `workflow_dispatch` 手动触发 | 任意选择的分支 | 是 | 是 | 仅 `master` |
 
 纯文档判定只匹配 `README.md` 和 `docs/`。`.github/workflows/**`、`deploy/**`、Dockerfile 和 Nginx 配置都属于代码或部署配置，会触发镜像构建。
@@ -24,7 +24,7 @@ changes
 
 - **backend-test**：把 UTF-16 的 `requirements.txt` 转成临时 UTF-8 文件，安装 `default-libmysqlclient-dev`，运行 `tests.test_auth`、`test_env_config.py`、`test_deploy_runtime.py`，并执行隔离 Django check。
 - **frontend-test**：使用 Node 24，依次执行 `npm ci`、鉴权和配置测试、Vite 构建，并检查 `dist/index.html`、GLB 和 VAD ONNX 是否存在。
-- **backend-image / frontend-image**：并行构建 `linux/amd64` 镜像。PR 和非 master 分支（包括从非 master 手动触发）只做 build-only 冒烟；后端容器实际执行静态收集、SQLite 迁移并等待 Gunicorn 健康，前端检查首页、history 路由、GLB/VAD 资源和未配置企业服务时的 503。只有 master 才登录 ACR 并推送。
+- **backend-image / frontend-image**：并行构建 `linux/amd64` 镜像。后端构建前使用虚构配置校验 Compose 默认 SQLite、可选 MySQL 及 Watchtower 的出站网络和凭据目录。PR 和非 master 分支（包括从非 master 手动触发）只做 build-only 冒烟；后端容器实际执行静态收集、SQLite 迁移并等待 Gunicorn 端口健康，前端使用临时后端占位容器检查首页、history 路由、GLB/VAD 资源和未配置企业服务时的 503。只有 master 才登录 ACR 并推送。
 - **release-summary**：只有两个镜像 Job 都成功时才通过。
 
 ## 变量与 Secrets
@@ -53,22 +53,25 @@ ALIYUN_ACR_PASSWORD
 - 镜像构建使用 `type=gha` 缓存，并关闭 provenance/SBOM，避免个人版 ACR 拒绝不支持的 manifest 附件。
 - 手动触发可以附加一个合法 tag；标准标签仍是 `latest` 和 `sha-<7位SHA>`。
 
-## 首次 PR 验证
+## 功能分支验证与边界
+
+本轮只在 `vacontinuejatotired/CS-Career-Guide` 的 `codex/ci-cd-images` 分支开发；不创建上游 PR、不合并、不发布镜像，也不连接服务器。
 
 ```bash
-git switch -c codex/ci-cd-images
+git switch codex/ci-cd-images
 # 完成实现与本地检查后
 git push -u origin codex/ci-cd-images
-gh pr create --base master --head codex/ci-cd-images
-gh run list --workflow CI/CD
+gh run list --repo vacontinuejatotired/CS-Career-Guide --branch codex/ci-cd-images --workflow ci-cd.yml
 ```
 
-合并前确认：
+检查结果时确认：
 
 1. 后端和前端测试 Job 都通过。
 2. build-only 镜像可以启动，且没有执行 ACR 登录或推送。
 3. 纯文档改动不会触发镜像 Job。
 4. 失败时可以下载测试日志，日志中没有凭据。
+
+镜像冒烟分别验证两个容器，不等于前后端真实联调、持久卷重建、Watchtower 拉取私有 ACR 或服务器部署通过。
 
 ## 常见失败
 

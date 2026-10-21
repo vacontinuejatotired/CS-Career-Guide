@@ -1,6 +1,6 @@
 # 部署与运维总览
 
-> 状态：实施中。本文描述的目标交付链路；尚未通过 GitHub Actions、ACR 推送或服务器启动验证。
+> 状态：演示部署实施中。基线提交 `3480b91` 已通过 [Actions 构建与容器冒烟](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39540701547)；ACR 推送、服务器启动及 Watchtower 自动更新尚未验证。
 
 ## 发布链路
 
@@ -47,7 +47,8 @@ crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-c
 
 ## 当前状态与边界
 
-- 已加入 workflow、Dockerfile、Nginx、Compose 和 SQLite settings 草案。
-- 当前分支 `codex/ci-cd-images` 尚未提交、推送或创建 PR。
-- 尚未在 GitHub Actions 实测；本地后端检查仍需核对运行时依赖。
+- workflow、Dockerfile、Nginx、Compose 和 SQLite settings 已提交到 fork 的 `codex/ci-cd-images` 分支。
+- 基线 `3480b91` 的前后端测试、双镜像构建和容器冒烟已由 Actions 39540701547 验证，包含容器内 SQLite 首次迁移。
+- 本轮只允许功能分支 build-only，不合并、不发布镜像、不连接服务器或执行部署。
+- 镜像冒烟不覆盖真实前后端联调、持久卷重建、私有 ACR 拉取或 Watchtower 自动更新。
 - 不包含生产数据库迁移、已有媒体迁移、真实 AI 付费调用或公网 HTTPS。

@@ -49,10 +49,13 @@ services:
     container_name: cs-career-guide-watchtower
     restart: unless-stopped
     command: --interval 30 --label-enable --cleanup
-    network_mode: none
+    # Registry checks run inside Watchtower and require outbound networking.
+    network_mode: bridge
+    environment:
+      DOCKER_CONFIG: /config
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${DOCKER_CONFIG_DIR:-${HOME}/.docker}:/config
+      - ${DOCKER_CONFIG_DIR:-${HOME}/.docker}:/config:ro
 
   mysql:
     profiles: ["mysql"]

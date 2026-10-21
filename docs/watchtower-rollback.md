@@ -33,11 +33,11 @@ master push
 ## Watchtower 前置条件
 
 - 挂载 Docker socket：`/var/run/docker.sock`。
-- 服务器本地保存 Docker 登录凭据，并挂载到容器 `/config`。
+- 服务器本地保存 Docker 登录凭据，目录只读挂载到容器 `/config`，通过 `DOCKER_CONFIG=/config` 读取其中的 `config.json`。
 - 启动前已对实际使用的 ACR 地址执行过 `docker login`。
 - 与业务容器处于同一 Compose 项目，并尽量避免不必要的网络暴露。
 
-Compose 给 Watchtower 使用 `network_mode: none`，因为它只需要 Docker socket 和 Docker 凭据，不需要接入应用网络。
+Compose 给 Watchtower 使用 `network_mode: bridge`，允许它访问 ACR Registry API 检查镜像。`network_mode: none` 会阻断这类出站请求。Watchtower 不映射宿主机端口，通过 Docker socket 管理带标签的容器，通过只读凭据目录完成仓库鉴权。
 
 ## 回滚到不可变 SHA
 

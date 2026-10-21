@@ -1,6 +1,6 @@
 # Docker 镜像
 
-> 状态：草案。两个 Dockerfile 尚未在本地或 CI 完成构建验证。
+> 状态：基线提交 `3480b91` 的两个 Dockerfile 已在 [Actions 39540701547](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39540701547) 完成构建和容器冒烟，未推送 ACR；开发机未运行 Docker。服务器部署尚未验证。
 
 ## 镜像地址
 

@@ -158,6 +158,31 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Validate demo Compose configuration
+        working-directory: deploy
+        env:
+          ACR_REGISTRY: crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com
+          ACR_NAMESPACE: tencent-ubutun22
+          SECRET_KEY: ci-compose-only-key
+          DOCKER_CONFIG_DIR: /tmp/ci-docker-config
+        run: |
+          set -euo pipefail
+          docker compose --env-file /dev/null config --format json > /tmp/demo-compose.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          services = json.loads(Path('/tmp/demo-compose.json').read_text())['services']
+          assert services['backend']['environment']['DJANGO_SETTINGS_MODULE'] == 'cs_career_guide.settings_sqlite'
+          watchtower = services['watchtower']
+          assert watchtower['network_mode'] == 'bridge'
+          assert watchtower['environment']['DOCKER_CONFIG'] == '/config'
+          assert not watchtower.get('ports')
+          assert any(mount['target'] == '/config' and mount.get('read_only') for mount in watchtower['volumes'])
+          assert not services['mysql']['environment']['MYSQL_PASSWORD']
+          assert not services['mysql']['environment']['MYSQL_ROOT_PASSWORD']
+          print('Demo Compose validated: SQLite default, optional MySQL, Watchtower registry access and credential path.')
+          PY
       - uses: docker/setup-buildx-action@v3
       - name: Resolve image coordinates
         shell: bash
