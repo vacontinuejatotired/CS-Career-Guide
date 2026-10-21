@@ -48,7 +48,12 @@ class SqliteSettingsTests(unittest.TestCase):
 
     def test_sqlite_settings_only_pass_supported_connection_options(self):
         with tempfile.TemporaryDirectory() as directory:
-            config = self.load(DB_PATH=str(Path(directory) / 'demo.sqlite3'))
+            root = Path(directory)
+            config = self.load(
+                DB_PATH=str(root / 'demo.sqlite3'),
+                STATIC_ROOT=str(root / 'static'),
+                MEDIA_ROOT=str(root / 'media'),
+            )
             self.assertEqual(config['DATABASES']['default']['OPTIONS'], {'timeout': 20})
 
 
