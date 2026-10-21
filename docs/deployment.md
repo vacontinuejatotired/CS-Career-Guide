@@ -50,5 +50,6 @@ crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-c
 - workflow、Dockerfile、Nginx、Compose 和 SQLite settings 已提交到 fork 的 `codex/ci-cd-images` 分支。
 - 基线 `3480b91` 的前后端测试、双镜像构建和容器冒烟已由 Actions 39540701547 验证，包含容器内 SQLite 首次迁移。
 - 本轮只允许功能分支 build-only，不合并、不发布镜像、不连接服务器或执行部署。
-- 镜像冒烟不覆盖真实前后端联调、持久卷重建、私有 ACR 拉取或 Watchtower 自动更新。
+- build-only 工作流新增真实 Django/Nginx 注册登录、资料读写和 SQLite 卷重建校验，使用 runner 临时数据；结果以对应提交的 Actions 为准。
+- CI 不覆盖浏览器交互、私有 ACR 拉取、Watchtower 自动更新或真实服务器部署。
 - 不包含生产数据库迁移、已有媒体迁移、真实 AI 付费调用或公网 HTTPS。

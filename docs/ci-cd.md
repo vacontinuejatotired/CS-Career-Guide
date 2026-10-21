@@ -18,14 +18,28 @@
 
 ```text
 changes
-  |-- backend-test  --> backend-image  --|
-  `-- frontend-test --> frontend-image --+--> release-summary
+  |-- backend-test ---------------------> backend-image --> release-summary
+  `-- frontend-test --> frontend-image ---^
+                           (build-only image artifact)
 ```
 
-- **backend-test**：把 UTF-16 的 `requirements.txt` 转成临时 UTF-8 文件，安装 `default-libmysqlclient-dev`，运行 `tests.test_auth`、`test_env_config.py`、`test_deploy_runtime.py`，并执行隔离 Django check。
+- **backend-test**：把 UTF-16 的 `requirements.txt` 转成临时 UTF-8 文件，安装 `default-libmysqlclient-dev`，运行 `tests.test_auth`、`test_env_config.py`、`test_deploy_runtime.py` 和不启动 Docker 的烟测脚本单元测试，并执行隔离 Django check。
 - **frontend-test**：使用 Node 24，依次执行 `npm ci`、鉴权和配置测试、Vite 构建，并检查 `dist/index.html`、GLB 和 VAD ONNX 是否存在。
-- **backend-image / frontend-image**：并行构建 `linux/amd64` 镜像。后端构建前使用虚构配置校验 Compose 默认 SQLite、可选 MySQL 及 Watchtower 的出站网络和凭据目录。PR 和非 master 分支（包括从非 master 手动触发）只做 build-only 冒烟；后端容器实际执行静态收集、SQLite 迁移并等待 Gunicorn 端口健康，前端使用临时后端占位容器检查首页、history 路由、GLB/VAD 资源和未配置企业服务时的 503。只有 master 才登录 ACR 并推送。
+- **backend-image / frontend-image**：构建 `linux/amd64` 镜像，后端 Job 等待前端镜像通过。后端构建前使用虚构配置校验 Compose 默认 SQLite、可选 MySQL 及 Watchtower 的出站网络和凭据目录。PR 和非 master 分支（包括从非 master 手动触发）只做 build-only；原有单镜像冒烟保留。随后前端 Job 导出已测镜像，后端 Job 复用它执行真实联调和 SQLite 持久化校验。只有 master 才登录 ACR 并推送。
 - **release-summary**：只有两个镜像 Job 都成功时才通过。
+
+## 真实联调与持久化校验
+
+仅在 Actions runner 的 build-only 路径执行 `ci/demo_smoke.py`，不在开发机运行 Docker：
+
+1. 通过短期 Artifact 传递已通过前端冒烟的镜像，后端复用当前 Job 已加载的镜像，不重新构建、不拉取 ACR。
+2. 使用 `deploy/docker-compose.yml` 加 `ci/docker-compose.smoke.yml`，指定唯一 `ci-demo-<run-id>-<attempt>` 项目，只启动真实 Django 和 Nginx。Watchtower 和 MySQL 均不启动。
+3. 使用 `--env-file /dev/null`、虚构密钥和全新命名卷；只监听 runner 的 `127.0.0.1:18080`，关闭嵌入下载和 TTS，不调用 AI 接口。
+4. 从 Nginx 入口检查 Vue 路由、后端收集的静态文件、未授权/无效 Token 的 401，以及注册、登录、资料读写。
+5. 删除并重新创建后端容器，确认容器 ID 变化；使用原 Token 和原密码重新验证相同用户 ID、资料标记，确认 SQLite 卷持久化。
+6. 成功或失败均采集容器日志并清理本次项目的容器、网络和卷；日志不输出测试密码或 Token。
+
+新增检查是否通过，以对应提交的 Actions 结果为准；本地脚本单元测试不能替代容器验证。
 
 ## 变量与 Secrets
 
@@ -49,7 +63,7 @@ ALIYUN_ACR_PASSWORD
 
 - 权限限制为 `contents: read`、`packages: write`。
 - 同一个 ref 使用同一并发组；PR 可以取消旧运行，push 和手动发布不取消。
-- CI 禁止回显 Secrets，禁止上传 `.env`。Artifact 只包含测试日志、前端构建产物和发布摘要。
+- CI 禁止回显 Secrets，禁止上传 `.env`。Artifact 包含测试日志、前端构建产物和 build-only 前端镜像归档；镜像归档保留 1 天，真实联调容器日志保留 7 天，不保存测试密码或 Token。
 - 镜像构建使用 `type=gha` 缓存，并关闭 provenance/SBOM，避免个人版 ACR 拒绝不支持的 manifest 附件。
 - 手动触发可以附加一个合法 tag；标准标签仍是 `latest` 和 `sha-<7位SHA>`。
 
@@ -71,7 +85,7 @@ gh run list --repo vacontinuejatotired/CS-Career-Guide --branch codex/ci-cd-imag
 3. 纯文档改动不会触发镜像 Job。
 4. 失败时可以下载测试日志，日志中没有凭据。
 
-镜像冒烟分别验证两个容器，不等于前后端真实联调、持久卷重建、Watchtower 拉取私有 ACR 或服务器部署通过。
+单镜像冒烟不能替代新增的真实联调与持久化步骤。即使新增步骤通过，也不等于 Watchtower 拉取私有 ACR、真实服务器部署或浏览器交互测试通过。
 
 ## 常见失败
 

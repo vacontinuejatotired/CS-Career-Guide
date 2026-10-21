@@ -104,6 +104,7 @@ jobs:
           set -o pipefail
           python -m unittest discover -s backend/tests -p 'test_env_config.py' -v 2>&1 | tee backend-config.log
           python -m unittest discover -s backend/tests -p 'test_deploy_runtime.py' -v 2>&1 | tee backend-deploy.log
+          python -m unittest discover -s ci -p 'test_*.py' -v 2>&1 | tee backend-smoke-harness.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -153,7 +154,7 @@ jobs:
 
   backend-image:
     name: Backend image
-    needs: [changes, backend-test]
+    needs: [changes, backend-test, frontend-image]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     steps:
@@ -270,6 +271,44 @@ jobs:
           docker logs "$container"
           echo 'Backend container did not become healthy within 180 seconds' >&2
           exit 1
+      - name: Download tested frontend image
+        if: needs.changes.outputs.publish != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-smoke-image-${{ github.run_id }}
+          path: ${{ runner.temp }}/demo-images
+      - name: Test real demo integration and SQLite persistence
+        if: needs.changes.outputs.publish != 'true'
+        timeout-minutes: 10
+        shell: bash
+        env:
+          ACR_REGISTRY: crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com
+          ACR_NAMESPACE: tencent-ubutun22
+          SECRET_KEY: ci-demo-only-key
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          WEB_PORT: 127.0.0.1:18080
+          SMOKE_PROJECT: ci-demo-${{ github.run_id }}-${{ github.run_attempt }}
+          GUNICORN_WORKERS: '1'
+          EMBEDDING_ENABLED: 'False'
+          EMBEDDING_ALLOW_DOWNLOAD: 'False'
+          ENABLE_TTS: 'False'
+          LLM_API_KEY: ''
+          LLM_BASE_URL: ''
+          LLM_MODEL: ''
+        run: |
+          set -euo pipefail
+          docker load --input "$RUNNER_TEMP/demo-images/frontend-image.tar"
+          export SMOKE_BACKEND_IMAGE="$IMAGE:sha-${GITHUB_SHA::7}"
+          export SMOKE_FRONTEND_IMAGE="cs-career-guide-frontend:sha-${GITHUB_SHA::7}"
+          python3 ci/demo_smoke.py --project "$SMOKE_PROJECT" --logs-dir "$RUNNER_TEMP/demo-smoke-logs"
+      - name: Upload demo integration logs
+        if: always() && needs.changes.outputs.publish != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-smoke-logs-${{ github.run_id }}
+          path: ${{ runner.temp }}/demo-smoke-logs
+          if-no-files-found: warn
+          retention-days: 7
 
   frontend-image:
     name: Frontend image
@@ -358,6 +397,19 @@ jobs:
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/company-api)" = 503
           curl -fsS http://127.0.0.1:18080/models/vad/silero_vad_legacy.onnx -o /dev/null
           curl -fsS http://127.0.0.1:18080/models/d51675667acfc8a42b8e40d4c3e9799a.glb -o /dev/null
+      - name: Export tested frontend image
+        if: needs.changes.outputs.publish != 'true'
+        shell: bash
+        run: docker save --output "$RUNNER_TEMP/frontend-image.tar" "$IMAGE:sha-${GITHUB_SHA::7}"
+      - name: Share tested frontend image with integration smoke
+        if: needs.changes.outputs.publish != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-smoke-image-${{ github.run_id }}
+          path: ${{ runner.temp }}/frontend-image.tar
+          compression-level: 1
+          retention-days: 1
+          overwrite: true
 
   release-summary:
     name: Release summary
