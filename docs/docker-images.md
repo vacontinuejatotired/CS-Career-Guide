@@ -2,6 +2,8 @@
 
 > 状态：基线提交 `3480b91` 的两个 Dockerfile 已在 [Actions 39540701547](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39540701547) 完成构建和容器冒烟，未推送 ACR；开发机未运行 Docker。服务器部署尚未验证。
 
+前端镜像的 `/var/www/backend-static`、`/var/www/media` 与后端写入进程统一使用 UID/GID `10001:10001`，避免空共享卷由前端先初始化后，后端无法写入。Nginx 仍只读挂载这些卷；此镜像修改不会自动修正已有卷的属主，已有数据需另行评估。
+
 ## 镜像地址
 
 ```text
