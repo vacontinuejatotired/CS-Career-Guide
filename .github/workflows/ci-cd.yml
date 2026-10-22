@@ -192,9 +192,9 @@ jobs:
               assert service['cap_drop'] == ['ALL']
               assert 'no-new-privileges:true' in service['security_opt']
               assert float(service['cpus']) > 0
-              assert service['mem_limit'] > 0
-              assert service['memswap_limit'] == service['mem_limit']
-              assert service['pids_limit'] > 0
+              assert int(service['mem_limit']) > 0
+              assert int(service['memswap_limit']) == int(service['mem_limit'])
+              assert int(service['pids_limit']) > 0
               assert service['logging']['driver'] == 'local'
               assert service['logging']['options'] == {'max-size': '5m', 'max-file': '3'}
           assert services['backend']['environment']['GUNICORN_WORKERS'] == '1'

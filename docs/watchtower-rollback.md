@@ -57,10 +57,12 @@ Compose 给 Watchtower 使用 `network_mode: bridge`，允许它访问 ACR Regis
 
 使用同一份发布记录中的一对镜像，不自行拼接不同版本。先暂停 Watchtower，确认数据库备份与目标代码的 schema 兼容后再操作：
 
+当前防护配置要求前端支持非 root 用户与容器端口 `8080`。旧 `c1d7b6a` 前端仍使用 `80`，不能直接套用以下新 Compose 回滚；跨部署配置版本需要单独评估，不能为恢复旧镜像自动放宽宿主机限制。
+
 ```bash
 cd deploy
 docker compose stop watchtower
-docker compose -f docker-compose.yml -f docker-compose.digest.yml pull backend frontend
+docker --config /etc/cs-career-guide/acr compose -f docker-compose.yml -f docker-compose.digest.yml pull backend frontend
 docker compose -f docker-compose.yml -f docker-compose.digest.yml up -d --no-build backend frontend
 docker compose -f docker-compose.yml -f docker-compose.digest.yml ps
 ```
@@ -76,7 +78,7 @@ docker compose -f docker-compose.yml -f docker-compose.digest.yml ps
 ```bash
 cd deploy
 docker compose stop watchtower
-docker compose pull backend frontend
+docker --config /etc/cs-career-guide/acr compose pull backend frontend
 docker compose up -d --no-build backend frontend
 docker compose ps
 ```
@@ -88,7 +90,7 @@ docker compose ps
 ```bash
 cd deploy
 docker compose stop watchtower
-docker compose -f docker-compose.yml pull backend frontend
+docker --config /etc/cs-career-guide/acr compose -f docker-compose.yml pull backend frontend
 docker compose -f docker-compose.yml up -d --no-build backend frontend
 docker compose -f docker-compose.yml ps
 # 完成业务验证后，再执行：
