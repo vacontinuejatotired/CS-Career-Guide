@@ -11,6 +11,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
+from host_protection import verify_sandbox
+
 
 class DemoClient:
     def __init__(self, base_url):
@@ -77,6 +79,21 @@ def run_demo(project, base_url, logs_dir):
     logs_dir.mkdir(parents=True, exist_ok=True)
     try:
         compose('up', '--detach', '--no-build', '--pull', 'never', 'backend', 'frontend')
+        before = None
+        for service in ('backend', 'frontend'):
+            container = compose('ps', '-q', service).stdout.strip()
+            if not container:
+                raise RuntimeError(f'{service} container ID is missing for sandbox verification.')
+            # Deliberately exclude Config.Env and all application credentials.
+            template = '{"user":{{json .Config.User}},"host":{{json .HostConfig}},"mounts":{{json .Mounts}}}'
+            inspected = subprocess.run(['docker', 'inspect', '--format', template, container],
+                                       text=True, capture_output=True, check=False)
+            if inspected.returncode:
+                raise RuntimeError(f'{service} sandbox inspection failed.')
+            verify_sandbox(service, json.loads(inspected.stdout))
+            if service == 'backend':
+                before = container
+        print('Running sandbox verified: non-root users, read-only roots, dropped capabilities, bounded CPU/memory/PIDs/logs and no host bind mounts.', flush=True)
         client.wait_until_ready()
         for path in ('/', '/login', '/register'):
             if b'<div id="app"></div>' not in client.request(path, as_json=False):
@@ -103,9 +120,6 @@ def run_demo(project, base_url, logs_dir):
         verify_profile(client.request('/api/users/profile/', token=token), user_id, username, marker)
         print('Real Nginx/Django integration passed: SPA routes, shared static files, auth rejection, registration, login and profile update.', flush=True)
 
-        before = compose('ps', '-q', 'backend').stdout.strip()
-        if not before:
-            raise RuntimeError('Backend container ID was missing before recreation.')
         compose('stop', 'backend')
         compose('rm', '--force', 'backend')
         compose('up', '--detach', '--no-build', '--pull', 'never', 'backend')

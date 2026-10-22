@@ -2,6 +2,8 @@
 
 核对日期：2026-10-22（Asia/Shanghai）。本页依据当前 Git、fork 的 GitHub Actions、PR 和发布 Artifact 核对，区分代码验证、镜像发布与服务器部署。
 
+后续功能分支改动改为保护宿主机优先：默认关闭 Watchtower、限制容器权限和资源、仅绑定回环地址，详见 [宿主机保护边界](host-protection.md)。以下运行和发布表属于收紧配置之前的历史基线，不代表新配置已部署或新镜像已发布。
+
 ## 当前代码与分支
 
 - 仓库：`vacontinuejatotired/CS-Career-Guide`；只在此 fork 开发，不向 `ccccczhang/CS-Career-Guide` 提 PR。
@@ -48,7 +50,7 @@ master 运行的后端日志明确记录：
 
 ## 后续执行边界
 
-2026-10-22 的接手工作仅同步上述验收状态与发布记录。文档改动只提交并推送到 `origin/codex/ci-cd-images`；纯 README/docs 改动预期只运行测试，镜像及 publisher 均跳过。新运行只验证本次文档提交，不替代上述镜像证据。
+2026-10-22 较早一轮接手同步了上述验收状态与发布记录，文档提交 `3289bec` 的 Actions 39706415076 已通过，镜像及 publisher 按纯文档规则跳过。后续按保护宿主机优先修改 Compose、前端镜像和 CI 检查，需要新的完整 build-only 验证；仍只推送 `origin/codex/ci-cd-images`，不合并或发布。历史镜像证据不能替代新配置的验证。
 
 后续接手仍先查 Git 与最新 Actions，避免依据本页快照重复修复。默认 MySQL settings 保持不变，SQLite 通过独立的 `settings_sqlite` 模块启用；Docker 构建和容器验证只允许在 Actions runner 执行。
 

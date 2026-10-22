@@ -40,6 +40,8 @@ backend-test ---------------------------+--> backend-image + 真实联调 (归�
 5. 删除并重新创建后端容器，确认容器 ID 变化；使用原 Token 和原密码重新验证相同用户 ID、资料标记，确认 SQLite 卷持久化。
 6. 成功或失败均采集容器日志并清理本次项目的容器、网络和卷；日志不输出测试密码或 Token。通过后导出后端镜像，并真实加载核对两份待发布归档的身份。
 
+当前功能分支还会检查默认 Compose 不包含 Watchtower，`updates` profile 才启用它；真实应用容器须以非 root 用户、只读根目录、无额外 capability 运行，并具有 CPU、内存、进程数和日志上限。Docker inspect 检查明确排除 `Config.Env`；配置与实际容器不一致时 CI 失败。详见 [宿主机保护边界](host-protection.md)。
+
 新增检查是否通过，以对应提交的 Actions 结果为准；本地脚本单元测试不能替代容器验证。
 
 ## 变量与 Secrets
@@ -78,7 +80,7 @@ ALIYUN_ACR_PASSWORD
 
 ## 功能分支验证与边界
 
-功能分支开发与验证只在 `vacontinuejatotired/CS-Career-Guide` 的 `codex/ci-cd-images` 进行，不创建上游 PR。2026-10-22 的接手工作仅同步验收文档，不再次合并、发布镜像、连接服务器或执行部署；此前已发生的合并和发布单独记录在 [接手记录](deployment-status.md) 中。
+功能分支开发与验证只在 `vacontinuejatotired/CS-Career-Guide` 的 `codex/ci-cd-images` 进行，不创建上游 PR。2026-10-22 先同步了验收文档，后续按保护宿主机优先补充容器限制与 runner 验证；不再次合并、发布镜像、连接服务器或执行部署。此前已发生的合并和发布单独记录在 [接手记录](deployment-status.md) 中。
 
 ```bash
 git switch codex/ci-cd-images

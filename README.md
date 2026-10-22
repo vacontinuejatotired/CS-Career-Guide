@@ -116,6 +116,7 @@ npm run dev
 截至 2026-10-22，演示部署的 CI 验证与首次 ACR 双镜像发布已完成：提交 `c1d7b6a` 通过 [Actions 39563957000](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39563957000) 的测试、容器冒烟、真实联调和 SQLite 持久化验证后发布。服务器部署和 Watchtower 自动更新仍未验证，不能视为生产完成。请先阅读：
 
 - [部署与运维总览](docs/deployment.md)
+- [宿主机保护边界](docs/host-protection.md)
 - [验收状态与接手记录](docs/deployment-status.md)
 - [CI/CD 流水线](docs/ci-cd.md)
 - [Docker 镜像](docs/docker-images.md)

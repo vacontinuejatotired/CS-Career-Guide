@@ -169,6 +169,7 @@ jobs:
         run: |
           set -euo pipefail
           docker compose --env-file /dev/null config --format json > /tmp/demo-compose.json
+          docker compose --env-file /dev/null --profile updates config --format json > /tmp/demo-compose-updates.json
           docker compose --env-file /dev/null --profile mysql config --format json > /tmp/demo-compose-mysql.json
           DATABASE_PASSWORD=ci-mysql-test-only MYSQL_ROOT_PASSWORD=ci-root-test-only \
             DJANGO_SETTINGS_MODULE=cs_career_guide.settings \
@@ -183,7 +184,24 @@ jobs:
           services = json.loads(Path('/tmp/demo-compose.json').read_text())['services']
           assert services['backend']['environment']['DJANGO_SETTINGS_MODULE'] == 'cs_career_guide.settings_sqlite'
           assert 'mysql' not in services
-          watchtower = services['watchtower']
+          assert 'watchtower' not in services
+          for name in ('backend', 'frontend'):
+              service = services[name]
+              assert service['user'] == '10001:10001'
+              assert service['read_only'] is True
+              assert service['cap_drop'] == ['ALL']
+              assert 'no-new-privileges:true' in service['security_opt']
+              assert float(service['cpus']) > 0
+              assert service['mem_limit'] > 0
+              assert service['memswap_limit'] == service['mem_limit']
+              assert service['pids_limit'] > 0
+              assert service['logging']['driver'] == 'local'
+              assert service['logging']['options'] == {'max-size': '5m', 'max-file': '3'}
+          assert services['backend']['environment']['GUNICORN_WORKERS'] == '1'
+          assert services['frontend']['ports'][0]['host_ip'] == '127.0.0.1'
+          assert services['frontend']['ports'][0]['target'] == 8080
+          updates = json.loads(Path('/tmp/demo-compose-updates.json').read_text())['services']
+          watchtower = updates['watchtower']
           assert watchtower['network_mode'] == 'bridge'
           assert watchtower['environment']['DOCKER_CONFIG'] == '/config'
           assert not watchtower.get('ports')
@@ -202,7 +220,7 @@ jobs:
           pinned = json.loads(Path('/tmp/demo-compose-digest.json').read_text())['services']
           assert pinned['backend']['image'] == 'example.invalid/demo/backend@sha256:' + 'a' * 64
           assert pinned['frontend']['image'] == 'example.invalid/demo/frontend@sha256:' + 'b' * 64
-          print('Demo Compose validated: SQLite defaults, MySQL wiring, paired digest override and Watchtower configuration.')
+          print('Demo Compose validated: non-root read-only apps, resource/log limits, loopback binding, opt-in Watchtower, MySQL wiring and paired digests.')
           PY
           python3 ../ci/release_images.py check-config --commit "$GITHUB_SHA"
       - uses: docker/setup-buildx-action@v3
@@ -366,7 +384,7 @@ jobs:
             echo 'Frontend smoke placeholder backend did not become ready' >&2
             exit 1
           fi
-          docker run -d --name "$container" --network "$network" -p 18080:80 \
+          docker run -d --name "$container" --network "$network" -p 127.0.0.1:18080:8080 \
             "$IMAGE:sha-${GITHUB_SHA::7}" >/dev/null
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:18080/ >/dev/null 2>&1; then break; fi

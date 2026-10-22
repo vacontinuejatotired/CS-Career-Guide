@@ -2,20 +2,22 @@
 
 > 状态：草案。尚未连接服务器、启动容器，也未迁移任何数据。
 
+当前功能分支以保护宿主机优先：默认仅绑定回环地址、限制资源与日志、只启动前后端，Watchtower 需要单独启用。新前端监听 `8080`，不能把本分支的新 Compose 与旧 `c1d7b6a` 前端镜像混用；先确认同一版本的镜像已获授权发布，见 [宿主机保护边界](host-protection.md)。本轮不执行服务器操作。
+
 ## 部署拓扑
 
 ```text
-浏览器 -> 宿主机 :48080 -> frontend（Nginx）
+反向代理 / SSH 隧道 -> 宿主机 127.0.0.1:48080 -> frontend（Nginx :8080）
                               |-- /api/ -> backend :8000
                               `-- /static、/media -> 共享卷
 
 backend -> sqlite-data:/data
 backend -> backend-static:/data/staticfiles
 backend -> media:/data/media
-watchtower -> Docker socket + 服务器本地 Docker 凭据
+watchtower（仅显式启用 updates profile） -> Docker socket + 独立 ACR 凭据目录
 ```
 
-宿主机只开放前端端口；后端、SQLite 和 Watchtower 不直接暴露业务端口。
+默认端口不对公网绑定；后端、SQLite 和 Watchtower 不发布业务端口。如确需直接公网演示，需显式修改 `WEB_PORT` 的绑定地址，并单独评估宿主机网络规则，不能把 Docker 端口发布当作已经受 UFW 完整限制。
 
 ## 低资源演示默认值
 
@@ -44,13 +46,15 @@ crpi-gbihc3e57h3o3f2l-vpc.cn-hangzhou.personal.cr.aliyuncs.com
 
 公网和 VPC 地址指向同一组仓库，按服务器实际网络选择；不要假设 GitHub Actions 能访问 VPC 地址。
 
-首次启动 Watchtower 前先手动登录：
+默认手动拉取前先登录：
 
 ```bash
-docker login --username=<ACR_USERNAME> crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com
+docker --config /etc/cs-career-guide/acr login --username=<ACR_USERNAME> crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com
 ```
 
 不要把 Registry 密码写入 Compose 或 `.env`。
+
+后续手动拉取使用同一 `docker --config /etc/cs-career-guide/acr compose ...` 配置。目录只保存本项目 ACR 登录；只有选择启用 Watchtower 时，才通过 `DOCKER_CONFIG_DIR` 把这个目录只读挂载给它。
 
 ## 准备服务器
 
@@ -76,7 +80,7 @@ docker compose config
 
 ```bash
 cd deploy
-docker compose pull
+docker --config /etc/cs-career-guide/acr compose pull backend frontend
 docker compose up -d --no-build
 docker compose ps
 docker compose logs --tail=100 backend
@@ -85,7 +89,7 @@ docker compose logs --tail=100 frontend
 
 检查项：
 
-1. `http://<服务器IP>:48080/` 能显示 Vue 页面。
+1. 通过 SSH 隧道或已有反向代理访问默认绑定的 `127.0.0.1:48080`，确认 Vue 页面可显示。
 2. `/login` 和 `/register` 可以打开。
 3. 没有 Token 访问业务页面会跳转登录。
 4. 注册、登录后能拿到 Token 并返回原业务路径。
@@ -144,11 +148,11 @@ Compose 会把 `DATABASE_NAME`、`DATABASE_USER`、`DATABASE_PASSWORD`、`DATABA
 
 ## 更新与回滚
 
-Watchtower 负责演示环境更新，详见 [Watchtower 与回滚](watchtower-rollback.md)。手动拉取：
+默认手动更新；Watchtower 的 Docker socket 等同于宿主机管理权限，只有显式接受这一边界后才启用 `updates` profile，详见 [Watchtower 与回滚](watchtower-rollback.md)。手动拉取：
 
 ```bash
 cd deploy
-docker compose pull
+docker --config /etc/cs-career-guide/acr compose pull backend frontend
 docker compose up -d --no-build
 ```
 

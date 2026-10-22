@@ -1,10 +1,10 @@
 # Watchtower 与回滚
 
-> 状态：演示配置与操作说明。尚未在服务器启动或验证 Watchtower，也没有执行真实镜像回滚。
+> 状态：演示配置与操作说明。保护宿主机优先，Watchtower 默认关闭，仅放在 `updates` profile。尚未在服务器启动或验证它，也没有执行真实镜像回滚。
 
 ## 适用范围
 
-Watchtower 只用于演示环境，每 30 秒轮询一次，只更新带以下标签的容器：
+只有显式启用时，Watchtower 才每 30 秒轮询一次，只更新带以下标签的容器：
 
 ```yaml
 com.centurylinklabs.watchtower.enable: "true"
@@ -30,10 +30,22 @@ master push
 
 演示环境接受短暂中断，不采用蓝绿部署或零停机方案。
 
+## 默认关闭与显式启用
+
+默认的 `docker compose up -d` 不启动 Watchtower。它挂载 Docker socket，具备宿主机容器管理权限；`--label-enable` 只限制正常更新的选择范围，不能把 socket 变成受限的管理接口。只读挂载 socket 也不能阻止有写入效果的 Docker API 请求。
+
+如明确选择自动更新，先准备只包含本项目 ACR 登录的 `/etc/cs-career-guide/acr`，再显式执行：
+
+```bash
+docker compose --profile updates up -d watchtower
+```
+
+配置中将服务移入 profile 不会自动停止服务器上已经运行的 Watchtower；若曾启用，应单独停止。本轮没有连接服务器执行该操作。其余容器权限与资源限制见 [宿主机保护边界](host-protection.md)。
+
 ## Watchtower 前置条件
 
 - 挂载 Docker socket：`/var/run/docker.sock`。
-- 服务器本地保存 Docker 登录凭据，目录只读挂载到容器 `/config`，通过 `DOCKER_CONFIG=/config` 读取其中的 `config.json`。
+- 使用只包含本项目 ACR 登录的独立目录，默认 `/etc/cs-career-guide/acr`；该目录只读挂载到容器 `/config`，通过 `DOCKER_CONFIG=/config` 读取其中的 `config.json`。不挂载 `/root/.docker` 等通用凭据目录。
 - 启动前已对实际使用的 ACR 地址执行过 `docker login`。
 - 与业务容器处于同一 Compose 项目，并尽量避免不必要的网络暴露。
 
@@ -111,7 +123,7 @@ cd deploy
 docker compose stop watchtower
 ```
 
-停止 Watchtower 不会停止应用，也不会删除数据卷。恢复时执行 `docker compose start watchtower`。
+停止 Watchtower 不会停止应用，也不会删除数据卷。恢复已存在且已启用的服务时执行 `docker compose --profile updates start watchtower`。
 
 ## 常见故障
 
