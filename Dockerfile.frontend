@@ -13,9 +13,10 @@ COPY --from=builder /build/frontend/dist /usr/share/nginx/html
 RUN mkdir -p /var/cache/nginx /var/www/backend-static /var/www/media \
     && sed -i \
         -e '/^user /d' \
-        -e 's#pid[[:space:]]*/var/run/nginx.pid;#pid /tmp/nginx.pid;#' \
+        -e 's#^[[:space:]]*pid[[:space:]][^;]*;#pid /tmp/nginx.pid;#' \
         -e 's/worker_processes[[:space:]]*auto;/worker_processes 1;/' \
         /etc/nginx/nginx.conf \
+    && grep -Eq '^pid[[:space:]]+/tmp/nginx.pid;' /etc/nginx/nginx.conf \
     && chown -R 10001:10001 /var/cache/nginx /var/www/backend-static /var/www/media
 
 USER 10001:10001
