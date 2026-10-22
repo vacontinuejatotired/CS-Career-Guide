@@ -1,6 +1,6 @@
 # Docker 镜像
 
-> 状态：基线提交 `3480b91` 的两个 Dockerfile 已在 [Actions 39540701547](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39540701547) 完成构建和容器冒烟，未推送 ACR；开发机未运行 Docker。服务器部署尚未验证。
+> 状态核对：2026-10-22。提交 `c1d7b6a` 的两个镜像已在 [Actions 39563957000](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39563957000) 完成构建、容器冒烟、真实联调、SQLite 持久化及归档身份验证，并由独立 publisher 推送 ACR。成对 digest 见 [发布记录](releases/2026-10-21-c1d7b6a.json)。开发机未运行 Docker；服务器部署仍未验证。
 
 前端镜像的 `/var/www/backend-static`、`/var/www/media` 与后端写入进程统一使用 UID/GID `10001:10001`，避免空共享卷由前端先初始化后，后端无法写入。Nginx 仍只读挂载这些卷；此镜像修改不会自动修正已有卷的属主，已有数据需另行评估。
 

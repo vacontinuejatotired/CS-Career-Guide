@@ -1,6 +1,6 @@
 # 部署与运维总览
 
-> 状态：演示部署实施中。基线提交 `3480b91` 已通过 [Actions 构建与容器冒烟](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39540701547)；ACR 推送、服务器启动及 Watchtower 自动更新尚未验证。
+> 状态核对：2026-10-22。演示部署的 CI 验证和首次 ACR 双镜像发布已由提交 `c1d7b6a` 的 [Actions 39563957000](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39563957000) 完成；服务器启动及 Watchtower 自动更新仍未验证。详见 [验收状态与接手记录](deployment-status.md)，不能据此宣称生产完成。
 
 ## 发布链路
 
@@ -39,6 +39,7 @@ crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-c
 
 | 主题 | 文档 |
 | --- | --- |
+| 已验证结果、发布记录与接手边界 | [验收状态与接手记录](deployment-status.md) |
 | CI 触发、Job、变量与排障 | [CI/CD 流水线](ci-cd.md) |
 | 前后端镜像、依赖和构建上下文 | [Docker 镜像](docker-images.md) |
 | 服务器登录 ACR、Compose、SQLite 与持久卷 | [服务器拉取部署](server-pull.md) |
@@ -48,9 +49,10 @@ crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-c
 
 ## 当前状态与边界
 
-- workflow、Dockerfile、Nginx、Compose 和 SQLite settings 已提交到 fork 的 `codex/ci-cd-images` 分支。
-- 基线 `3480b91` 的前后端测试、双镜像构建和容器冒烟已由 Actions 39540701547 验证，包含容器内 SQLite 首次迁移。
-- 本轮只允许功能分支 build-only，不合并、不发布镜像、不连接服务器或执行部署。
+- workflow、Dockerfile、Nginx、Compose 和 SQLite settings 已随 fork 的 PR #1 合入 `master`，合并提交为 `c1d7b6ab0ff3c48d732fea55cb88899a33c77e9b`。
+- 功能分支 `acad2c8` 的 Actions 39561641720 已通过 build-only；master 的 Actions 39563957000 再次通过完整测试、双镜像冒烟、真实联调、SQLite 卷重建持久化和归档身份验证，并成功推送 ACR。
+- 首次发布记录 `complete: true`，镜像标签为 `sha-c1d7b6a` 和 `latest`；成对 digest 记录已归档到 [发布记录 JSON](releases/2026-10-21-c1d7b6a.json)。这只能证明该次发布成功，不能证明标签此后未改变或服务器已拉取。
+- 2026-10-22 的接手工作只同步验收文档；不再次合并、不发布镜像、不连接服务器或执行部署。
 - 所有镜像构建路径均执行真实 Django/Nginx 注册登录、资料读写、SQLite 卷重建和待发布归档身份校验，使用 runner 临时数据；结果以对应提交的 Actions 为准。
 - CI 不覆盖浏览器交互、私有 ACR 拉取、Watchtower 自动更新或真实服务器部署。
 - 不包含生产数据库迁移、已有媒体迁移、真实 AI 付费调用或公网 HTTPS。

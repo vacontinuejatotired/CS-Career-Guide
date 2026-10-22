@@ -1,6 +1,6 @@
 # CI/CD 流水线
 
-> 状态：演示部署实施中。基线提交 `8c12688` 已通过 [Actions 39557869697](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39557869697) 的双镜像、真实联调和 SQLite 持久化验证。本轮将验证与发布拆成独立 Job；改动以新提交的 Actions 为准。ACR 首次发布和服务器部署仍未验证。
+> 状态核对：2026-10-22。功能分支提交 `acad2c8` 的 build-only 验证已通过；fork 的 PR #1 随后合并为 `c1d7b6a`，[Actions 39563957000](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39563957000) 已完成完整验证及独立 publisher 的首次 ACR 双镜像发布。服务器部署和 Watchtower 自动更新仍未验证。完整证据及后续边界见 [验收状态与接手记录](deployment-status.md)。
 
 ## 触发规则
 
@@ -78,7 +78,7 @@ ALIYUN_ACR_PASSWORD
 
 ## 功能分支验证与边界
 
-本轮只在 `vacontinuejatotired/CS-Career-Guide` 的 `codex/ci-cd-images` 分支开发；不创建上游 PR、不合并、不发布镜像，也不连接服务器。
+功能分支开发与验证只在 `vacontinuejatotired/CS-Career-Guide` 的 `codex/ci-cd-images` 进行，不创建上游 PR。2026-10-22 的接手工作仅同步验收文档，不再次合并、发布镜像、连接服务器或执行部署；此前已发生的合并和发布单独记录在 [接手记录](deployment-status.md) 中。
 
 ```bash
 git switch codex/ci-cd-images
