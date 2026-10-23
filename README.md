@@ -113,15 +113,17 @@ npm run dev
 
 ## 🚀 部署与运维
 
-截至 2026-10-22，演示部署的 CI 验证与首次 ACR 双镜像发布已完成：提交 `c1d7b6a` 通过 [Actions 39563957000](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39563957000) 的测试、容器冒烟、真实联调和 SQLite 持久化验证后发布。服务器部署和 Watchtower 自动更新仍未验证，不能视为生产完成。请先阅读：
+截至 2026-10-23，最新已查询的 master [Actions 39897322500](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39897322500)（`9837e71`）成功。本会话已观察到服务器前后端健康、旧 Watchtower 运行，并完成专用部署账号及 Actions 配置。新增 AI 环境同步、自动重建和模拟面试 legacy 重构仍为本地未提交改动，尚未上线；真实模型、语音及浏览器全流程待验收。请先阅读：
 
 - [部署与运维总览](docs/deployment.md)
 - [宿主机保护边界](docs/host-protection.md)
 - [验收状态与接手记录](docs/deployment-status.md)
 - [CI/CD 流水线](docs/ci-cd.md)
+- [AI 配置同步与自动重建](docs/ai-env-sync.md)
 - [Docker 镜像](docs/docker-images.md)
 - [服务器拉取部署](docs/server-pull.md)
 - [Watchtower 与回滚](docs/watchtower-rollback.md)
+- [模拟面试重构与替换边界](docs/interview-refactor.md)
 
 真实密钥、ACR 密码、数据库密码和服务器 `.env` 不得提交到仓库。
 

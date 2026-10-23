@@ -4,6 +4,19 @@
 
 后端复制 `backend/.env.example` 为 `backend/.env`，前端复制 `frontend/.env.example` 为 `frontend/.env`。也可以在服务器或容器中直接注入环境变量。后端的系统环境变量优先于 `.env`；前端沿用 Vite 的环境变量规则。
 
+2026-10-23 新增可选的 [Actions AI 配置同步](ai-env-sync.md)，当前仍为本地未发布实现，启用开关未设置。模型 Key 和模型配置已保存在 Actions；保存并不会自动传给服务器或改变运行中容器。
+
+配置归属按以下规则管理：
+
+| 来源 | 配置 | 更新方式 |
+| --- | --- | --- |
+| Actions Secrets | 三个模型 API Key、六个 SSH 连接字段 | 只在启用后的同步 Job 使用；SSH 字段不写应用 `.env` |
+| Actions Variables | 模型名、LLM/ASR/TTS URL、音色、`ENABLE_TTS` | AI 白名单合并到服务器 `.env`；非空值更新，空可选值保留旧值 |
+| 前端构建 Variable | `VITE_ENABLE_TTS` | Docker build-arg 写入静态资源，需重建前端；不能存密钥 |
+| 服务器 `.env` | `SECRET_KEY`、数据库、`COMPOSE_PROJECT_NAME`、域名、端口、路径、资源、镜像选择等 | 本地维护，自动同步不得覆盖 |
+
+白名单内的 AI 字段由 Actions 负责，不能同时期待保留服务器同名覆盖值。`ASR_API_KEY`/`TTS_API_KEY` 的留空复用规则属于 Django 设置；同步空值跳过时可能保留服务器旧 Key，如需清除必须另行处理。Compose 环境映射补齐后，候选配置校验才会通过；具体名单与启用顺序见同步文档。
+
 示例不包含真实密码或 API key。生产环境必须生成独立 `SECRET_KEY`，填写数据库账号、密码和服务凭据。后端关键配置缺失时会报错，而不是使用源码中的密码。
 
 生成密钥（只在自己本地执行，把结果填入后端配置）：

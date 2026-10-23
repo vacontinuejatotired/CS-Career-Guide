@@ -2,7 +2,9 @@
 
 目标：允许演示应用不可用或丢失演示数据，优先控制它对宿主机权限、CPU、内存、进程数与磁盘的影响。不以生产业务连续性、付费 AI 或正式数据迁移为验收目标。
 
-2026-10-22 的修改只在功能分支实施并交由 GitHub Actions 构建、运行验证；没有连接服务器、合并到 master 或发布新镜像。首次历史发布仍见 [接手记录](deployment-status.md)，不能把旧镜像的通过记录当作本次防护改动已验证。
+2026-10-22 的修改与首次发布属于历史记录。2026-10-23 本会话已连接服务器、创建并验证专用部署账号，观察到前后端健康及旧 Watchtower 运行；没有重新验收全部运行时防护参数。新增同步/重构仍在本地工作区，不能用旧镜像证据代替新配置验收。详细状态见 [接手记录](deployment-status.md)。
+
+新增 `csdeploy` 密码锁定、无 sudo、使用独立且带 `restrict` 的 SSH 公钥，目录权限 750、`.env` 权限 600。它拥有 Docker 组权限，因此具有很高的宿主机控制能力；无 sudo 和 SSH 转发限制不构成 Docker 沙箱。Actions workflow 可修改者进入部署信任边界；同步仅在 master 发布成功并显式启用时运行，凭据与失败边界见 [AI 配置同步](ai-env-sync.md)。
 
 ## 默认应用容器
 
@@ -30,7 +32,7 @@ Watchtower 移入 `updates` profile，普通 `docker compose up -d` 只启动前
 
 原因是 Watchtower 需要 Docker socket，其进程一旦被控制，就可能通过 Docker API 管理其他容器和挂载宿主机目录。容器标签、`cap_drop` 或只读挂载 socket 都不能限制这些 API 的权限。显式启用前必须接受这一风险，见 [Watchtower 与回滚](watchtower-rollback.md)。
 
-如仍选择启用，凭据目录限定为只保存本项目 ACR 登录的 `/etc/cs-career-guide/acr`，不复用宿主机通用的 `/root/.docker`。它也有 CPU、内存、进程数和日志上限。若服务器上已运行旧 Watchtower，仅修改仓库 profile 不会把它停止，需要单独执行服务器操作；本轮未执行。
+如仍选择启用，凭据目录限定为只保存本项目 ACR 登录的 `/etc/cs-career-guide/acr`，不复用宿主机通用的 `/root/.docker`。它也有 CPU、内存、进程数和日志上限。本会话确已观察到服务器旧 Watchtower 运行，仅修改仓库 profile 不会把它停止；此次没有停止它，启用 Actions 自动重建前需协调更新入口。
 
 ## 尚未解决的宿主机边界
 

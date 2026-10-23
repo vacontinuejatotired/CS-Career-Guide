@@ -1,6 +1,6 @@
 # Watchtower 与回滚
 
-> 状态：演示配置与操作说明。保护宿主机优先，Watchtower 默认关闭，仅放在 `updates` profile。尚未在服务器启动或验证它，也没有执行真实镜像回滚。
+> 2026-10-23 状态：仓库默认关闭 Watchtower，仅放在 `updates` profile；但本会话已观察到服务器旧 Watchtower 运行。本次没有停止它，也没有验证其更新效果或演练回滚。新增 Actions 自动重建仍为本地代码且开关关闭，启用前必须协调两种更新入口。
 
 ## 适用范围
 
@@ -40,7 +40,7 @@ master push
 docker compose --profile updates up -d watchtower
 ```
 
-配置中将服务移入 profile 不会自动停止服务器上已经运行的 Watchtower；若曾启用，应单独停止。本轮没有连接服务器执行该操作。其余容器权限与资源限制见 [宿主机保护边界](host-protection.md)。
+配置中将服务移入 profile 不会自动停止服务器上已经运行的 Watchtower；改用 Actions 自动重建前，应在维护操作中明确停止旧 Watchtower，不能让两个入口同时重建。本会话仅查看其运行状态，没有执行停止操作。其余容器权限与资源限制见 [宿主机保护边界](host-protection.md)。
 
 ## Watchtower 前置条件
 
@@ -52,6 +52,14 @@ docker compose --profile updates up -d watchtower
 Compose 给 Watchtower 使用 `network_mode: bridge`，允许它访问 ACR Registry API 检查镜像。`network_mode: none` 会阻断这类出站请求。Watchtower 不映射宿主机端口，通过 Docker socket 管理带标签的容器，通过只读凭据目录完成仓库鉴权。
 
 ## 按 digest 精确回滚
+
+**先停自动更新入口，再操作版本。** 如果已启用 Actions 同步，先将 Variable `DEPLOY_ENV_SYNC_ENABLED` 改为 `false`，并确认没有同步 Job 正在执行，再停止 Watchtower。修改变量不会中断已经启动的 Job，服务器文件锁也不能替代人工回滚协调。经授权可在管理机执行：
+
+```bash
+gh variable set DEPLOY_ENV_SYNC_ENABLED --body false --repo vacontinuejatotired/CS-Career-Guide
+```
+
+当前同步脚本只读取基础 `docker-compose.yml`，不加载 `docker-compose.digest.yml`。因此使用 digest override 的回滚期间必须保持同步关闭，否则之后的发布可能按基础文件重建成其他版本。它也不会自动恢复旧 `.env` 或数据库；完整失败行为见 [AI 环境同步](ai-env-sync.md)。
 
 从一次成功发布的 `published-images.json` 获取两个 `images.<组件>.reference`，确认 `complete` 为 `true`，并核对完整源码提交。将这两个 `repository@sha256:<64位digest>` 引用分别填入服务器部署 `.env` 的 `BACKEND_IMAGE`、`FRONTEND_IMAGE`。
 

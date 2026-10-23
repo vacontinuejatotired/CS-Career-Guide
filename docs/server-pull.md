@@ -1,8 +1,18 @@
 # 服务器拉取部署
 
-> 状态：草案。尚未连接服务器、启动容器，也未迁移任何数据。
+> 2026-10-23 状态：本会话已连接服务器，观察到前后端健康及旧 Watchtower 运行，并创建、验证 `csdeploy`。本轮未重启应用、未执行镜像拉取、未迁移数据；新 AI 同步及面试重构尚未发布。本页操作命令是后续执行手册，不代表已执行。
 
-当前功能分支以保护宿主机优先：默认仅绑定回环地址、限制资源与日志、只启动前后端，Watchtower 需要单独启用。新前端监听 `8080`，不能把本分支的新 Compose 与旧 `c1d7b6a` 前端镜像混用；先确认同一版本的镜像已获授权发布，见 [宿主机保护边界](host-protection.md)。本轮不执行服务器操作。
+当前仓库以保护宿主机优先：默认仅绑定回环地址、限制资源与日志、只启动前后端，Watchtower 需要单独启用。新前端监听 `8080`，不能把新 Compose 与旧 `c1d7b6a` 前端镜像混用；执行部署前确认镜像与配置兼容，见 [宿主机保护边界](host-protection.md)。本次仅更新操作手册。
+
+## 专用部署账号与配置归属
+
+本会话已创建 `csdeploy`：独立 Ed25519 密钥登录、密码锁定、没有 sudo、加入 Docker 组。部署目录由 `csdeploy:ubuntu` 拥有且权限为 750，`.env` 为 `csdeploy:csdeploy`、600；只更改了所有权和权限，没有改环境文件内容。账号的 `authorized_keys` 使用 `restrict`，不提供 PTY、端口/agent/X11 转发；管理隧道继续使用管理员自己的连接。
+
+实际服务器主机、端口、账号、环境文件路径和专用凭据保存在六个 `DEPLOY_*` Secrets 中，见 [配置表](ai-env-sync.md#github-配置)。不要将私钥、服务器真实 `.env` 或未经脱敏的 `docker inspect`/`docker compose config` 输出放进文档。
+
+部署账号已验证目录读写、Docker 调用和 Python 3。**ACR 私有镜像拉取未验证**；现有管理员或 Watchtower 的登录不能替代部署账号登录。自动同步脚本使用部署账号默认 Docker CLI 凭据，须以该账号配置专用 ACR 登录；`DOCKER_CONFIG_DIR` 只决定 Watchtower 挂载目录，不会自动影响 CLI。
+
+启用前逐项合并服务器 Compose 中的 AI environment 映射，保留服务器定制配置；不要用仓库样例覆盖现有 `.env`。`SECRET_KEY`、数据库、`COMPOSE_PROJECT_NAME`、域名、端口、路径、资源限制和镜像选择留在服务器。AI 白名单由 Actions 管理，空的可选值不会删除已有值。
 
 ## 部署拓扑
 
@@ -148,7 +158,7 @@ Compose 会把 `DATABASE_NAME`、`DATABASE_USER`、`DATABASE_PASSWORD`、`DATABA
 
 ## 更新与回滚
 
-默认手动更新；Watchtower 的 Docker socket 等同于宿主机管理权限，只有显式接受这一边界后才启用 `updates` profile，详见 [Watchtower 与回滚](watchtower-rollback.md)。手动拉取：
+默认手动更新；新增加的 Actions 自动同步也默认关闭。服务器已有旧 Watchtower，启用新的自动重建前须选择更新入口，避免并发重建。Watchtower 的 Docker socket 和 `csdeploy` 的 Docker 组权限都具有很高的宿主机权限，详见 [Watchtower 与回滚](watchtower-rollback.md)。以下命令中的 `deploy` 为示例目录，实际操作应使用部署项目路径；ACR 配置目录也须按部署账号的实际配置选择。手动拉取：
 
 ```bash
 cd deploy

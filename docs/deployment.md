@@ -1,8 +1,10 @@
 # 部署与运维总览
 
-> 状态核对：2026-10-22。演示部署的 CI 验证和首次 ACR 双镜像发布已由提交 `c1d7b6a` 的 [Actions 39563957000](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39563957000) 完成；服务器启动及 Watchtower 自动更新仍未验证。详见 [验收状态与接手记录](deployment-status.md)，不能据此宣称生产完成。
+> 状态核对：2026-10-23。最新已查询的 master Actions 为提交 `9837e71` 的 [39897322500](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39897322500)，结果成功。本会话已观察到服务器前后端健康、旧 Watchtower 运行，并完成专用部署账号配置。AI 环境同步、自动重建及面试重构仍为本地未提交改动，未在服务器生效。详见 [验收状态与接手记录](deployment-status.md)。
 
 当前功能分支按“保护宿主机优先”收紧了容器权限、资源和日志上限，并将 Watchtower 改为显式启用。此改动不等于已更新服务器或已发布新镜像，见 [宿主机保护边界](host-protection.md)。
+
+仓库默认行为与服务器既有状态需要分开看：profile 不会停止已运行的旧容器。2026-10-23 的账号配置没有重新部署应用，也没有停止旧 Watchtower。
 
 ## 发布链路
 
@@ -13,7 +15,8 @@
   -> master 再次完整验证，独立 publisher 推送同一份已验收镜像
   -> 记录前后端 digest，再更新 ACR latest
   -> 服务器手动拉取并重建 backend / frontend 容器
-  -> 只有显式启用 updates profile 后，Watchtower 才每 30 秒检查更新
+     或：启用 AI 同步后，经 SSH 合并白名单配置、拉取并重建、等待健康检查
+  -> 若选择 Watchtower 更新，应与 Actions 自动重建协调，不同时管理
 ```
 
 默认演示环境使用 SQLite 持久卷，前后端各自一个镜像。正式数据阶段仍保留原 MySQL settings 和可选 Compose profile。
@@ -35,7 +38,8 @@ crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-c
    - `ACR_NAMESPACE=tencent-ubutun22`
 3. 确认 Action Secrets 已有 `ALIYUN_ACR_USERNAME`、`ALIYUN_ACR_PASSWORD`。
 4. 手动拉取前先登录 ACR；若单独启用 Watchtower，使用只包含本项目 ACR 登录的独立配置目录，不挂载宿主机通用 Docker 凭据目录。
-5. 服务器 `.env` 使用 `deploy/.env.example` 建立，真实值只在服务器保存。
+5. 服务器独有配置保留在 `.env`；模型密钥保存在 Actions Secrets，并仅在启用同步后传入服务器。不得将真实环境文件提交或上传 Artifact。
+6. 自动同步需要专用 `csdeploy` SSH Secrets、部署账号的 ACR 登录、服务器 AI 配置映射及显式启用开关，见 [AI 环境同步](ai-env-sync.md)。
 
 ## 文档索引
 
@@ -44,13 +48,15 @@ crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-c
 | 权限、资源、端口与剩余宿主机风险 | [宿主机保护边界](host-protection.md) |
 | 已验证结果、发布记录与接手边界 | [验收状态与接手记录](deployment-status.md) |
 | CI 触发、Job、变量与排障 | [CI/CD 流水线](ci-cd.md) |
+| AI 配置白名单、专用账号、自动重建与失败处理 | [AI 环境同步](ai-env-sync.md) |
 | 前后端镜像、依赖和构建上下文 | [Docker 镜像](docker-images.md) |
 | 服务器登录 ACR、Compose、SQLite 与持久卷 | [服务器拉取部署](server-pull.md) |
 | Watchtower 更新、SHA 回滚和故障排查 | [Watchtower 与回滚](watchtower-rollback.md) |
+| 模拟面试 legacy 重构、接口兼容与发布验收 | [模拟面试重构](interview-refactor.md) |
 
 环境变量基础规则仍见 [环境变量配置](environment.md)；统一登录行为和验证边界见 [统一登录门槛](authentication-gate.md)。
 
-## 当前状态与边界
+## 首次发布的历史证据与当前边界
 
 - workflow、Dockerfile、Nginx、Compose 和 SQLite settings 已随 fork 的 PR #1 合入 `master`，合并提交为 `c1d7b6ab0ff3c48d732fea55cb88899a33c77e9b`。
 - 功能分支 `acad2c8` 的 Actions 39561641720 已通过 build-only；master 的 Actions 39563957000 再次通过完整测试、双镜像冒烟、真实联调、SQLite 卷重建持久化和归档身份验证，并成功推送 ACR。
@@ -59,3 +65,5 @@ crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-c
 - 所有镜像构建路径均执行真实 Django/Nginx 注册登录、资料读写、SQLite 卷重建和待发布归档身份校验，使用 runner 临时数据；结果以对应提交的 Actions 为准。
 - CI 不覆盖浏览器交互、私有 ACR 拉取、Watchtower 自动更新或真实服务器部署。
 - 不包含生产数据库迁移、已有媒体迁移、真实 AI 付费调用或公网 HTTPS。
+
+以上 `c1d7b6a` 等记录为首次发布历史。2026-10-23 的当前分支、账号、配置和未完成事项以 [当前验收状态](deployment-status.md) 为准；镜像发布、容器健康、真实模型成功和浏览器验收是不同状态。

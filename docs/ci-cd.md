@@ -1,6 +1,8 @@
 # CI/CD 流水线
 
-> 状态核对：2026-10-22。功能分支提交 `acad2c8` 的 build-only 验证已通过；fork 的 PR #1 随后合并为 `c1d7b6a`，[Actions 39563957000](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39563957000) 已完成完整验证及独立 publisher 的首次 ACR 双镜像发布。服务器部署和 Watchtower 自动更新仍未验证。完整证据及后续边界见 [验收状态与接手记录](deployment-status.md)。
+发布后可选的 AI 配置同步与自动重建步骤见 [AI 环境同步](ai-env-sync.md)。该步骤默认关闭，需配置专用 SSH Secrets 并显式启用。
+
+> 状态核对：2026-10-23。最新已查询的 master [Actions 39897322500](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39897322500)（`9837e71`）成功。以下新增同步 Job、面试测试及 TTS 构建参数描述的是当前本地工作区，尚未提交或经过新一轮 Actions；服务器账号已配置，自动同步仍关闭。完整状态见 [接手记录](deployment-status.md)。
 
 ## 触发规则
 
@@ -20,14 +22,16 @@
 frontend-test --> frontend-image (归档) --|
 backend-test ---------------------------+--> backend-image + 真实联调 (归档)
 全部测试与镜像验证 ----------------------> publish (仅 fork/master)
-验证与发布结果 --------------------------> release-summary
+publish 成功 + 显式启用 -----------------> sync-runtime-env（SSH / 合并 AI 配置 / 拉取 / 重建 / 等待健康）
+验证、发布与同步结果 --------------------> release-summary
 ```
 
-- **backend-test**：安装完整测试依赖，运行鉴权、配置、部署运行时、烟测脚本及发布脚本回归测试，并执行隔离 Django check。脚本测试使用合成数据和模拟 Docker，不访问 Registry 或真实凭据。
-- **frontend-test**：使用 Node 24，依次执行 `npm ci`、鉴权和配置测试、Vite 构建，并检查 `dist/index.html`、GLB 和 VAD ONNX 是否存在。
+- **backend-test**：安装完整测试依赖，运行鉴权、配置、部署运行时、面试策略/接口、烟测脚本及发布脚本回归，并执行隔离 Django check。脚本测试使用合成数据和模拟 Docker/模型，不访问 Registry、服务器或真实 AI。
+- **frontend-test**：使用 Node 24，执行 `npm ci`、鉴权/配置/API/面试契约测试、Vite 构建，并检查 `dist/index.html`、GLB 和 VAD ONNX。面试基准覆盖四种风格的 12 组旧版请求。
 - **backend-image / frontend-image**：所有触发路径均使用 `push: false`、`load: true`，执行单镜像冒烟；master 也执行真实联调、SQLite 持久化和归档身份检查。验证 Job 不读取 Registry Secrets、不登录或推送 ACR。
 - **publish**：只在 `vacontinuejatotired/CS-Career-Guide` 的 master 发布事件运行，等待前后端测试及两个镜像 Job 成功。下载本次运行的两份归档，核对完整提交 SHA、镜像 ID 和平台；直接推送已验证的同一份镜像，不重新构建。
-- **release-summary**：检查验证结果，以及本次发布是否按预期成功或跳过；不能把部分发布报告为成功。
+- **sync-runtime-env**：仅在本 fork/master、非 PR、publish 成功且 Variable `DEPLOY_ENV_SYNC_ENABLED` 精确为 `true` 时运行。该 Job 才读取模型与 SSH Secrets；传输、合并及失败规则见 [AI 同步](ai-env-sync.md)。跨 ref 使用独立服务器并发组且不取消正在运行的同步，并在服务器加文件锁。
+- **release-summary**：分别报告镜像发布与同步；同步启用但未成功时摘要失败，不能把“镜像发布成功、服务器激活失败”当作完整成功。
 
 ## 真实联调与持久化校验
 
@@ -62,6 +66,10 @@ ALIYUN_ACR_PASSWORD
 
 仅 publisher 通过 `${{ vars.ACR_REGISTRY || secrets.ACR_REGISTRY }}` 及对应 namespace 表达式读取镜像坐标。配置缺失或格式非法时，在登录前失败。`ACR_REGISTRY` 必须是不带 `https://` 和路径的主机名；`ACR_NAMESPACE` 只能使用小写字母、数字和连字符。
 
+新增的模型 Secrets 为 `LLM_API_KEY`、`ASR_API_KEY`、`TTS_API_KEY`；六个服务器连接 Secrets 为 `DEPLOY_SSH_HOST`、`DEPLOY_SSH_PORT`、`DEPLOY_SSH_USER`、`DEPLOY_ENV_PATH`、`DEPLOY_SSH_KEY`、`DEPLOY_SSH_KNOWN_HOSTS`。它们已保存，但不提供给测试或镜像构建。完整 Variables 表见 [AI 同步配置](ai-env-sync.md#github-配置)。Secret 列表仅证明名称存在，无法读取或验证已保存的值。
+
+`VITE_ENABLE_TTS` 是公开变量：通过前端 Docker build-arg 传入并写入静态资源。更改它必须重新构建前端；不能在该参数或其他 `VITE_*` 中放密钥。仅修改 Secrets/Variables 不会触发 workflow，也不会改变已运行容器。
+
 ## 发布顺序与回滚记录
 
 `ci/release_images.py` 先加载归档并核对镜像 ID，然后先推送两个镜像的 `sha-<7位提交>` 和可选版本标签，最后更新两个 `latest`。每次推送都解析并校验 manifest digest；版本标签与 latest 的 digest 必须一致。
@@ -80,13 +88,12 @@ ALIYUN_ACR_PASSWORD
 
 ## 功能分支验证与边界
 
-功能分支开发与验证只在 `vacontinuejatotired/CS-Career-Guide` 的 `codex/ci-cd-images` 进行，不创建上游 PR。2026-10-22 先同步了验收文档，后续按保护宿主机优先补充容器限制与 runner 验证；不再次合并、发布镜像、连接服务器或执行部署。此前已发生的合并和发布单独记录在 [接手记录](deployment-status.md) 中。
+当前本地工作分支为 `codex/sync-ai-env`，包含尚未提交的同步与面试重构改动。只在 `vacontinuejatotired/CS-Career-Guide` 开发，不创建上游 PR。先保留并分离已有 dirty 文件，再按明确授权提交和推送；以下命令是后续验收参考，本次文档更新不执行推送。
 
 ```bash
-git switch codex/ci-cd-images
-# 完成实现与本地检查后
-git push -u origin codex/ci-cd-images
-gh run list --repo vacontinuejatotired/CS-Career-Guide --branch codex/ci-cd-images --workflow ci-cd.yml
+# 已确认在 codex/sync-ai-env，完成检查和显式分组提交后，经授权执行：
+git push -u origin codex/sync-ai-env
+gh run list --repo vacontinuejatotired/CS-Career-Guide --branch codex/sync-ai-env --workflow ci-cd.yml
 ```
 
 检查结果时确认：
@@ -107,3 +114,6 @@ gh run list --repo vacontinuejatotired/CS-Career-Guide --branch codex/ci-cd-imag
 | ACR 登录失败 | 使用 Registry 访问凭证，不是阿里云账号登录密码 |
 | `unknown manifest class` | 确认 `provenance: false` 和 `sbom: false` |
 | 镜像坐标配置缺失 | 检查同名 Repository Variables 或 Secrets；仅存在于 Secrets 也可使用 |
+| 同步 Job 跳过 | 检查 master、publish 结果及 `DEPLOY_ENV_SYNC_ENABLED` 是否精确为 `true`；默认关闭 |
+| 镜像发布成功但同步失败 | 分别检查 SSH 主机密钥、目录/文件权限、AI 映射、部署用户 ACR 权限和容器健康；不要输出 Secret 或原始 config |
+| TTS 开关改了页面没变化 | 前端变量在构建时生效，需发布包含新 build-arg 的镜像 |

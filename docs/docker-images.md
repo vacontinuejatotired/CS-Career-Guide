@@ -1,8 +1,12 @@
 # Docker 镜像
 
-> 状态核对：2026-10-22。提交 `c1d7b6a` 的两个镜像已在 [Actions 39563957000](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39563957000) 完成构建、容器冒烟、真实联调、SQLite 持久化及归档身份验证，并由独立 publisher 推送 ACR。成对 digest 见 [发布记录](releases/2026-10-21-c1d7b6a.json)。开发机未运行 Docker；服务器部署仍未验证。
+> 状态核对：2026-10-23。最新已查询的 master [Actions 39897322500](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39897322500)（`9837e71`）成功；首次发布 digest 仍保留在 [历史记录](releases/2026-10-21-c1d7b6a.json)。本会话观察到服务器前后端健康，但未将运行 digest 与发布记录逐项对应。新增 TTS 构建参数、配置同步和面试重构尚未生成新的已验证镜像。开发机未运行 Docker。
 
 前端镜像的 `/var/www/backend-static`、`/var/www/media` 与后端写入进程统一使用 UID/GID `10001:10001`，避免空共享卷由前端先初始化后，后端无法写入。Nginx 仍只读挂载这些卷；此镜像修改不会自动修正已有卷的属主，已有数据需另行评估。
+
+当前本地 `Dockerfile.frontend` 新增公开参数 `VITE_ENABLE_TTS`，workflow 从同名 Variable 传入，缺省 False。参数在构建时写入静态资源，不能用于传 Key；运行时只更新 `.env` 不会改变已构建页面。模型与 SSH Secrets 只在可选同步 Job 中使用，不进入镜像。
+
+面试 legacy 重构随应用代码进入镜像，不新增服务、数据表或迁移；通过编译和离线测试不等于模型/语音已可用，详见 [重构说明](interview-refactor.md)。当前后端演示依赖仍未包含 `sentence-transformers`，本地向量模型未随此次改动启用。
 
 ## 镜像地址
 
