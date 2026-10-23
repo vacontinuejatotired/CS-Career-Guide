@@ -1,6 +1,6 @@
 # Docker 镜像
 
-> 状态：基线提交 `3480b91` 的两个 Dockerfile 已在 [Actions 39540701547](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39540701547) 完成构建和容器冒烟，未推送 ACR；开发机未运行 Docker。服务器部署尚未验证。
+> 状态核对：2026-10-22。提交 `c1d7b6a` 的两个镜像已在 [Actions 39563957000](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39563957000) 完成构建、容器冒烟、真实联调、SQLite 持久化及归档身份验证，并由独立 publisher 推送 ACR。成对 digest 见 [发布记录](releases/2026-10-21-c1d7b6a.json)。开发机未运行 Docker；服务器部署仍未验证。
 
 前端镜像的 `/var/www/backend-static`、`/var/www/media` 与后端写入进程统一使用 UID/GID `10001:10001`，避免空共享卷由前端先初始化后，后端无法写入。Nginx 仍只读挂载这些卷；此镜像修改不会自动修正已有卷的属主，已有数据需另行评估。
 
@@ -23,7 +23,7 @@ crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-c
 - builder 阶段安装编译工具和 `default-libmysqlclient-dev`，根据 `requirements-runtime.txt` 预构建 wheel。
 - runtime 阶段只安装 MariaDB 客户端运行库，复制后端源码，并以非 root 用户运行。
 - 启动时依次执行 `collectstatic`、`migrate`、Gunicorn；任一步失败就让容器退出，避免 Watchtower 认为不健康版本已发布。
-- Gunicorn worker 默认 `min(2*CPU+1, 4)`，可通过 `GUNICORN_WORKERS` 覆盖；超时默认 300 秒。
+- 演示 Compose 默认 `GUNICORN_WORKERS=1`；独立运行镜像且未指定该值时，入口脚本仍使用 `min(2*CPU+1, 4)`。超时默认 300 秒。
 - 进程级健康检查只检查本机 8000 端口，不是业务健康接口。
 
 ### 运行时依赖边界
@@ -40,6 +40,7 @@ LanceDB、PyArrow、NumPy 仍保留。语义模型包缺失时应降级为空结
 
 - 构建阶段使用 `node:24-bookworm-slim`。
 - 运行阶段使用 `nginx:1.27-alpine`。
+- 当前功能分支使用 UID/GID `10001:10001` 运行 Nginx，监听容器内 `8080`；PID 放在 `/tmp`，缓存目录由有限大小的 tmpfs 提供。旧发布 `c1d7b6a` 的前端仍监听 `80`，部署文件和镜像必须配套更新。
 - 保留 `frontend/public/models` 中的 GLB 和 VAD 资源，因为它们是运行时资源。
 - Nginx 提供 Vite 构建产物，支持 Vue history 路由回退，并把 `/api` 反向代理到后端。
 - `/company-api` 在未配置外部企业服务时返回 503。
@@ -63,3 +64,5 @@ cs-career-guide-frontend
 本项目的 Docker build 和容器启动检查在 GitHub Actions 的 PR/build-only 流程执行，不在开发机运行 Docker。后端检查容器启动、静态文件收集、SQLite 迁移和 Gunicorn 健康状态；前端检查 Nginx 启动、首页、history 路由、API 代理路由、企业服务 503 响应以及 GLB/VAD 资源。
 
 这些 build-only 检查不登录 ACR、不推送镜像，也不能替代真实服务器验证。
+
+Compose 的非 root、只读根目录、无额外 capability、CPU/内存/进程数及日志上限，还会在真实联调启动后通过 Docker inspect 核对。检查不读取容器环境变量，详见 [宿主机保护边界](host-protection.md)。

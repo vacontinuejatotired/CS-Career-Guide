@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen bg-base-200">
+  <div class="app-shell min-h-screen bg-base-200">
     <Navbar />
-    <main class="w-full py-6">
+    <div class="app-content w-full">
       <router-view />
-    </main>
+    </div>
     <Footer />
     <AIFloat v-if="showAI" />
   </div>
