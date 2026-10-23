@@ -2,7 +2,7 @@
 
 镜像发布成功后，通过 SSH 更新服务器已有 `.env` 中的 AI 配置，再拉取服务器 Compose 所选镜像并重建 `backend`、`frontend`。默认关闭；设置 Actions Variable `DEPLOY_ENV_SYNC_ENABLED=true` 后，只有本 fork 的 master 成功发布才执行。PR 和其他分支不接触服务器凭据。
 
-> 2026-10-23 状态：实现仍在本地 `codex/sync-ai-env` 工作区，未提交、未推送、未发布；上述同步未实际执行。Actions 已配置三个模型 Secrets、六个 SSH Secrets 和十个模型 Variables；启用变量尚未设置。服务器 `csdeploy` 的密钥登录、目录访问和 Docker 调用已验证，私有 ACR 拉取尚未验证。完整交接见 [当前验收状态](deployment-status.md)。
+> 2026-10-23 状态：实现已随 `33cbc57` 通过 build-only 验证并整合进 master；master 的镜像发布结果以对应 Actions 为准，服务器 AI 同步尚未执行。Actions 已配置三个模型 Secrets、六个 SSH Secrets 和十个模型 Variables；启用变量尚未设置。服务器 `csdeploy` 的密钥登录、目录访问和 Docker 调用已验证，私有 ACR 拉取尚未验证。完整交接见 [当前验收状态](deployment-status.md)。
 
 ## 配置归属与安全边界
 

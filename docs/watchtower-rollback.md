@@ -1,6 +1,6 @@
 # Watchtower 与回滚
 
-> 2026-10-23 状态：仓库默认关闭 Watchtower，仅放在 `updates` profile；但本会话已观察到服务器旧 Watchtower 运行。本次没有停止它，也没有验证其更新效果或演练回滚。新增 Actions 自动重建仍为本地代码且开关关闭，启用前必须协调两种更新入口。
+> 2026-10-23 状态：仓库默认关闭 Watchtower，仅放在 `updates` profile；但本会话已观察到服务器旧 Watchtower 运行。本次没有停止它，也没有验证其更新效果或演练回滚。新增 Actions 自动重建已随改动整合进 master，开关仍关闭，启用前必须协调两种更新入口。
 
 ## 适用范围
 

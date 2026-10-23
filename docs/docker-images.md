@@ -1,6 +1,6 @@
 # Docker 镜像
 
-> 状态核对：2026-10-23。最新已查询的 master [Actions 39897322500](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39897322500)（`9837e71`）成功；首次发布 digest 仍保留在 [历史记录](releases/2026-10-21-c1d7b6a.json)。本会话观察到服务器前后端健康，但未将运行 digest 与发布记录逐项对应。新增 TTS 构建参数、配置同步和面试重构尚未生成新的已验证镜像。开发机未运行 Docker。
+> 2026-10-23：新增 TTS 构建参数、配置同步和面试重构随 `33cbc57` 通过 [build-only 镜像验证 39979362642](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39979362642)，并整合进 master；该运行没有发布镜像。master 的后续发布以对应最新 Actions 为准。首次发布 digest 保留在 [历史记录](releases/2026-10-21-c1d7b6a.json)。本会话观察到服务器前后端健康，但未将运行 digest 与发布记录逐项对应。开发机未运行 Docker。
 
 前端镜像的 `/var/www/backend-static`、`/var/www/media` 与后端写入进程统一使用 UID/GID `10001:10001`，避免空共享卷由前端先初始化后，后端无法写入。Nginx 仍只读挂载这些卷；此镜像修改不会自动修正已有卷的属主，已有数据需另行评估。
 

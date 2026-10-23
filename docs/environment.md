@@ -4,7 +4,7 @@
 
 后端复制 `backend/.env.example` 为 `backend/.env`，前端复制 `frontend/.env.example` 为 `frontend/.env`。也可以在服务器或容器中直接注入环境变量。后端的系统环境变量优先于 `.env`；前端沿用 Vite 的环境变量规则。
 
-2026-10-23 新增可选的 [Actions AI 配置同步](ai-env-sync.md)，当前仍为本地未发布实现，启用开关未设置。模型 Key 和模型配置已保存在 Actions；保存并不会自动传给服务器或改变运行中容器。
+2026-10-23 新增可选的 [Actions AI 配置同步](ai-env-sync.md)，已经过 build-only CI 并整合进 master，启用开关未设置。模型 Key 和模型配置已保存在 Actions；保存并不会自动传给服务器或改变运行中容器。镜像发布以对应 master Actions 为准。
 
 配置归属按以下规则管理：
 

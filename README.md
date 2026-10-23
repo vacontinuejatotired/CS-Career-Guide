@@ -2,6 +2,10 @@
 
 计算机学院本科生就业指南是一个专为计算机专业学生打造的**全栈职业指导平台**，通过数据驱动和AI技术，为学生提供从职业规划到求职面试的全方位支持。
 
+## 开发与文档入口
+
+先读 [agent.md 文档索引](agent.md)，日常开发参考 [开发指南](docs/development.md) 和 [Git/PR/commit 规范](docs/git-workflow.md)。自动化协作入口为 [AGENTS.md](AGENTS.md)。主分支统一使用 `master`，个人长期开发使用 `codex/personal`，通过 PR 合入本 fork 的 master；误建的 main 不再用于日常开发。功能、接口、配置或部署行为改变时，在同一 PR 补最少必要文档。
+
 ## 🎯 项目目标
 
 - 为计算机学院本科生提供全方位的职业指导
@@ -113,7 +117,7 @@ npm run dev
 
 ## 🚀 部署与运维
 
-截至 2026-10-23，最新已查询的 master [Actions 39897322500](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39897322500)（`9837e71`）成功。本会话已观察到服务器前后端健康、旧 Watchtower 运行，并完成专用部署账号及 Actions 配置。新增 AI 环境同步、自动重建和模拟面试 legacy 重构仍为本地未提交改动，尚未上线；真实模型、语音及浏览器全流程待验收。请先阅读：
+2026-10-23，AI 环境同步、自动重建和面试 legacy 重构的提交 `33cbc57` 已通过 [build-only Actions 39979362642](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39979362642)，随后按主分支约定整合进 master。本会话已观察到服务器前后端健康、旧 Watchtower 运行，并完成专用部署账号及 Actions 配置。当前 master 的验证与发布以 [Actions](https://github.com/vacontinuejatotired/CS-Career-Guide/actions?query=branch%3Amaster) 为准；服务器 AI 同步仍关闭，真实模型、语音及浏览器全流程待验收。请先阅读：
 
 - [部署与运维总览](docs/deployment.md)
 - [宿主机保护边界](docs/host-protection.md)

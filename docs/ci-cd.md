@@ -2,7 +2,7 @@
 
 发布后可选的 AI 配置同步与自动重建步骤见 [AI 环境同步](ai-env-sync.md)。该步骤默认关闭，需配置专用 SSH Secrets 并显式启用。
 
-> 状态核对：2026-10-23。最新已查询的 master [Actions 39897322500](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39897322500)（`9837e71`）成功。以下新增同步 Job、面试测试及 TTS 构建参数描述的是当前本地工作区，尚未提交或经过新一轮 Actions；服务器账号已配置，自动同步仍关闭。完整状态见 [接手记录](deployment-status.md)。
+> 2026-10-23：新增同步 Job、面试测试及 TTS 构建参数已随 `33cbc57` 通过 [build-only Actions 39979362642](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39979362642)，并整合进主分支 master。个人开发分支统一为 codex/personal；master 的实际发布结果以对应最新运行记录为准。服务器账号已配置，AI 自动同步仍关闭。完整状态见 [接手记录](deployment-status.md)。
 
 ## 触发规则
 
@@ -88,12 +88,12 @@ ALIYUN_ACR_PASSWORD
 
 ## 功能分支验证与边界
 
-当前本地工作分支为 `codex/sync-ai-env`，包含尚未提交的同步与面试重构改动。只在 `vacontinuejatotired/CS-Career-Guide` 开发，不创建上游 PR。先保留并分离已有 dirty 文件，再按明确授权提交和推送；以下命令是后续验收参考，本次文档更新不执行推送。
+日常使用长期个人分支 `codex/personal`，向本 fork 的 master 提 PR。只在 `vacontinuejatotired/CS-Career-Guide` 开发，不创建上游 PR。保留并分离已有 dirty 文件，按职责提交和推送，详见 [Git 规范](git-workflow.md)。
 
 ```bash
-# 已确认在 codex/sync-ai-env，完成检查和显式分组提交后，经授权执行：
-git push -u origin codex/sync-ai-env
-gh run list --repo vacontinuejatotired/CS-Career-Guide --branch codex/sync-ai-env --workflow ci-cd.yml
+# 确认分支与工作区，完成适用检查和显式分组提交后执行：
+git push -u origin codex/personal
+gh run list --repo vacontinuejatotired/CS-Career-Guide --branch codex/personal --workflow ci-cd.yml
 ```
 
 检查结果时确认：

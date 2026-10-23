@@ -1,6 +1,6 @@
 # 部署与运维总览
 
-> 状态核对：2026-10-23。最新已查询的 master Actions 为提交 `9837e71` 的 [39897322500](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39897322500)，结果成功。本会话已观察到服务器前后端健康、旧 Watchtower 运行，并完成专用部署账号配置。AI 环境同步、自动重建及面试重构仍为本地未提交改动，未在服务器生效。详见 [验收状态与接手记录](deployment-status.md)。
+> 2026-10-23：AI 环境同步、自动重建及面试重构已随 `33cbc57` 通过 [build-only Actions 39979362642](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39979362642)，并整合进 master。日常开发使用 codex/personal。服务器账号和 GitHub 配置已完成，AI 同步开关仍关闭；master 的发布和服务器业务状态分别以当前证据核对，见 [验收状态](deployment-status.md)。
 
 当前功能分支按“保护宿主机优先”收紧了容器权限、资源和日志上限，并将 Watchtower 改为显式启用。此改动不等于已更新服务器或已发布新镜像，见 [宿主机保护边界](host-protection.md)。
 

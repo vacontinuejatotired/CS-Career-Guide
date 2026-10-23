@@ -2,11 +2,13 @@
 
 核对日期：2026-10-23（Asia/Shanghai）。Git/Actions/配置名称在本次文档维护时重新查询；服务器状态依据本会话前面实际 SSH 检查和账号配置结果，没有为更新文档重启或重新部署服务。区分本地实现、CI、发布、运行状态与业务验收。
 
-## 本轮提交与推送口径
+## 当前主分支与个人开发分支
 
-用户随后指定将本轮改动推送到 `main`。核对时远端只有 `master`，默认分支也是 `master`；本轮创建 `main` 承载面试重构、AI 配置同步和运维文档，不更改默认分支，也不将改动推送到 master。当前 workflow 对 main push 执行 build-only，publisher 和服务器同步均跳过。提交和远端状态以 Git 为准，新的构建结果查看 [main 的 Actions](https://github.com/vacontinuejatotired/CS-Career-Guide/actions?query=branch%3Amain)。
+本会话先按 main 名称推送了三个提交，用户随后纠正：主分支继续使用 master。本轮将它们整合进 master，并从最终主分支建立长期个人分支 `codex/personal`，以后从该分支提 PR 到本 fork 的 master。`codex/ci-cd-images` 的全部提交已包含在 master，本地 `codex/sync-ai-env` 也没有额外提交，不需要重复 cherry-pick。已有 luochen 分支不改写。
 
-下文的 `codex/sync-ai-env`、dirty tree、“未提交”以及旧 HEAD 描述保留为本轮提交前的实施快照。它们不代表推送后的实时 Git 状态，也不能用于推断新镜像已经发布或服务器已经更新。
+代码提交 `33cbc57` 已通过 [Actions 39979362642](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/39979362642)，publisher 和服务器同步按非 master 规则跳过。master 的后续完整验证与发布查看 [当前 Actions](https://github.com/vacontinuejatotired/CS-Career-Guide/actions?query=branch%3Amaster)，不能将 build-only 成功写成 master 镜像已发布。
+
+下文的 `codex/sync-ai-env`、dirty tree、“未提交”以及旧 HEAD 描述保留为提交前的实施快照。当前代码已通过提交保留；未提交的课程资料、`.gitignore` 和 output 仍在工作区，不自动混入主分支。新的 Git/PR/commit 与文档更新规则见 [Git 规范](git-workflow.md)，导航入口见 [agent.md](../agent.md)。
 
 仓库默认关闭 Watchtower、限制容器权限和资源、仅绑定回环地址，详见 [宿主机保护边界](host-protection.md)。服务器已有旧 Watchtower 运行，仓库 profile 不能自动停止它。以下首次发布记录仅作为历史证据。
 
@@ -19,7 +21,7 @@
 - fork 内的 [PR #1](https://github.com/vacontinuejatotired/CS-Career-Guide/pull/1) 已于 **2026-10-21 15:43:07（北京时间）** 合并到 fork 的 `master`；合并提交为 `c1d7b6ab0ff3c48d732fea55cb88899a33c77e9b`。
 - `acad2c8`、`c1d7b6a`、`codex/ci-cd-images` 属于首次发布历史。旧文档的“工作区干净”“从未连接服务器”已不适用于本次快照。
 
-## 2026-10-23 已完成与未完成
+## 2026-10-23 提交前实施状态（历史快照）
 
 | 项目 | 已确认的状态 | 不能据此推断 |
 | --- | --- | --- |
@@ -75,7 +77,7 @@ master 运行的后端日志明确记录：
 
 ## 后续执行边界
 
-2026-10-22 文档提交 `3289bec` 的 Actions 39706415076 等为历史记录。当前后续工作应从 `codex/sync-ai-env` 的实际 dirty tree 继续，不能切回旧分支重做，也不能用旧镜像证据代替新配置验证。
+2026-10-22 文档提交 `3289bec` 的 Actions 39706415076 等为历史记录。分支整合后的开发从 `codex/personal` 继续，保留工作区无关草稿，不能切回旧分支重做，也不能用旧镜像证据代替新配置验证。
 
 后续接手仍先查 Git 与最新 Actions，避免依据本页快照重复修复。默认 MySQL settings 保持不变，SQLite 通过独立的 `settings_sqlite` 模块启用；Docker 构建和容器验证只允许在 Actions runner 执行。
 
