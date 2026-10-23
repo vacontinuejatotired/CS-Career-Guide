@@ -104,6 +104,7 @@ jobs:
           set -o pipefail
           python -m unittest discover -s backend/tests -p 'test_env_config.py' -v 2>&1 | tee backend-config.log
           python -m unittest discover -s backend/tests -p 'test_deploy_runtime.py' -v 2>&1 | tee backend-deploy.log
+          python -m unittest discover -s backend/tests -p 'test_interview.py' -v 2>&1 | tee backend-interview.log
           python -m unittest discover -s ci -p 'test_*.py' -v 2>&1 | tee backend-smoke-harness.log
       - uses: actions/upload-artifact@v4
         if: always()
@@ -129,7 +130,7 @@ jobs:
         run: |
           set -o pipefail
           npm ci 2>&1 | tee ../frontend-install.log
-          node --test tests/auth.test.mjs tests/config.test.mjs tests/api-contract.test.mjs 2>&1 | tee ../frontend-test.log
+          node --test tests/auth.test.mjs tests/config.test.mjs tests/api-contract.test.mjs tests/interview.test.mjs 2>&1 | tee ../frontend-test.log
       - name: Build frontend
         shell: bash
         working-directory: frontend
@@ -343,6 +344,8 @@ jobs:
         with:
           context: .
           file: Dockerfile.frontend
+          build-args: |
+            VITE_ENABLE_TTS=${{ vars.VITE_ENABLE_TTS || 'False' }}
           platforms: linux/amd64
           push: false
           load: true
@@ -475,9 +478,49 @@ jobs:
           retention-days: 30
           overwrite: true
 
+  sync-runtime-env:
+    name: Sync AI environment and recreate application containers
+    needs: [publish]
+    if: needs.publish.result == 'success' && github.ref == 'refs/heads/master' && github.repository == 'vacontinuejatotired/CS-Career-Guide' && github.event_name != 'pull_request' && vars.DEPLOY_ENV_SYNC_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    concurrency:
+      group: cs-career-guide-server-env
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Synchronize allowlisted settings over verified SSH
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          DEPLOY_ENV_PATH: ${{ secrets.DEPLOY_ENV_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          ASR_API_KEY: ${{ secrets.ASR_API_KEY }}
+          TTS_API_KEY: ${{ secrets.TTS_API_KEY }}
+          LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          CAREER_REPORT_MODEL: ${{ vars.CAREER_REPORT_MODEL }}
+          ASR_WSS_URL: ${{ vars.ASR_WSS_URL }}
+          ASR_MODEL: ${{ vars.ASR_MODEL }}
+          ENABLE_TTS: ${{ vars.ENABLE_TTS }}
+          TTS_WSS_URL: ${{ vars.TTS_WSS_URL }}
+          TTS_MODEL: ${{ vars.TTS_MODEL }}
+          TTS_VOICE: ${{ vars.TTS_VOICE }}
+        run: python3 ci/sync_runtime_env.py
+
   release-summary:
     name: Release summary
-    needs: [changes, backend-image, frontend-image, publish]
+    needs: [changes, backend-image, frontend-image, publish, sync-runtime-env]
     if: always() && needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     steps:
@@ -488,6 +531,8 @@ jobs:
           FRONTEND_RESULT: ${{ needs.frontend-image.result }}
           PUBLISH_EXPECTED: ${{ needs.changes.outputs.publish }}
           PUBLISH_RESULT: ${{ needs.publish.result }}
+          SYNC_ENABLED: ${{ vars.DEPLOY_ENV_SYNC_ENABLED }}
+          SYNC_RESULT: ${{ needs.sync-runtime-env.result }}
         run: |
           if [ "$BACKEND_RESULT" != 'success' ] || [ "$FRONTEND_RESULT" != 'success' ]; then
             echo 'Image validation did not both succeed; publication is blocked.' >> "$GITHUB_STEP_SUMMARY"
@@ -503,3 +548,12 @@ jobs:
             exit 1
           fi
           echo 'Verified images published. Use the paired digest references in the publisher summary and publication record.' >> "$GITHUB_STEP_SUMMARY"
+          if [ "$SYNC_ENABLED" = 'true' ]; then
+            if [ "$SYNC_RESULT" != 'success' ]; then
+              echo 'Images published, but AI environment synchronization or container activation failed.' >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+            echo 'AI environment synchronized and application containers recreated with passing health checks.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Server environment synchronization is disabled; no server changes were made.' >> "$GITHUB_STEP_SUMMARY"
+          fi

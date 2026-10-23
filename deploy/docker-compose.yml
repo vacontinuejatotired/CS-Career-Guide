@@ -48,7 +48,15 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_MODEL: ${LLM_MODEL:-}
+      CAREER_REPORT_MODEL: ${CAREER_REPORT_MODEL:-}
+      ASR_API_KEY: ${ASR_API_KEY:-}
+      ASR_WSS_URL: ${ASR_WSS_URL:-}
+      ASR_MODEL: ${ASR_MODEL:-}
       ENABLE_TTS: ${ENABLE_TTS:-False}
+      TTS_API_KEY: ${TTS_API_KEY:-}
+      TTS_WSS_URL: ${TTS_WSS_URL:-}
+      TTS_MODEL: ${TTS_MODEL:-}
+      TTS_VOICE: ${TTS_VOICE:-}
     volumes:
       - sqlite-data:/data
       - backend-static:/data/staticfiles
