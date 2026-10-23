@@ -64,7 +64,11 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 
 兼容旧变量 `api_key`、`base_url`、`career_report_model`、`WSS_URL`。优先使用新的规范变量名；`WSS_URL` 可兼容旧的共享语音地址，新的 ASR_WSS_URL/TTS_WSS_URL 支持分开设置。
 
-模型权重仍需实际下载。仓库中 133 字节的 LFS 指针不能作为模型权重使用；配置路径不会自动修复缺失的权重。关闭自动下载且无可用模型时，原有代码的检索降级行为仍会生效。
+模型权重仍需另行准备。历史提交把 `~/.cache/huggingface/hub/models--BAAI--bge-small-zh-v1.5` 作为仓库内的字面路径纳入 Git；其中两个 133 字节的 LFS 指针不能作为完整权重使用。现已取消该缓存目录的版本跟踪，并从 Docker 构建上下文排除，本地已有文件保留。旧 Git 历史未改写，新克隆不再从当前源码树获得这些缓存文件。
+
+`BAAI/bge-small-zh-v1.5` 用于把文本转换成 512 维向量供语义检索使用，不是聊天/模拟面试的远程 LLM，也不需要模型 API Key。需要启用时，把完整权重放到仓库外的本地目录并配置 `EMBEDDING_MODEL_PATH`，或使用实际用户目录中的 Hugging Face Hub 缓存；正常的 `~` 表示用户目录，与仓库内名为 `~` 的遗留文件夹不同。代码仍兼容查找本地遗留目录，此次没有更改模型选择、开关或检索逻辑。
+
+开发示例默认 `EMBEDDING_ENABLED=False`、`EMBEDDING_ALLOW_DOWNLOAD=False`，不会因这次清理自动下载模型。配置路径不会修复缺失的权重；关闭自动下载且无可用模型时，原有关键词检索降级行为仍会生效。注意 settings.py 在未显式设置开关时的默认值与开发样例不同，实际运行应使用明确配置。
 
 ## 旧向量库的显式迁移
 
