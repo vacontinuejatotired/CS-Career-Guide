@@ -39,7 +39,8 @@
 import { VAD_ASSET_BASE_URL, ENABLE_TTS } from '@/config'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { aiAPI, userAPI, interviewAPI } from '@/api'
+import { userAPI } from '@/api'
+import { interviewService } from '@/features/interview'
 
 const router = useRouter()
 
@@ -408,257 +409,47 @@ const formatTime = (seconds) => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-// 获取用户简历信息
-const getUserResume = () => {
-  try {
-    const resumeStr = localStorage.getItem('resume')
-    if (!resumeStr) {
-      console.log('[RESUME] 未找到简历数据')
-      return null
-    }
-
-    const resume = JSON.parse(resumeStr)
-
-    // 构建简历提示词
-    let resumePrompt = ''
-
-    if (resume.name) {
-      resumePrompt += `姓名：${resume.name}\n`
-    }
-    if (resume.target_position) {
-      resumePrompt += `意向岗位：${resume.target_position}\n`
-    }
-    if (resume.self_evaluation) {
-      resumePrompt += `个人自评：${resume.self_evaluation}\n`
-    }
-    if (resume.skills) {
-      resumePrompt += `专业技能：${resume.skills}\n`
-    }
-    if (resume.education && resume.education.length > 0) {
-      resumePrompt += `教育背景：\n`
-      resume.education.forEach(edu => {
-        if (edu.school) {
-          resumePrompt += `  - ${edu.school} ${edu.major || ''} ${edu.degree || ''} ${edu.period || ''}\n`
-        }
-      })
-    }
-    if (resume.experience && resume.experience.length > 0) {
-      resumePrompt += `实习经历：\n`
-      resume.experience.forEach(exp => {
-        if (exp.company) {
-          resumePrompt += `  - ${exp.company} ${exp.position || ''} ${exp.period || ''}\n`
-          if (exp.description) {
-            resumePrompt += `    ${exp.description}\n`
-          }
-        }
-      })
-    }
-    if (resume.projects && resume.projects.length > 0) {
-      resumePrompt += `项目经验：\n`
-      resume.projects.forEach(project => {
-        if (project.name) {
-          resumePrompt += `  - ${project.name} ${project.role || ''} ${project.period || ''}\n`
-          if (project.description) {
-            resumePrompt += `    ${project.description}\n`
-          }
-        }
-      })
-    }
-    if (resume.certificates && resume.certificates.length > 0) {
-      resumePrompt += `证书认证：\n`
-      resume.certificates.forEach(cert => {
-        if (cert.name) {
-          resumePrompt += `  - ${cert.name} ${cert.issuer || ''} ${cert.period || ''}\n`
-        }
-      })
-    }
-
-    return resumePrompt.trim() || null
-  } catch (error) {
-    console.error('[RESUME] 解析简历数据失败:', error)
-    return null
+// The page renders normalized interview events; the service owns the implementation.
+async function presentInterviewEvent(index, event) {
+  const message = messages.value[index]
+  if (event.type === 'thinking' || event.type === 'error') {
+    message.content = event.content
+    await scrollToBottom()
+  } else if (event.type === 'chunk' && event.content) {
+    message.content = message.content === 'AI正在思考...'
+      ? event.content : message.content + event.content
+    await scrollToBottom()
+  } else if (event.type === 'end') {
+    if (event.session_id) sessionId.value = event.session_id
+    nextTick(() => inputRef.value?.focus())
+  } else if (event.type === 'audio' && ENABLE_TTS && event.audio) {
+    handleAudioChunk(event.audio)
+  } else if (event.type === 'debug' && event.message?.includes('task-finished')) {
+    finishAudio()
   }
 }
 
-// 方法
 async function startInterview() {
-  console.log('开始面试按钮被点击，调用startInterview函数')
-
   isInterviewing.value = true
   isLoading.value = true
   messages.value = []
-  remainingTime.value = 900 // 15分钟
-
-  // 请求音频播放权限（在用户交互中立即调用）
+  remainingTime.value = 900
   await requestAudioPermission()
-
-  // 初始化音频流
   initAudioStream()
-  console.log('音频流已初始化')
-
-  // 开始计时
   startTimer()
-  console.log('计时已开始')
-
-  // 获取用户简历
-  const resumePrompt = getUserResume()
-  console.log('[RESUME] 简历提示词:', resumePrompt ? '已加载' : '未找到')
-
-  // 添加AI消息占位符
-  const aiMessageIndex = messages.value.length
-  messages.value.push({
-    type: 'ai',
-    content: ''
-  })
-
-  // 自动聚焦输入框
-  nextTick(() => {
-    if (inputRef.value) {
-      inputRef.value.focus()
-    }
-  })
-
+  const index = messages.value.length
+  messages.value.push({ type: 'ai', content: '' })
+  nextTick(() => inputRef.value?.focus())
   try {
-    // 使用更新后的aiAPI.chatStream方法
-    const promptType = selectedStyle.value === 'pressure' ? 'pressure_interview' : 'interview'
-
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('请求超时')), 15000)
-    })
-
-    // 构建包含简历的提示词
-    let interviewPrompt = `【面试模式】你是一位${getStyleDescription(selectedStyle.value)}面试官。请开始一场15分钟的面试。`
-
-    if (resumePrompt) {
-      interviewPrompt += `
-
-【面试者简历信息】
-${resumePrompt}
-
-请根据以上简历信息，提出针对性的面试问题。`
-    }
-
-    interviewPrompt += `
-
-要求：
-1. 首先进行简短的自我介绍（说明你是面试官，面试风格）
-2. 然后提出第一个面试问题
-3. 在整个面试过程中，你只需要扮演面试官角色
-4. 根据用户的回答，提出下一个相关问题
-5. 保持${selectedStyle.value === 'pressure' ? '压力面试' : selectedStyle.value === 'technical' ? '技术面试' : selectedStyle.value === 'behavioral' ? '行为面试' : '温和友好'}的风格
-
-现在开始面试。`
-
-    const responsePromise = aiAPI.chatStream(
-      interviewPrompt,
-      promptType,
-      selectedStyle.value,
-      sessionId.value
-    )
-
-    const response = await Promise.race([responsePromise, timeoutPromise])
-
-    if (!response.ok) {
-      throw new Error('API请求失败')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-    let buffer = ''
-    let receivedData = false
-    let startTime = Date.now()
-
-    while (true) {
-      const { done, value } = await reader.read()
-
-      if (done) break
-
-      receivedData = true
-      startTime = Date.now()
-
-      buffer += decoder.decode(value, { stream: true })
-
-      // 处理SSE格式的数据
-      const lines = buffer.split('\n\n')
-      for (let i = 0; i < lines.length - 1; i++) {
-        const line = lines[i]
-        if (line.startsWith('data:')) {
-          const dataStr = line.substring(5).trim()
-          if (!dataStr) continue // 跳过空数据行
-
-          // 处理后端的结束标记
-          if (dataStr === '[DONE]') {
-            console.log('[SSE] 数据流结束')
-            break  // 或 continue，根据逻辑决定
-          }
-
-          try {
-            const data = JSON.parse(dataStr)
-
-            if (data.type === 'thinking') {
-              messages.value[aiMessageIndex].content = data.content
-              await scrollToBottom()
-            } else if (data.type === 'chunk') {
-              if (data.content) {
-                if (messages.value[aiMessageIndex].content === 'AI正在思考...') {
-                  messages.value[aiMessageIndex].content = data.content
-                } else {
-                  messages.value[aiMessageIndex].content += data.content
-                }
-                await scrollToBottom()
-              }
-            } else if (data.type === 'end') {
-              if (data.session_id) {
-                sessionId.value = data.session_id
-              }
-              nextTick(() => {
-                if (inputRef.value) {
-                  inputRef.value.focus()
-                }
-              })
-            } else if (data.type === 'error') {
-              messages.value[aiMessageIndex].content = data.content
-              await scrollToBottom()
-            } else if (data.type === 'debug') {
-              console.log('[TTS DEBUG]', data.message)
-              if (data.message && data.message.includes('task-finished')) {
-                finishAudio()
-              }
-            } else if (data.type === 'audio') {
-              if (ENABLE_TTS) {
-                console.log('[TTS AUDIO] Received audio chunk:', data.audio ? `(${data.audio.length} bytes)` : 'empty')
-                if (data.audio) {
-                  handleAudioChunk(data.audio)
-                }
-              } else {
-                console.log('[TTS AUDIO] 语音合成已禁用，跳过音频处理')
-              }
-            }
-          } catch (e) {
-            console.error('解析SSE数据失败:', e, 'Data:', dataStr)
-          }
-        }
-      }
-
-      buffer = lines[lines.length - 1]
-    }
-
-    if (!receivedData) {
-      throw new Error('未收到任何数据')
-    }
+    await interviewService.start({
+      style: selectedStyle.value, sessionId: sessionId.value
+    }, event => presentInterviewEvent(index, event))
   } catch (error) {
     console.error('开始面试失败:', error)
-    messages.value.push({
-      type: 'ai',
-      content: '抱歉，面试服务暂时不可用，请稍后再试。'
-    })
+    messages.value.push({ type: 'ai', content: '抱歉，面试服务暂时不可用，请稍后再试。' })
   } finally {
     isLoading.value = false
-    nextTick(() => {
-      if (inputRef.value) {
-        inputRef.value.focus()
-      }
-    })
+    nextTick(() => inputRef.value?.focus())
   }
 }
 
@@ -673,158 +464,27 @@ function pauseInterview() {
 }
 
 async function sendMessage(event, audioMsg = null) {
-  let content
-  if (audioMsg) {
-    content = audioMsg.trim()
-  } else {
-    content = inputMessage.value.trim()
-  }
-
+  const content = (audioMsg || inputMessage.value).trim()
   if (!content || !isInterviewing.value || isLoading.value) return
-
-  messages.value.push({
-    type: 'user',
-    content: content
-  })
+  messages.value.push({ type: 'user', content })
   await scrollToBottom()
-
-  const userMessage = content
-  if (!audioMsg) {
-    inputMessage.value = ''
-  }
+  if (!audioMsg) inputMessage.value = ''
   isLoading.value = true
-
-  // 添加AI消息占位符
-  const aiMessageIndex = messages.value.length
-  messages.value.push({
-    type: 'ai',
-    content: ''
-  })
-
-  // 自动聚焦输入框
-  nextTick(() => {
-    if (inputRef.value) {
-      inputRef.value.focus()
-    }
-  })
-
+  const index = messages.value.length
+  messages.value.push({ type: 'ai', content: '' })
+  nextTick(() => inputRef.value?.focus())
   try {
-    // 请求音频播放权限（在用户交互中立即调用）
     await requestAudioPermission()
-
-    // 重新初始化音频流以准备接收新的语音数据
     initAudioStream()
-    console.log('[AUDIO] 重新初始化音频流')
-
-    // 使用更新后的aiAPI.chatStream方法
-    const promptType = selectedStyle.value === 'pressure' ? 'pressure_interview' : 'interview'
-    const response = await aiAPI.chatStream(
-      `【面试模式】用户的回答是："${userMessage}"
-
-作为${getStyleDescription(selectedStyle.value)}面试官，请：
-1. 简要评价用户的回答（可选）
-2. 提出下一个面试问题
-
-注意：你只需扮演面试官角色，不要查询任何数据库信息。`,
-      promptType,
-      selectedStyle.value,
-      sessionId.value
-    )
-
-    if (!response.ok) {
-      throw new Error('API请求失败')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-    let buffer = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-
-      // 处理SSE格式的数据
-      const lines = buffer.split('\n\n')
-      for (let i = 0; i < lines.length - 1; i++) {
-        const line = lines[i]
-        if (line.startsWith('data:')) {
-          const dataStr = line.substring(5).trim()
-          if (!dataStr) continue // 跳过空数据行
-
-          // 添加对 [DONE] 的处理
-          if (dataStr === '[DONE]') {
-            console.log('[SSE] 数据流结束')
-            continue  // 或 break，根据逻辑决定
-          }
-
-          try {
-            const data = JSON.parse(dataStr)
-
-            if (data.type === 'thinking') {
-              // 显示思考状态
-              messages.value[aiMessageIndex].content = data.content
-              await scrollToBottom()
-            } else if (data.type === 'chunk') {
-              // 更新AI消息内容
-              if (data.content) {
-                if (messages.value[aiMessageIndex].content === 'AI正在思考...') {
-                  messages.value[aiMessageIndex].content = data.content
-                } else {
-                  messages.value[aiMessageIndex].content += data.content
-                }
-                await scrollToBottom()
-              }
-            } else if (data.type === 'end') {
-              // 保存sessionId
-              if (data.session_id) {
-                sessionId.value = data.session_id
-              }
-              // AI消息结束后聚焦输入框
-              nextTick(() => {
-                if (inputRef.value) {
-                  inputRef.value.focus()
-                }
-              })
-            } else if (data.type === 'error') {
-              // 显示错误消息
-              messages.value[aiMessageIndex].content = data.content
-              await scrollToBottom()
-            } else if (data.type === 'audio') {
-              // 处理音频数据
-              if (ENABLE_TTS) {
-                console.log('[TTS AUDIO] Received audio chunk:', data.audio ? `(${data.audio.length} bytes)` : 'empty')
-                if (data.audio) {
-                  handleAudioChunk(data.audio)
-                }
-              } else {
-                console.log('[TTS AUDIO] 语音合成已禁用，跳过音频处理')
-              }
-            }
-          } catch (e) {
-            console.error('解析SSE数据失败:', e, 'Data:', dataStr)
-          }
-        }
-      }
-
-      // 保留未处理的部分
-      buffer = lines[lines.length - 1]
-    }
+    await interviewService.answer({
+      answer: content, style: selectedStyle.value, sessionId: sessionId.value
+    }, event => presentInterviewEvent(index, event))
   } catch (error) {
     console.error('发送回答失败:', error)
-    messages.value.push({
-      type: 'ai',
-      content: '抱歉，面试服务暂时不可用，请稍后再试。'
-    })
+    messages.value.push({ type: 'ai', content: '抱歉，面试服务暂时不可用，请稍后再试。' })
   } finally {
     isLoading.value = false
-    // 加载完成后聚焦输入框
-    nextTick(() => {
-      if (inputRef.value) {
-        inputRef.value.focus()
-      }
-    })
+    nextTick(() => inputRef.value?.focus())
   }
 }
 
@@ -860,145 +520,35 @@ async function endInterview() {
   }
 }
 
-async function generateReview()
-{
-  // 构建对话记录
-  const conversation = messages.value
-    .filter(msg => msg.content && !msg.content.includes('正在生成面试复盘'))
-    .map(msg => `${msg.type === 'ai' ? '面试官' : '面试者'}：${msg.content}`)
-    .join('\n')
-
-  // 检查是否有足够的对话内容
-  if (conversation.trim().length < 50) {
-    reviewContent.value = '面试对话内容不足，无法生成复盘报告。请确保面试过程中有足够的交流。'
-    showReview.value = true
-    return
-  }
-
+async function generateReview() {
+  reviewContent.value = ''
+  showReview.value = true
   try {
-    // 使用完整的会话ID，确保记忆功能正常工作
-    const requestSessionId = sessionId.value || 'default_session'
-    const response = await aiAPI.chatStream(
-      `【面试复盘模式】请对以下面试过程进行复盘，并提供改进建议。
-
-面试风格：${getStyleDescription(selectedStyle.value)}
-
-对话记录：
-${conversation}
-
-请提供以下内容：
-1. 面试表现总结（整体评价）
-2. 回答的优点
-3. 需要改进的地方
-4. 具体改进建议
-5. 下次面试的准备建议`,
-      'interview_review',
-      selectedStyle.value,
-      requestSessionId
-    )
-
-    if (!response.ok) {
-      throw new Error(`API请求失败，状态码: ${response.status}`)
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-    let buffer = ''
-    reviewContent.value = ''
-    showReview.value = true
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-
-      const lines = buffer.split('\n\n')
-      for (const line of lines) {
-        if (line.startsWith('data:')) {
-          const dataStr = line.substring(5).trim()
-          if (dataStr) {
-            // 跳过 [DONE] 标记
-            if (dataStr === '[DONE]') {
-              console.log('[REVIEW] SSE流结束')
-              continue
-            }
-            try {
-              const data = JSON.parse(dataStr)
-              if (data.type === 'chunk') {
-                if (data.content) {
-                  reviewContent.value += data.content
-                }
-              }
-            } catch (e) {
-              console.warn('[REVIEW] 忽略非JSON数据:', dataStr)
-            }
-          }
-        }
-      }
-
-      buffer = lines[lines.length - 1]
-    }
-
-    // 检查是否生成了复盘内容
-    if (!reviewContent.value || reviewContent.value.trim().length === 0) {
-      throw new Error('未获取到复盘内容')
-    }
-
-    // 保存复盘记录到后端
-    await saveReviewRecord(reviewContent.value)
+    const review = await interviewService.generateReview({
+      messages: messages.value, style: selectedStyle.value, sessionId: sessionId.value
+    }, event => {
+      if (event.type === 'chunk' && event.content) reviewContent.value += event.content
+    })
+    reviewContent.value = review.content
+    if (!review.skipped) await saveReviewRecord(review.content)
   } catch (error) {
     console.error('生成复盘失败:', error)
     reviewContent.value = `生成复盘时遇到问题：${error.message}\n\n请稍后重试，或检查网络连接。`
-    showReview.value = true
   }
 }
 
-async function saveReviewRecord(reviewContent) {
+async function saveReviewRecord(content) {
   try {
-    const interviewMsgs = messages.value.filter(m => m.content && !m.content.includes('正在生成面试复盘'))
-    const questionCount = interviewMsgs.filter(m => m.type === 'ai').length
-    const answerCount = interviewMsgs.filter(m => m.type === 'user').length
-
-    // 计算面试时长：总时长900秒 - 剩余时间 = 已用时间
-    const totalDuration = 900 // 15分钟 = 900秒
-    const usedSeconds = totalDuration - remainingTime.value
-    const interviewDurationMinutes = Math.floor(usedSeconds / 60)
-
-    const data = {
-      session_id: sessionId.value || 'default_session',
-      review_content: reviewContent,
-      interview_style: selectedStyle.value || 'gentle',
-      interview_duration: interviewDurationMinutes,
-      question_count: questionCount,
-      answer_count: answerCount
-    }
-
-    const token = localStorage.getItem('token')
-    console.log('[REVIEW] 保存复盘记录 - session_id:', sessionId.value, 'token:', token ? '存在' : '不存在')
-
-    const result = await interviewAPI.saveReview(data)
-    if (result.success) {
-      console.log('复盘记录保存成功:', result.review_id)
-    } else {
-      console.error('保存复盘记录失败:', result.error)
-    }
+    const result = await interviewService.saveReview({
+      messages: messages.value, content, style: selectedStyle.value,
+      sessionId: sessionId.value, remainingTime: remainingTime.value
+    })
+    if (!result.success) console.error('保存复盘记录失败:', result.error)
   } catch (error) {
     console.error('保存复盘记录失败:', error)
   }
 }
 
-function getStyleDescription(style) {
-  const descriptions = {
-    gentle: '温和友好的',
-    pressure: '压力型',
-    technical: '技术导向的',
-    behavioral: '行为面试'
-  }
-  return descriptions[style] || '专业的'
-}
-
-// 语音识别相关函数
 const startRecording = async () => {
   const baseUrl = VAD_ASSET_BASE_URL;
   try {
@@ -1138,7 +688,7 @@ const sendToBackend = async (arrayBuffer) => {
     console.log(`🔌 正在连接后端接口: /asr/speech-to-text/`);
     const startTime = Date.now();
 
-    const response = await interviewAPI.transcribe(formData);
+    const response = await interviewService.transcribe(formData);
 
     const responseTime = Date.now() - startTime;
     console.log(`⏱️  后端响应时间: ${responseTime}ms`);
