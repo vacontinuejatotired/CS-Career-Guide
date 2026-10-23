@@ -39,7 +39,7 @@
 import { VAD_ASSET_BASE_URL, ENABLE_TTS } from '@/config'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import api, { aiAPI, userAPI, apiFetch } from '@/api'
+import { aiAPI, userAPI, interviewAPI } from '@/api'
 
 const router = useRouter()
 
@@ -977,16 +977,7 @@ async function saveReviewRecord(reviewContent) {
     const token = localStorage.getItem('token')
     console.log('[REVIEW] 保存复盘记录 - session_id:', sessionId.value, 'token:', token ? '存在' : '不存在')
 
-    const response = await apiFetch('/ai/interview/save_review/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(data)
-    })
-
-    console.log('[REVIEW] 响应状态:', response.status)
-    const result = await response.json()
+    const result = await interviewAPI.saveReview(data)
     if (result.success) {
       console.log('复盘记录保存成功:', result.review_id)
     } else {
@@ -1147,11 +1138,7 @@ const sendToBackend = async (arrayBuffer) => {
     console.log(`🔌 正在连接后端接口: /asr/speech-to-text/`);
     const startTime = Date.now();
 
-    const response = await api.post('/asr/speech-to-text/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
+    const response = await interviewAPI.transcribe(formData);
 
     const responseTime = Date.now() - startTime;
     console.log(`⏱️  后端响应时间: ${responseTime}ms`);

@@ -39,6 +39,25 @@ export const userAPI = {
   })
 }
 
+// Shared by the editing workspace and personal center; paths match Django's routers.
+export const resumeAPI = {
+  get: () => api.get('/resumes/my/'),
+  save: (data) => api.post('/resumes/my/', data),
+  uploadAvatar: (formData) => api.post('/resumes/upload_avatar/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  deleteAvatar: () => api.delete('/resumes/delete_avatar/')
+}
+
+export const interviewAPI = {
+  listReviews: () => api.get('/ai/records/interview-reviews/'),
+  getReview: (sessionId) => api.get(`/ai/records/interview-reviews/${encodeURIComponent(sessionId)}/`),
+  saveReview: (data) => api.post('/ai/interview/save_review/', data),
+  transcribe: (formData) => api.post('/asr/speech-to-text/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
 export const aiAPI = {
   chat: (message, mode, interview_style, session_id) => api.post('/ai/llm/chat/', { message, mode, interview_style, session_id }),
   chatStream: (message, mode, interview_style, session_id) => {
@@ -78,7 +97,7 @@ export const jobFairAPI = {
 }
 
 export const companyInfoAPI = {
-  getCompanyInfos: (page = 1, pageSize = 10) => api.get('/company-reviews/company-infos/', {
+  getCompanyInfos: (page = 1, pageSize = 10) => api.get('/company-reviews/company-info/', {
     params: { page, page_size: pageSize }
   })
 }

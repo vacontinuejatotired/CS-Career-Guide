@@ -5,11 +5,12 @@
         <div class="resume-toolbar">
           <div><p class="career-eyebrow">求职准备 / 我的简历</p><h1>简历工作台</h1><p class="resume-subtitle">左侧整理经历，右侧实时预览。保存后可以继续编辑，或带着这份简历练习面试。</p></div>
           <div class="resume-actions">
-            <button type="button" @click="saveResume" class="career-button">保存草稿</button>
+            <button type="button" @click="saveResume" class="career-button" :disabled="isSaving">{{ isSaving ? '同步中…' : '保存草稿' }}</button>
             <button type="button" @click="exportPDF" class="career-button career-button-primary">导出简历 ↓</button>
             <button type="button" @click="goToInterview" class="career-button">模拟面试 →</button>
           </div>
         </div>
+        <p v-if="saveNotice" role="status" class="resume-save-notice" :class="{ 'is-error': saveFailed }">{{ saveNotice }}</p>
         <!-- 语音输入状态 -->
         <div v-if="voiceInputStatus" class="p-4 rounded-md bg-gray-100 border border-gray-200">
           <div class="flex items-center gap-2">
@@ -470,7 +471,7 @@ import { marked } from 'marked'
 // 设置为同步解析
 marked.setOptions({ async: false })
 
-import api from '@/api'
+import api, { resumeAPI } from '@/api'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 
@@ -494,6 +495,9 @@ const voiceInputText = ref('')
 const voiceInputStatus = ref('')
 const recognition = ref(null)
 const isProcessing = ref(false)
+const isSaving = ref(false)
+const saveNotice = ref('')
+const saveFailed = ref(false)
 
 const resume = ref({
   avatar_url: null,
@@ -596,23 +600,23 @@ const loadResume = async () => {
 
     // 然后尝试从API加载数据
     try {
-      const data = await api.get('/resumes/my/')
+      const data = await resumeAPI.get()
       console.log('API返回的数据:', data)
       if (data) {
         Object.assign(resume.value, {
-          avatar_url: data.avatar_url || resume.value.avatar_url,
-          name: data.name || resume.value.name,
-          target_position: data.target_position || resume.value.target_position,
-          phone: data.phone || resume.value.phone,
-          email: data.email || resume.value.email,
-          address: data.address || resume.value.address,
-          self_evaluation: data.self_evaluation || resume.value.self_evaluation,
-          skills: data.skills || resume.value.skills,
-          education: data.education && data.education.length > 0 ? data.education : resume.value.education,
-          experience: data.experience && data.experience.length > 0 ? data.experience : resume.value.experience,
-          projects: data.projects || resume.value.projects,
-          certificates: data.certificates || resume.value.certificates,
-          awards: data.awards || resume.value.awards
+          avatar_url: data.avatar_url ?? null,
+          name: data.name ?? '',
+          target_position: data.target_position ?? '',
+          phone: data.phone ?? '',
+          email: data.email ?? '',
+          address: data.address ?? '',
+          self_evaluation: data.self_evaluation ?? '',
+          skills: data.skills ?? '',
+          education: data.education ?? [],
+          experience: data.experience ?? [],
+          projects: data.projects ?? [],
+          certificates: data.certificates ?? [],
+          awards: data.awards ?? []
         })
         // 将API数据保存到本地存储
         localStorage.setItem('resume', JSON.stringify(resume.value))
@@ -672,11 +676,7 @@ const handleAvatarChange = async (event) => {
     const formData = new FormData()
     formData.append('avatar', file)
 
-    const response = await api.post('/resumes/upload_avatar/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
+    const response = await resumeAPI.uploadAvatar(formData)
 
     console.log('上传响应:', response)
     if (response && response.avatar_url) {
@@ -702,7 +702,7 @@ const removeAvatar = async () => {
   if (!confirm('确定要删除头像吗？')) return
 
   try {
-    await api.delete('/resumes/delete_avatar/')
+    await resumeAPI.deleteAvatar()
     resume.value.avatar_url = null
     avatarPreview.value = null
     alert('头像删除成功！')
@@ -774,6 +774,10 @@ const removeCertificate = (index) => {
 }
 
 const saveResume = async () => {
+  if (isSaving.value) return
+  isSaving.value = true
+  saveFailed.value = false
+  saveNotice.value = ''
   try {
     // 字段归一化处理
     const normalizeData = () => {
@@ -844,17 +848,25 @@ const saveResume = async () => {
     const data = normalizeData()
     console.log('保存的数据:', data)
 
-    const response = await api.post('/resumes/my/', data)
+    const response = await resumeAPI.save(data)
     console.log('保存响应:', response)
 
     // 保存成功后，重新加载数据验证
     await loadResume()
-    alert('简历保存成功！')
+    saveNotice.value = '简历已同步到账号，可在个人中心继续查看。'
   } catch (error) {
     console.error('保存简历失败:', error)
+    saveFailed.value = true
+    if (error.response?.status === 401) {
+      saveNotice.value = '登录已失效，请重新登录后保存。'
+      return
+    }
     // 如果API失败，保存到本地存储
     localStorage.setItem('resume', JSON.stringify(resume.value))
-    alert('简历已保存到本地！')
+    const reason = error.response?.data?.detail || error.response?.data?.error
+    saveNotice.value = reason ? `未同步到服务器：${reason}。当前内容仅保存在本机。` : '未同步到服务器，当前内容仅保存在本机。请检查网络或登录状态后重试。'
+  } finally {
+    isSaving.value = false
   }
 }
 
@@ -1276,7 +1288,7 @@ watch(
       console.error('保存到本地存储失败:', error)
     }
   },
-  { deep: true, immediate: true }
+  { deep: true }
 )
 
 onMounted(async () => {
@@ -1285,6 +1297,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.resume-save-notice { padding: 12px 14px; border: 1px solid #b8dbd4; border-radius: 6px; background: #f0faf7; color: #247360; font-size: 13px; line-height: 1.8; }
+.resume-save-notice.is-error { border-color: #edc7c1; background: #fff4f2; color: #b42318; }
 .resume-page {
   background: var(--career-bg);
   padding: 28px 0 36px;

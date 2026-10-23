@@ -129,7 +129,7 @@ jobs:
         run: |
           set -o pipefail
           npm ci 2>&1 | tee ../frontend-install.log
-          node --test tests/auth.test.mjs tests/config.test.mjs 2>&1 | tee ../frontend-test.log
+          node --test tests/auth.test.mjs tests/config.test.mjs tests/api-contract.test.mjs 2>&1 | tee ../frontend-test.log
       - name: Build frontend
         shell: bash
         working-directory: frontend
