@@ -1,5 +1,27 @@
 # 演示部署验收状态与接手记录
 
+## 2026-10-26 实时核验与补通
+
+本节依据当天实际 GitHub 查询、SSH 检查及少量已授权真实模型请求；下文 2026-10-23 内容保留为历史记录。
+
+- [Actions 40279477861](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/40279477861) 已验证、发布并完成真实 AI 环境同步、容器重建和健康等待。部署开关 `DEPLOY_ENV_SYNC_ENABLED=true`，旧 Watchtower 已停止，后续统一由 Actions 更新应用。
+- 服务器 Compose 补齐 `CAREER_REPORT_MODEL`、ASR 三项和 TTS 四项映射；部署账号的私有镜像拉取成功。`.env` 的非 AI 行与备份逐字节比较一致，数据库、域名、资源和镜像选择未被同步覆盖。
+- 自动同步只读取基础 Compose。首次重建曾丢失旧容器的 80 端口；已将服务器原有 80 和 48080 映射同时写入实际基础文件并重建前端，公网登录页恢复 HTTP 200。不要假设 override 或旧容器参数会自动继承。
+- 操作前的配置、SQLite 在线一致性备份及容器身份位于服务器部署目录的 `backups/ai-connect-20261026T062229Z/`，权限限制在服务器内；不上传含密钥或用户数据的备份。
+- 真实文本模型 `qwen3.8-flash` 和 `qwen3.7-plus` 均返回短文本；测试显式关闭思考模式并限制输出，初次 16 token 的思考模式测试没有得到正文，失败记录保留。
+- 实际 Nginx/Django HTTP 链路的注册、登录、资料、简历保存读取均通过；面试 SSE 返回文本、14 个音频块和会话 ID，复盘保存及详情读取通过。复盘保存使用明确的合成测试记录，不能当作模型生成复盘质量验收；临时账号与测试会话已清理。
+- [PR #2](https://github.com/vacontinuejatotired/CS-Career-Guide/pull/2) 已通过完整 PR CI 并合并：补 Fun-ASR `sentence` 协议与失败处理，以及 `career_paths` 初始迁移。本地新增 12 项 ASR 和 1 项隔离真实迁移测试通过；前端 32 项、面试 6 项、配置 16 项、部署 7 项通过，CI 工具 36 项中 Windows 跳过 4 项 POSIX 检查。最终 master [Actions 40280652973](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/40280652973) 的全部验证、镜像发布、配置同步、重建和 release-summary 成功；代码提交为 `4fda51cef670ec33460e9d0db10dbb6e8b918dab`。
+- 2026-10-26 14:50（Asia/Shanghai）复测：`career_paths` 路径和题目接口从 500 恢复为 200，目前返回空列表；注册、登录、资料、简历读写及当前页面使用的企业、招聘会、岗位列表接口均成功。`cosyvoice-v3-flash` 合成约 3.1 秒 PCM，再经真实上传接口 `/api/asr/speech-to-text/` 调用 `fun-asr-realtime`，准确返回“你好，这是面试语音测试。”；测试音频和临时账号均已清理。
+- 前后端均 healthy，运行镜像的 RepoDigests 与本次成对发布记录一致。永久记录见 [2026-10-26-4fda51c.json](releases/2026-10-26-4fda51c.json)，不把容器 `.Image` 当作 Registry manifest digest。公网登录页 HTTP 200，旧 Watchtower 停止，非 AI 环境行再次核对为原样保留。
+
+### 尚未完成的独立验收
+
+- 职业路径、测评题库、岗位、招聘会、企业评价等当前数据库表为空，接口可用不代表已导入业务数据；不伪造招聘或测评数据。`company_info_backup` 属于未托管的外部数据表，当前缺失。旧 `/company-api` 返回 503，但该旧客户端没有被当前页面使用，不能把它等同于当前企业页面的所有接口都不可用。
+- 未配置域名/HTTPS，用户已确认先完成后端服务。公网 HTTP 浏览器麦克风与完整语音页面未验收；后端音频成功不等于浏览器录音权限成功。
+- 本地 Embedding 继续关闭并使用关键词降级；完整职业报告工作流、报告质量、全部面试风格和多轮时长未做真实模型全覆盖；没有 MySQL 切换、历史数据导入或回滚演练。
+
+## 2026-10-23 历史快照
+
 核对日期：2026-10-23（Asia/Shanghai）。Git/Actions/配置名称在本次文档维护时重新查询；服务器状态依据本会话前面实际 SSH 检查和账号配置结果，没有为更新文档重启或重新部署服务。区分本地实现、CI、发布、运行状态与业务验收。
 
 ## 当前主分支与个人开发分支
