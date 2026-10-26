@@ -10,7 +10,7 @@ export class LegacyInterviewImplementation {
     this.readResume = readResume
   }
 
-  async start({ style, sessionId }, onEvent) {
+  async start({ style, sessionId, enableTts = false, signal }, onEvent) {
     let resumePrompt = null
     try {
       resumePrompt = formatLegacyResume(this.readResume())
@@ -44,7 +44,7 @@ ${resumePrompt}
     let timeout
     try {
       const response = await Promise.race([
-        this.chatStream(interviewPrompt, promptType, style, sessionId),
+        this.chatStream(interviewPrompt, promptType, style, sessionId, { enableTts, signal }),
         new Promise((_, reject) => {
           timeout = setTimeout(() => reject(new Error('请求超时')), 15000)
         })
@@ -55,7 +55,7 @@ ${resumePrompt}
     }
   }
 
-  async answer({ answer, style, sessionId }, onEvent) {
+  async answer({ answer, style, sessionId, enableTts = false, signal }, onEvent) {
     const userMessage = answer
     const promptType = style === 'pressure' ? 'pressure_interview' : 'interview'
     const response = await this.chatStream(
@@ -65,12 +65,12 @@ ${resumePrompt}
 1. 简要评价用户的回答（可选）
 2. 提出下一个面试问题
 
-注意：你只需扮演面试官角色，不要查询任何数据库信息。`, promptType, style, sessionId
+注意：你只需扮演面试官角色，不要查询任何数据库信息。`, promptType, style, sessionId, { enableTts, signal }
     )
     await readLegacyStream(response, onEvent)
   }
 
-  async generateReview({ messages, style, sessionId }, onEvent = () => {}) {
+  async generateReview({ messages, style, sessionId, signal }, onEvent = () => {}) {
     const conversation = reviewMessages(messages)
       .map(msg => `${msg.type === 'ai' ? '面试官' : '面试者'}：${msg.content}`)
       .join('\n')
@@ -90,7 +90,7 @@ ${conversation}
 2. 回答的优点
 3. 需要改进的地方
 4. 具体改进建议
-5. 下次面试的准备建议`, 'interview_review', style, sessionId || 'default_session'
+5. 下次面试的准备建议`, 'interview_review', style, sessionId || 'default_session', { enableTts: false, signal }
     )
     let content = ''
     await readLegacyStream(response, async event => {

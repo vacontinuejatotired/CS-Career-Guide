@@ -60,13 +60,14 @@ export const interviewAPI = {
 
 export const aiAPI = {
   chat: (message, mode, interview_style, session_id) => api.post('/ai/llm/chat/', { message, mode, interview_style, session_id }),
-  chatStream: (message, mode, interview_style, session_id) => {
+  chatStream: (message, mode, interview_style, session_id, options = {}) => {
     return apiFetch('/ai/llm/chat/', {
       method: 'POST',
+      signal: options.signal,
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ message, mode, interview_style, session_id })
+      body: JSON.stringify({ message, mode, interview_style, session_id, enable_tts: options.enableTts === true })
     })
   },
   getHistory: (sessionId) => api.get(`/ai/llm/chat/history/?session_id=${sessionId}`),
