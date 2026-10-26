@@ -15,7 +15,7 @@
 | `backend/career_paths/`、`career_evaluation/`、`company_reviews/` | 职业路径、评估、企业相关业务 |
 | `backend/ai_integration/` | 共享模型接口、会话/复盘记录、职业报告、检索和 LangGraph 实现 |
 | `backend/ai_integration/interview/` | 网页面试当前使用的提示词策略与复盘解析 |
-| `backend/asr/` | 后端语音识别调用，当前模型协议兼容仍待验收 |
+| `backend/asr/` | Fun-ASR 协议和真实短音频上传已验证；浏览器录音权限与完整语音流程另行验收 |
 | `ci/`、`.github/workflows/` | 离线脚本测试、runner 联调、镜像发布及可选 AI 配置同步 |
 | `deploy/` | Compose、部署配置样例与 digest override |
 
