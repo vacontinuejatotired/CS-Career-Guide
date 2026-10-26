@@ -479,6 +479,7 @@ const float32ToInt16 = (float32Array) => {
 };
 
 const sendToBackend = async (arrayBuffer) => {
+  const generation = recordingGeneration
   try {
     isSending.value = true;
     console.log(`📤 开始发送音频到后端...`);
@@ -492,6 +493,8 @@ const sendToBackend = async (arrayBuffer) => {
     const startTime = Date.now();
 
     const response = await interviewService.transcribe(formData);
+    // Closing/pausing the microphone invalidates audio already in flight too.
+    if (generation !== recordingGeneration || !isRecording.value || !isInterviewing.value) return
 
     const responseTime = Date.now() - startTime;
     console.log(`⏱️  后端响应时间: ${responseTime}ms`);
