@@ -1,6 +1,6 @@
 # 服务器拉取部署
 
-> 2026-10-23 状态：本会话已连接服务器，观察到前后端健康及旧 Watchtower 运行，并创建、验证 `csdeploy`。本轮未重启应用、未执行镜像拉取、未迁移数据；新 AI 同步及面试重构尚未发布。本页操作命令是后续执行手册，不代表已执行。
+> 2026-10-26：已验证 `csdeploy` 的私有 ACR 拉取，补齐服务器 AI 映射并通过 Actions 同步与重建应用；旧 Watchtower 已停止。服务器定制的 80 和 48080 端口已写入实际基础 Compose，避免同步只加载基础文件时丢失 80 端口。操作前已备份 SQLite、环境文件、Compose 和容器身份；实时业务验收见 [当前状态](deployment-status.md)。下文 2026-10-23 的账号创建记录是历史背景。
 
 当前仓库以保护宿主机优先：默认仅绑定回环地址、限制资源与日志、只启动前后端，Watchtower 需要单独启用。新前端监听 `8080`，不能把新 Compose 与旧 `c1d7b6a` 前端镜像混用；执行部署前确认镜像与配置兼容，见 [宿主机保护边界](host-protection.md)。本次仅更新操作手册。
 
@@ -10,7 +10,7 @@
 
 实际服务器主机、端口、账号、环境文件路径和专用凭据保存在六个 `DEPLOY_*` Secrets 中，见 [配置表](ai-env-sync.md#github-配置)。不要将私钥、服务器真实 `.env` 或未经脱敏的 `docker inspect`/`docker compose config` 输出放进文档。
 
-部署账号已验证目录读写、Docker 调用和 Python 3。**ACR 私有镜像拉取未验证**；现有管理员或 Watchtower 的登录不能替代部署账号登录。自动同步脚本使用部署账号默认 Docker CLI 凭据，须以该账号配置专用 ACR 登录；`DOCKER_CONFIG_DIR` 只决定 Watchtower 挂载目录，不会自动影响 CLI。
+部署账号已验证目录读写、Docker 调用和 Python 3，2026-10-26 已以该账号成功拉取前后端私有镜像。现有管理员或 Watchtower 的登录不能替代部署账号登录。自动同步脚本使用部署账号默认 Docker CLI 凭据，须以该账号配置本项目 ACR 登录；`DOCKER_CONFIG_DIR` 只决定 Watchtower 挂载目录，不会自动影响 CLI。
 
 启用前逐项合并服务器 Compose 中的 AI environment 映射，保留服务器定制配置；不要用仓库样例覆盖现有 `.env`。`SECRET_KEY`、数据库、`COMPOSE_PROJECT_NAME`、域名、端口、路径、资源限制和镜像选择留在服务器。AI 白名单由 Actions 管理，空的可选值不会删除已有值。
 
@@ -173,5 +173,5 @@ docker compose up -d --no-build
 - 没有 HTTPS 和域名证书。
 - 没有自动迁移已有媒体或 SQLite 数据。
 - 没有真实 MySQL 迁移验证。
-- 没有真实 AI 费用验证。
+- 少量真实文本和面试音频调用已授权并验证，不代表完整费用、配额或负载验收。
 - 不能宣称已完成公网上线。
