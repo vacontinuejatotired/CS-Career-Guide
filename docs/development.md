@@ -55,6 +55,8 @@ Linux/macOS 对应 Python 路径通常为 `.venv/bin/python`。ci/sync_runtime_e
 
 前端生产编译在 frontend 目录运行 `npm run build`；确认已有环境配置符合本次验证目的，输出写忽略目录。构建通过不能替代浏览器和模型验收。Docker 构建、真实容器冒烟、Nginx/Django 联调、SQLite 持久化在 Actions runner 验证，不为完成本地测试启动 Docker。
 
+2026-10-26 补齐 `career_paths` 初始迁移，修复新部署只运行 `migrate` 时职业路径、题目和结果表没有创建的问题。新库按原流程执行 `migrate`；历史数据库若已手动建齐这三张表，先备份并核对模型与表结构，再使用 `migrate career_paths --fake-initial` 登记初始迁移，不能直接对部分存在或结构不一致的表使用 fake。本次迁移只建表，不导入题库、职业或招聘数据。`test_career_path_migrations.py` 在内存 SQLite 中执行真实迁移并验证三类记录读写与模型无漂移。
+
 真实模型/语音、浏览器账号和服务器检查按实际授权执行，记录时间、环境、输入范围及结果；保留失败证据，不把模拟通过写成真实服务成功。相关接口与验收见 [面试重构](interview-refactor.md)。
 
 ## 增量维护文档
