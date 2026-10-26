@@ -7,6 +7,21 @@ import { readLegacyStream } from '../src/features/interview/legacy/stream.js'
 
 const baseline = JSON.parse(await readFile(new URL('./fixtures/interview-legacy.json', import.meta.url), 'utf8'))
 
+test('interview voice selection and cancellation reach each request; reviews remain text-only', async () => {
+  const calls = []
+  const implementation = new LegacyInterviewImplementation({readResume: () => null,
+    chatStream: async (...args) => { calls.push(args); return response([{type:'chunk',content:'回复'}]) },
+    saveReview() {}, transcribe() {},
+  })
+  const controller = new AbortController()
+  const context = {style:'gentle',sessionId:'s1',enableTts:true,signal:controller.signal}
+  await implementation.start(context)
+  await implementation.answer({...context,answer:'回答'})
+  await implementation.generateReview({...context,messages:[{type:'user',content:'经历'.repeat(50)}]})
+  assert.deepEqual(calls.map(args => args[4].enableTts), [true,true,false])
+  assert.ok(calls.every(args => args[4].signal === controller.signal))
+})
+
 function response(events) {
   return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('') + 'data: [DONE]\n\n')
 }
@@ -26,7 +41,8 @@ for (const scenario of baseline.turns) {
     await service.start(context)
     await service.answer({ ...context, answer: scenario.answer })
     const review = await service.generateReview({ ...context, messages: scenario.conversation })
-    assert.deepEqual(calls, scenario.requests)
+    assert.deepEqual(calls.map(args => args.slice(0, 4)), scenario.requests)
+    assert.ok(calls.every(args => args[4].enableTts === false))
     assert.deepEqual(review, { skipped: false, content: '测试内容' })
   })
 }
