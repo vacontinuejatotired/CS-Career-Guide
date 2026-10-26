@@ -57,6 +57,14 @@ SSE 读取集中到一个模块：支持 UTF-8 跨字节分块、CRLF、结束�
 3. 如果只调整后端提示词或复盘解析，实现后端 Protocol 并替换后端组装点即可；若重写会话编排，应另建应用服务，不把流程规则塞入旧共享聊天视图。
 4. 将新实现套入相同的接口契约测试，再新增其业务行为测试。legacy 基准用来证明旧实现没有被无意改变，不要求新业务行为永远与旧提示词相同。
 
+## 2026-10-26 ASR 协议补通
+
+`/api/asr/speech-to-text/` 保留上传 `audio` 和成功返回 `result/text` 的契约，音频仍为 16 kHz PCM。
+根据阿里云 [Fun-ASR 客户端事件](https://help.aliyun.com/en/model-studio/fun-asr-client-events)及[服务端事件](https://help.aliyun.com/en/model-studio/fun-asr-server-events)，识别结果从 `payload.output.sentence` 读取，只拼接最终句并忽略心跳；同时保留原 Gummy `transcription` 字段兼容。
+Fun-ASR 请求不再发送旧协议的 `transcription_enabled`。启动失败、识别失败或连接提前结束均不能伪装为空文本成功；请求设 120 秒上限，失败时取消仍在发送的音频任务。
+
+缺少音频返回 HTTP 400，服务失败返回 502，超时返回 504；响应不包含服务商原始错误或凭据。`backend/tests/test_asr.py` 使用假 WebSocket 离线验证上述协议、失败取消和响应脱敏，并纳入 CI。12 项本地测试通过；真实服务与浏览器麦克风验收分别记录，不能由离线测试推断。
+
 ## 验证
 
 2026-10-23 本地结果：前端 32 项、后端面试 6 项、原有鉴权 16 项测试通过，生产模式前端构建通过，模板/CSS 与重构前一致。代码已随 `33cbc57` 通过 build-only CI 的镜像和联调验证，并整合进 master；master 发布与真实模型/浏览器验收仍需分别核对，见 [运维接手记录](deployment-status.md)。
