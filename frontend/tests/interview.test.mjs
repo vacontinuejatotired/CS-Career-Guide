@@ -4,6 +4,8 @@ import test from 'node:test'
 import { createInterviewService } from '../src/features/interview/service.js'
 import { LegacyInterviewImplementation, formatLegacyResume } from '../src/features/interview/legacy/implementation.js'
 import { readLegacyStream } from '../src/features/interview/legacy/stream.js'
+import { createTextReveal } from '../src/features/interview/text-reveal.js'
+import { createSessionClock } from '../src/features/interview/session-clock.js'
 
 const baseline = JSON.parse(await readFile(new URL('./fixtures/interview-legacy.json', import.meta.url), 'utf8'))
 
@@ -37,7 +39,7 @@ for (const scenario of baseline.turns) {
       },
       saveReview: async () => ({ success: true }), transcribe: async () => ({ result: 'success' })
     }))
-    const context = { style: scenario.style, sessionId: 'baseline-session' }
+    const context = { style: scenario.style, sessionId: 'baseline-session', durationMinutes: 15 }
     await service.start(context)
     await service.answer({ ...context, answer: scenario.answer })
     const review = await service.generateReview({ ...context, messages: scenario.conversation })
@@ -127,4 +129,63 @@ test('unavailable browser storage does not prevent a legacy interview from start
   }
   assert.ok(request[0].includes('现在开始面试。'))
   assert.ok(!request[0].includes('【面试者简历信息】'))
+})
+
+test('selected duration reaches the interviewer and review uses elapsed selected time', async () => {
+  let prompt, saved
+  const implementation = new LegacyInterviewImplementation({readResume: () => null,
+    chatStream: async text => { prompt = text; return response([{type:'chunk',content:'问题'}]) },
+    saveReview: data => { saved = data }, transcribe() {},
+  })
+  await implementation.start({style:'gentle'})
+  assert.match(prompt, /45分钟/)
+  await implementation.start({style:'gentle',durationMinutes:60})
+  assert.match(prompt, /60分钟/)
+  await implementation.saveReview({messages:[],content:'复盘',remainingTime:2580,totalDurationSeconds:2700})
+  assert.equal(saved.interview_duration,2)
+})
+
+test('clock catches up after background throttling and excludes paused wall time', () => {
+  let now = 0
+  const clock = createSessionClock(2700, () => now)
+  now = 125000
+  assert.equal(clock.remaining(),2575)
+  clock.pause(); now += 3600000
+  assert.equal(clock.remaining(),2575)
+  clock.resume(); now += 2575000
+  assert.equal(clock.remaining(),0)
+  now += 10000
+  assert.equal(clock.remaining(),0)
+})
+
+function revealHarness() {
+  let time=0, serial=0, callbacks=new Map(), visible='', pending=false, immediate=false
+  const reveal=createTextReveal((text,busy)=>{visible=text;pending=busy},{now:()=>time,
+    requestFrame:fn=>{callbacks.set(++serial,fn);return serial},cancelFrame:id=>callbacks.delete(id),immediate:()=>immediate})
+  return {reveal, get visible(){return visible},get pending(){return pending},get scheduled(){return callbacks.size},
+    reduce(){immediate=true;reveal.flush()},step(ms=16){time+=ms;const active=[...callbacks.values()];callbacks.clear();active.forEach(fn=>fn(time))}}
+}
+
+test('bursty text reveals across frames without losing emoji, appended chunks or the final tail', () => {
+  const h=revealHarness(), first='你好👩‍💻，这里是面试。'.repeat(8)
+  h.reveal.set(first)
+  assert.equal(h.visible,'你')
+  h.step(16)
+  assert.ok(h.visible.length<first.length)
+  h.reveal.set(first+'下一题。')
+  for(let i=0;i<120;i++)h.step()
+  assert.equal(h.visible,first+'下一题。')
+  assert.equal(h.pending,false)
+  assert.equal(h.scheduled,0)
+})
+
+test('replacement, reduced motion, and teardown never leave an obsolete animation running', () => {
+  const h=revealHarness()
+  h.reveal.set('旧回复'.repeat(30));h.step();h.reveal.set('新回复')
+  h.reduce()
+  assert.equal(h.visible,'新回复')
+  h.reveal.set('尊重减少动态效果的设置。')
+  assert.equal(h.visible,'尊重减少动态效果的设置。')
+  const other=revealHarness();other.reveal.set('长回复'.repeat(20));other.reveal.dispose()
+  assert.equal(other.scheduled,0)
 })
