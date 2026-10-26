@@ -3,29 +3,32 @@
     <main class="career-container interview-workspace">
       <header class="interview-heading">
         <div><p class="career-eyebrow">求职准备 / AI 模拟面试</p><h1>{{ isInterviewing ? '专注回答，慢慢把经历讲清楚' : '开始一场模拟面试' }}</h1><p>围绕自己的简历与项目练习表达，结束后查看整场复盘。</p></div>
-        <div v-if="isInterviewing" class="interview-controls"><span class="interview-timer">{{ formatTime(remainingTime) }}</span><button class="career-button" @click="pauseInterview">{{ isPaused ? '继续面试' : '暂停面试' }}</button><button class="career-button end-interview" @click="hangupInterview">结束面试</button></div>
-        <span v-else class="interview-duration">15 分钟 · 文字 / 语音回答</span>
+        <span class="interview-duration">{{ selectedDuration }} 分钟 · 文字 / 语音回答</span>
       </header>
       <div class="interview-layout" :class="{ 'is-running': isInterviewing, 'is-expanded': isExpanded }">
         <section ref="workspaceRef" class="interview-main" :role="isExpanded ? 'dialog' : null" :aria-modal="isExpanded ? true : null" aria-label="模拟面试" @keydown="handleWorkspaceKeydown">
           <div class="interview-chat-toolbar">
             <span>面试对话</span>
             <div class="interview-playback-controls">
-              <template v-if="isExpanded && isInterviewing"><span class="interview-timer">{{ formatTime(remainingTime) }}</span><button type="button" class="career-button" @click="pauseInterview">{{ isPaused ? '继续面试' : '暂停面试' }}</button><button type="button" class="career-button end-interview" @click="hangupInterview">结束面试</button></template>
+              <template v-if="isInterviewing"><span class="interview-clock" role="timer" aria-label="面试剩余时间"><span>剩余时间</span><strong class="interview-timer">{{ formatTime(remainingTime) }}</strong><span v-if="isPaused">已暂停</span></span><button type="button" class="career-button" @click="pauseInterview">{{ isPaused ? '继续面试' : '暂停面试' }}</button><button type="button" class="career-button end-interview" @click="hangupInterview">结束面试</button></template>
               <label v-if="ENABLE_TTS"><input v-model="voiceOutputEnabled" type="checkbox" @change="toggleVoiceOutput" />语音播报</label>
               <button v-if="ENABLE_TTS && voiceOutputEnabled && isInterviewing" type="button" class="career-button" :disabled="isPaused" @click="togglePlayback">{{ isPlaybackPaused ? '继续播报' : '暂停播报' }}</button>
+              <button ref="resumeToggleRef" type="button" class="career-button" :aria-expanded="resumeOpen" aria-controls="interview-resume" @click="toggleResume">{{ resumeOpen ? '收起简历' : '查看简历' }}</button>
               <button type="button" class="career-button" :aria-expanded="isExpanded" @click="isExpanded = !isExpanded">{{ isExpanded ? '还原对话' : '放大对话' }}</button>
             </div>
           </div>
+          <div class="interview-stage" :class="{ 'has-resume': resumeOpen }">
+          <div class="interview-conversation" :inert="resumeOpen && isNarrow">
           <div v-if="!isInterviewing" class="interview-setup">
             <div class="interview-section-heading"><span class="section-node" aria-hidden="true"></span><div><h2>选择面试风格</h2><p>根据这次想练习的内容选择，开始前可以更改。</p></div></div>
             <div class="interview-style-grid"><button v-for="style in interviewStyleOptions" :key="style.id" type="button" class="interview-style" :class="{ 'is-selected': selectedStyle === style.id }" :aria-pressed="selectedStyle === style.id" @click="selectedStyle = style.id"><span class="style-radio" aria-hidden="true"></span><div><strong>{{ style.title }}</strong><p>{{ style.description }}</p></div><span v-if="selectedStyle === style.id" class="selected-caption">已选择</span></button></div>
+            <div class="interview-duration-choice"><label for="interview-duration">面试时长</label><select id="interview-duration" v-model.number="selectedDuration"><option v-for="minutes in INTERVIEW_DURATIONS" :key="minutes" :value="minutes">{{ minutes }} 分钟</option></select><span>按自己的节奏选择，随时可以提前结束。</span></div>
             <div class="interview-start"><p>建议先保存简历，面试会结合已有的简历内容展开。</p><button type="button" class="career-button career-button-primary" @click="startInterview">开始面试 →</button></div>
           </div>
-          <div v-if="isInterviewing || messages.length" ref="chatRef" class="interview-chat" aria-label="面试对话" aria-live="polite" aria-relevant="additions text">
+          <div v-if="isInterviewing || messages.length" ref="chatRef" class="interview-chat" aria-label="面试对话" aria-live="polite" aria-relevant="additions text" @scroll="trackConversationScroll">
             <div v-for="(msg,index) in messages" :key="index" class="interview-message" :class="{ 'is-user': msg.type !== 'ai' }">
               <span class="interview-message-avatar">{{ msg.type === 'ai' ? 'AI' : '我' }}</span>
-              <div class="interview-message-body"><span class="interview-message-label">{{ msg.type === 'ai' ? '面试官' : '我的回答' }}</span><p v-if="msg.content">{{ msg.type === 'ai' ? interviewPlainText(msg.content) : msg.content }}</p><span v-else class="interview-thinking" role="status">正在组织问题…</span></div>
+              <div class="interview-message-body"><span class="interview-message-label">{{ msg.type === 'ai' ? '面试官' : '我的回答' }}</span><p v-if="msg.content"><StreamingText v-if="msg.type === 'ai'" :text="interviewPlainText(msg.content)" :active="msg.streaming" @reveal="followConversation" /><template v-else>{{ msg.content }}</template></p><span v-else class="interview-thinking" role="status">正在组织问题…</span></div>
             </div>
           </div>
           <div v-if="isInterviewing" class="interview-input">
@@ -35,12 +38,18 @@
             <p v-if="audioStatus" class="audio-status" role="status">{{ audioStatus }}</p>
             <div class="interview-input-actions"><span>{{ isLoading ? '回复中也可编辑下一条回答' : 'Enter 发送 · Shift+Enter 换行' }}</span><div><button type="button" class="career-button microphone-button" :disabled="isPaused || isStartingRecording" :class="{ 'is-recording': isRecording }" :aria-pressed="isRecording" :aria-label="isRecording ? '关闭麦克风' : '开启麦克风'" @click="toggleRecording"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg>{{ isStartingRecording ? '开启中…' : isRecording ? '关闭麦克风' : '语音回答' }}</button><button type="button" class="career-button career-button-primary" :disabled="isLoading || isPaused || !inputMessage.trim()" @click="sendMessage">{{ isLoading ? '回复中…' : '发送回答 →' }}</button></div></div>
           </div>
+          </div>
+          <aside v-if="resumeOpen" id="interview-resume" class="interview-resume" aria-label="简历观览">
+            <header><div><span class="resume-caption">面试参考</span><h2>我的简历</h2></div><button ref="resumeCloseRef" type="button" class="career-button" aria-label="关闭简历观览" @click="toggleResume">关闭 ×</button></header>
+            <ResumePreview />
+          </aside>
+          </div>
         </section>
         <aside class="interview-aside"><section><h2>这次，试着把这些讲清楚</h2><ol><li><span>01</span><div><h3>具体做了什么</h3><p>从项目背景开始，说明自己负责的部分。</p></div></li><li><span>02</span><div><h3>为什么这样做</h3><p>解释选择依据，比较考虑过的其他方案。</p></div></li><li><span>03</span><div><h3>结果如何验证</h3><p>说清测试方式和观察结果，不确定的地方如实说明。</p></div></li></ol></section><section class="interview-help"><h2>开始前的小检查</h2><p>已保存最新简历<br />找一个适合说话的环境<br />语音回答时允许麦克风权限</p><router-link to="/resume" class="career-link">查看并完善简历 →</router-link></section><details class="interview-tips"><summary>回答问题的小提示</summary><p>按“背景 → 任务 → 行动 → 结果”组织经历。不会的问题可以说明思路，不需要编造经历和数字。</p></details></aside>
       </div>
     </main>
     <div v-if="showReview" class="interview-review-overlay" role="dialog" aria-modal="true" aria-labelledby="interview-review-title">
-      <section class="interview-review-dialog"><header><h2 id="interview-review-title">面试复盘报告</h2><button type="button" class="career-button" aria-label="关闭复盘报告" @click="showReview = false">关闭 ×</button></header><div class="interview-review-body"><div v-if="!reviewContent" class="review-loading" role="status"><span class="loading loading-spinner loading-md"></span>正在生成整场复盘，请稍候…</div><p v-else>{{ interviewPlainText(reviewContent) }}</p></div><footer><button class="career-button career-button-primary" @click="showReview = false">关闭报告</button></footer></section>
+      <section class="interview-review-dialog"><header><h2 id="interview-review-title">面试复盘报告</h2><button type="button" class="career-button" aria-label="关闭复盘报告" @click="showReview = false">关闭 ×</button></header><div class="interview-review-body"><div v-if="!reviewContent" class="review-loading" role="status"><span class="loading loading-spinner loading-md"></span>正在生成整场复盘，请稍候…</div><p v-else><StreamingText :text="interviewPlainText(reviewContent)" :active="isReviewLoading" /></p></div><footer><button class="career-button career-button-primary" @click="showReview = false">关闭报告</button></footer></section>
     </div>
   </div>
 </template>
@@ -53,6 +62,9 @@ import { userAPI } from '@/api'
 import { interviewService } from '@/features/interview'
 import { createInterviewAudio } from '@/features/interview/audio.js'
 import { interviewPlainText } from '@/features/interview/plain-text.js'
+import StreamingText from '@/features/interview/StreamingText.vue'
+import ResumePreview from '@/features/interview/ResumePreview.vue'
+import { INTERVIEW_DURATIONS, DEFAULT_DURATION, createSessionClock } from '@/features/interview/session-clock.js'
 
 const router = useRouter()
 
@@ -95,10 +107,27 @@ const inputMessage = ref('')
 const messages = ref([])
 const chatRef = ref(null)
 const inputRef = ref(null)
-const remainingTime = ref(900) // 15分钟
+const selectedDuration = ref(DEFAULT_DURATION)
+const totalDurationSeconds = ref(DEFAULT_DURATION * 60)
+const remainingTime = ref(totalDurationSeconds.value)
+let sessionClock = null
 const sessionId = ref('')
 const showReview = ref(false)
 const reviewContent = ref('')
+const isReviewLoading = ref(false)
+const resumeOpen = ref(false)
+const resumeToggleRef = ref(null)
+const resumeCloseRef = ref(null)
+const narrowScreen = matchMedia('(max-width: 760px)')
+const isNarrow = ref(narrowScreen.matches)
+const updateNarrowScreen = event => { isNarrow.value = event.matches }
+narrowScreen.addEventListener('change', updateNarrowScreen)
+async function toggleResume() {
+  resumeOpen.value = !resumeOpen.value
+  await nextTick()
+  if (resumeOpen.value) resumeCloseRef.value?.focus()
+  else resumeToggleRef.value?.focus()
+}
 const isExpanded = ref(false)
 const workspaceRef = ref(null)
 let previousFocus = null
@@ -157,12 +186,14 @@ function handleAnswerKeydown(event) {
 }
 
 function handleEscape(event) {
-  if (event.key === 'Escape') isExpanded.value = false
+  if (event.key !== 'Escape') return
+  if (resumeOpen.value) void toggleResume()
+  else isExpanded.value = false
 }
 
 function handleWorkspaceKeydown(event) {
   if (!isExpanded.value || event.key !== 'Tab') return
-  const elements = [...workspaceRef.value.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled)')]
+  const elements = [...workspaceRef.value.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]')].filter(el => el.getClientRects().length && !el.closest('[inert]'))
   const first = elements[0], last = elements.at(-1)
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
@@ -195,11 +226,11 @@ async function presentInterviewEvent(index, event) {
   const message = messages.value[index]
   if (event.type === 'thinking' || event.type === 'error') {
     message.content = event.content
-    await scrollToBottom()
+    followConversation()
   } else if (event.type === 'chunk' && event.content) {
     message.content = message.content === 'AI正在思考...'
       ? event.content : message.content + event.content
-    await scrollToBottom()
+    followConversation()
   } else if (event.type === 'end') {
     if (event.session_id) sessionId.value = event.session_id
     nextTick(() => inputRef.value?.focus())
@@ -220,15 +251,18 @@ async function startInterview() {
   isInterviewing.value = true
   isLoading.value = true
   messages.value = []
-  remainingTime.value = 900
+  totalDurationSeconds.value = selectedDuration.value * 60
+  remainingTime.value = totalDurationSeconds.value
+  sessionClock = createSessionClock(totalDurationSeconds.value)
+  followLatest = true
   startTimer()
   const index = messages.value.length
-  messages.value.push({ type: 'ai', content: '' })
+  messages.value.push({ type: 'ai', content: '', streaming: true })
   nextTick(() => inputRef.value?.focus())
   try {
     preparePlayback()
     await interviewService.start({
-      style: selectedStyle.value, sessionId: sessionId.value,
+      style: selectedStyle.value, sessionId: sessionId.value, durationMinutes: selectedDuration.value,
       enableTts: voiceOutputEnabled.value && ENABLE_TTS, signal: controller.signal
     }, event => controller.signal.aborted ? undefined : presentInterviewEvent(index, event))
     playback.finish()
@@ -237,6 +271,7 @@ async function startInterview() {
     console.error('开始面试失败:', error)
     messages.value.push({ type: 'ai', content: '抱歉，面试服务暂时不可用，请稍后再试。' })
   } finally {
+    if (messages.value[index]) messages.value[index].streaming = false
     if (activeController === controller) isLoading.value = false
     nextTick(() => inputRef.value?.focus())
   }
@@ -251,10 +286,13 @@ function hangupInterview() {
 async function pauseInterview() {
   isPaused.value = !isPaused.value
   if (isPaused.value) {
+    sessionClock?.pause()
+    remainingTime.value = sessionClock?.remaining() ?? remainingTime.value
     playback.pause()
     resumeMicrophone = isRecording.value || isStartingRecording.value
     await stopRecording()
   } else {
+    sessionClock?.resume()
     if (voiceOutputEnabled.value && !isPlaybackPaused.value) playback.resume()
     if (resumeMicrophone) await startRecording()
     resumeMicrophone = false
@@ -272,7 +310,7 @@ async function sendMessage(event, audioMsg = null) {
   await scrollToBottom()
   if (!audioMsg) inputMessage.value = ''
   const index = messages.value.length
-  messages.value.push({ type: 'ai', content: '' })
+  messages.value.push({ type: 'ai', content: '', streaming: true })
   nextTick(() => inputRef.value?.focus())
   try {
     preparePlayback()
@@ -286,6 +324,7 @@ async function sendMessage(event, audioMsg = null) {
     console.error('发送回答失败:', error)
     messages.value.push({ type: 'ai', content: '抱歉，面试服务暂时不可用，请稍后再试。' })
   } finally {
+    if (messages.value[index]) messages.value[index].streaming = false
     if (activeController === controller) isLoading.value = false
     nextTick(() => inputRef.value?.focus())
   }
@@ -294,16 +333,15 @@ async function sendMessage(event, audioMsg = null) {
 function startTimer() {
   clearInterval(timer)
   timer = setInterval(() => {
-    if (!isPaused.value && remainingTime.value > 0) {
-      remainingTime.value--
-    } else if (remainingTime.value <= 0) {
-      endInterview()
-    }
-  }, 1000)
+    remainingTime.value = sessionClock.remaining()
+    if (remainingTime.value <= 0) void endInterview()
+  }, 250)
 }
 
 async function endInterview() {
   clearInterval(timer)
+  remainingTime.value = sessionClock?.remaining() ?? remainingTime.value
+  sessionClock?.pause()
   isInterviewing.value = false
   isExpanded.value = false
   activeController?.abort()
@@ -334,6 +372,7 @@ async function generateReview() {
   activeController = controller
   reviewContent.value = ''
   showReview.value = true
+  isReviewLoading.value = true
   try {
     const review = await interviewService.generateReview({
       messages: messages.value, style: selectedStyle.value, sessionId: sessionId.value, signal: controller.signal
@@ -345,6 +384,8 @@ async function generateReview() {
   } catch (error) {
     console.error('生成复盘失败:', error)
     reviewContent.value = `生成复盘时遇到问题：${error.message}\n\n请稍后重试，或检查网络连接。`
+  } finally {
+    isReviewLoading.value = false
   }
 }
 
@@ -352,7 +393,7 @@ async function saveReviewRecord(content) {
   try {
     const result = await interviewService.saveReview({
       messages: messages.value, content, style: selectedStyle.value,
-      sessionId: sessionId.value, remainingTime: remainingTime.value
+      sessionId: sessionId.value, remainingTime: remainingTime.value, totalDurationSeconds: totalDurationSeconds.value
     })
     if (!result.success) console.error('保存复盘记录失败:', result.error)
   } catch (error) {
@@ -543,10 +584,24 @@ async function toggleRecording() {
 
 
 async function scrollToBottom() {
+  followLatest = true
   await nextTick()
   if (chatRef.value) {
     chatRef.value.scrollTop = chatRef.value.scrollHeight
   }
+}
+
+let followLatest = true, scrollFrame = null
+function trackConversationScroll() {
+  const el = chatRef.value
+  if (el) followLatest = el.scrollHeight - el.clientHeight - el.scrollTop < 64
+}
+function followConversation() {
+  if (!followLatest || scrollFrame !== null) return
+  scrollFrame = requestAnimationFrame(() => {
+    scrollFrame = null
+    if (chatRef.value && followLatest) chatRef.value.scrollTop = chatRef.value.scrollHeight
+  })
 }
 
 // 生命周期
@@ -557,6 +612,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  narrowScreen.removeEventListener('change', updateNarrowScreen)
+  if (scrollFrame !== null) cancelAnimationFrame(scrollFrame)
   clearInterval(timer)
   activeController?.abort()
   playback.stop()
@@ -634,7 +691,7 @@ const interviewStyleOptions = [
   min-width: 0;
   border: 1px solid var(--career-border);
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   background: #fff;
 }
 .interview-setup {
@@ -795,6 +852,11 @@ const interviewStyleOptions = [
   height: max(600px, calc(100dvh - 200px));
 }
 .interview-chat-toolbar {
+  position: sticky;
+  top: var(--career-nav-height, 76px);
+  z-index: 51;
+  background: #fff;
+  border-radius: 8px 8px 0 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -810,16 +872,31 @@ const interviewStyleOptions = [
 .interview-playback-controls .career-button { min-height: 34px; padding: 6px 10px; font-size: 12px; }
 .interview-layout.is-expanded { grid-template-columns: minmax(0, 1fr); }
 .is-expanded .interview-aside { display: none; }
-.interview-layout.is-expanded::before { content: ''; position: fixed; inset: 0; background: #18223066; z-index: 1199; }
-.is-expanded .interview-main { position: fixed; inset: 20px; z-index: 1200; display: flex; flex-direction: column; height: auto !important; box-shadow: 0 12px 48px #18223033; }
+.is-expanded .interview-main { position: fixed; inset: 0; width: 100%; height: 100dvh !important; z-index: 1200; display: flex; flex-direction: column; border: 0; border-radius: 0; }
+.is-expanded .interview-chat-toolbar { position: relative; top: auto; flex: none; border-radius: 0; }
 .is-expanded .interview-main .interview-chat { flex: 1; }
+.interview-clock { display: inline-flex; gap: 8px; align-items: center; color: #62748b; }
+.interview-clock > span { font-size: 11px; }
+.interview-clock .interview-timer { margin: 0 8px 0 0; font-size: 19px; font-weight: 500; color: #1b4b7c; }
+.interview-stage { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; flex: 1; position: relative; }
+.interview-stage.has-resume { grid-template-columns: minmax(0, 1fr) minmax(260px, 32%); }
+.interview-conversation { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; border-radius: 0 0 8px 8px; }
+.is-expanded .interview-conversation { border-radius: 0; }
+.is-expanded .interview-setup { overflow-y: auto; }
+.interview-duration-choice { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding-top: 24px; color: #475467; font-size: 13px; }
+.interview-duration-choice select { padding: 8px 30px 8px 12px; border: 1px solid #ced8e5; border-radius: 5px; background: #fff; color: #27374d; }
+.interview-duration-choice > span { color: var(--career-muted); font-size: 12px; }
+.interview-resume { min-width: 0; min-height: 0; overflow-y: auto; border-left: 1px solid var(--career-border); background: #f6f8fb; }
+.interview-resume > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 22px; background: #fff; border-bottom: 1px solid var(--career-border); }
+.interview-resume h2 { font-size: 16px; font-weight: 600; color: #344054; margin-top: 4px; }
+.resume-caption { font-size: 11px; color: #7a8799; }
 .audio-status { color: #8a5a16; font-size: 12px; line-height: 1.7; margin-top: 8px; }
 .interview-chat {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 30px;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 }
 .interview-message {
   display: flex;
@@ -1007,7 +1084,11 @@ const interviewStyleOptions = [
   }
 }
 @media (max-width: 760px) {
-  .is-expanded .interview-main { inset: 8px; }
+  .interview-stage.has-resume { grid-template-columns: minmax(0, 1fr); }
+  .interview-resume { position: absolute; inset: 0; z-index: 3; border-left: 0; }
+  .interview-chat-toolbar { gap: 8px; }
+  .interview-playback-controls { gap: 7px; }
+  .interview-clock { flex-basis: 100%; }
   .interview-chat-toolbar { padding: 12px 14px; }
   .interview-layout {
     grid-template-columns: 1fr;

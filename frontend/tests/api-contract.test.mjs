@@ -38,7 +38,10 @@ test('existing resume routes preserve request bodies and multipart uploads', asy
   const body = { name: 'round-trip', education: [], projects: [], skills: '' }
   const result = await resumeAPI.save(body)
   assert.equal(result.name, 'round-trip')
-  await resumeAPI.get()
+  const controller = new AbortController()
+  await resumeAPI.get({ signal: controller.signal })
+  assert.equal(requests[1].signal, controller.signal)
+  assert.equal(requests[1].headers.get('Authorization'), 'Token contract-test-token')
   const upload = new FormData()
   upload.append('avatar', new Blob(['test'], { type: 'image/png' }), 'avatar.png')
   await resumeAPI.uploadAvatar(upload)
