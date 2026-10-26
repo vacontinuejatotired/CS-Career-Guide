@@ -1,6 +1,6 @@
 # Watchtower 与回滚
 
-> 2026-10-23 状态：仓库默认关闭 Watchtower，仅放在 `updates` profile；但本会话已观察到服务器旧 Watchtower 运行。本次没有停止它，也没有验证其更新效果或演练回滚。新增 Actions 自动重建已随改动整合进 master，开关仍关闭，启用前必须协调两种更新入口。
+> 2026-10-26：服务器旧 Watchtower 已停止，当前选择 Actions 配置同步和自动重建，`DEPLOY_ENV_SYNC_ENABLED=true`。不要同时恢复 Watchtower。已完成一次真实同步与健康等待，尚未演练成对 digest 回滚；最新发布和业务验收见 [当前状态](deployment-status.md)。
 
 ## 适用范围
 
@@ -40,7 +40,7 @@ master push
 docker compose --profile updates up -d watchtower
 ```
 
-配置中将服务移入 profile 不会自动停止服务器上已经运行的 Watchtower；改用 Actions 自动重建前，应在维护操作中明确停止旧 Watchtower，不能让两个入口同时重建。本会话仅查看其运行状态，没有执行停止操作。其余容器权限与资源限制见 [宿主机保护边界](host-protection.md)。
+配置中将服务移入 profile 不会自动停止服务器上已经运行的 Watchtower；改用 Actions 自动重建前，应在维护操作中明确停止旧 Watchtower，不能让两个入口同时重建。本演示服务器已于 2026-10-26 完成停止操作。其余容器权限与资源限制见 [宿主机保护边界](host-protection.md)。
 
 ## Watchtower 前置条件
 

@@ -2,7 +2,7 @@
 
 镜像发布成功后，通过 SSH 更新服务器已有 `.env` 中的 AI 配置，再拉取服务器 Compose 所选镜像并重建 `backend`、`frontend`。默认关闭；设置 Actions Variable `DEPLOY_ENV_SYNC_ENABLED=true` 后，只有本 fork 的 master 成功发布才执行。PR 和其他分支不接触服务器凭据。
 
-> 2026-10-23 状态：实现已随 `33cbc57` 通过 build-only 验证并整合进 master；master 的镜像发布结果以对应 Actions 为准，服务器 AI 同步尚未执行。Actions 已配置三个模型 Secrets、六个 SSH Secrets 和十个模型 Variables；启用变量尚未设置。服务器 `csdeploy` 的密钥登录、目录访问和 Docker 调用已验证，私有 ACR 拉取尚未验证。完整交接见 [当前验收状态](deployment-status.md)。
+> 2026-10-26：`DEPLOY_ENV_SYNC_ENABLED=true` 已启用；部署账号已成功拉取私有镜像，服务器补齐职业报告、ASR、TTS 的 8 个 environment 映射。[Actions 40279477861](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/40279477861) 已完成真实配置同步、容器重建和健康等待。旧 Watchtower 已停止，改由 Actions 管理应用更新。运行时模型字段已全部非空，两个文本模型及面试 SSE/TTS 通过少量真实请求；其余验收见 [当前状态](deployment-status.md)。
 
 ## 配置归属与安全边界
 
@@ -27,7 +27,7 @@ GitHub 仓库及可修改发布 workflow 的人员将纳入服务器信任边界
 | `LLM_MODEL` | `qwen3.8-flash` |
 | `CAREER_REPORT_MODEL` | `qwen3.7-plus` |
 | `LLM_BASE_URL` | 业务空间的 HTTPS OpenAI 兼容地址，结尾 `/compatible-mode/v1` |
-| `ASR_MODEL` | `fun-asr-realtime`；当前调用协议仍待适配验收 |
+| `ASR_MODEL` | `fun-asr-realtime`；协议适配与真实/浏览器验收分别见状态记录 |
 | `ASR_WSS_URL` | 同一业务空间的 WSS 地址，结尾 `/api-ws/v1/inference` |
 | `TTS_MODEL` | `cosyvoice-v3-flash` |
 | `TTS_WSS_URL` | 对应业务空间的 WSS 地址，结尾同上 |
@@ -52,7 +52,7 @@ GitHub 仓库及可修改发布 workflow 的人员将纳入服务器信任边界
 
 ## 服务器前提与生效流程
 
-- Linux 已有 Python 3、Docker、支持 JSON config 和 `up --wait` 的 Compose v2；部署用户可非交互运行 Docker，并须先以该用户完成 ACR 登录。`csdeploy` 已验证前三项，ACR 登录/拉取仍待验证。
+- Linux 已有 Python 3、Docker、支持 JSON config 和 `up --wait` 的 Compose v2；部署用户可非交互运行 Docker，并须先以该用户完成 ACR 登录。2026-10-26 已以 `csdeploy` 完成私有镜像拉取验证。
 - `.env` 同目录有 `docker-compose.yml`。脚本不覆盖服务器 Compose。启用前先逐项合并仓库 `deploy/docker-compose.yml` 的 AI environment 映射，保留服务器定制设置。
 - 脚本只加载基础 `docker-compose.yml`，拉取其中选定的镜像；仓库基础文件通过 `BACKEND_TAG`、`FRONTEND_TAG` 选择版本。不会修改这些字段，但也不会自动使用本次发布的成对 digest，成功同步不等于部署了本次发布的版本。
 - **脚本不会加载 `docker-compose.digest.yml`。** 通过该 override 固定 digest 的部署或回滚期间，必须关闭 `DEPLOY_ENV_SYNC_ENABLED`，否则之后的自动重建可能按基础 Compose 切回其他版本。若自行在基础 Compose 的 image 中固定 digest，则以该基础文件为准。
@@ -63,9 +63,9 @@ GitHub 仓库及可修改发布 workflow 的人员将纳入服务器信任边界
 
 然后原子替换 `.env`，执行 `up -d --no-deps --force-recreate --wait --wait-timeout 180 backend frontend`，等待健康检查。不会启动依赖服务、删除卷或管理 Watchtower。重建有短暂中断，镜像现有入口可能执行数据库迁移。若重建或健康检查失败，Actions 报错并保留新 `.env`，不自动回滚文件、容器或数据库；需在服务器私下诊断，不能输出含密钥的 config。
 
-本会话观察到服务器已有 Watchtower 容器运行。启用新的 Actions 自动重建前，需明确选择一种更新入口，并安排停止旧 Watchtower，避免两个控制器同时重建。前面没有停止或重启该容器；仓库 profile 默认关闭不代表它已经停止。
+服务器旧 Watchtower 已于 2026-10-26 停止，当前使用 Actions 自动重建。恢复旧 Watchtower 前必须先关闭同步开关并确认没有运行中的同步任务，避免两个控制器同时重建；仓库 profile 默认关闭不会自动停止旧容器。
 
-同步和健康检查通过只证明配置传递与容器状态，不能替代真实模型、语音效果、浏览器验收。现有 ASR 使用 Gummy 消息格式，更换 fun-asr-realtime 名称仍需单独适配验证。
+同步和健康检查通过只证明配置传递与容器状态，不能替代真实模型、语音效果、浏览器验收。Fun-ASR 的 `sentence` 结果解析与失败处理已在 [PR #2](https://github.com/vacontinuejatotired/CS-Career-Guide/pull/2) 补齐；离线协议、真实模型和浏览器验收仍分别记录。
 
 ## 离线检查
 
