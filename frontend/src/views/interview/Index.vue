@@ -41,7 +41,7 @@
           </div>
           <aside v-if="resumeOpen" id="interview-resume" class="interview-resume" aria-label="简历观览">
             <header><div><span class="resume-caption">面试参考</span><h2>我的简历</h2></div><button ref="resumeCloseRef" type="button" class="career-button" aria-label="关闭简历观览" @click="toggleResume">关闭 ×</button></header>
-            <div class="resume-empty"><span class="resume-paper" aria-hidden="true"><i></i><i></i><i></i></span><h3>简历观览将在这里显示</h3><p>面试时可在这里查阅自己的简历。<br />预览内容暂未接入，你可以继续回答。</p><span class="resume-status">暂未接入</span></div>
+            <ResumePreview />
           </aside>
           </div>
         </section>
@@ -63,6 +63,7 @@ import { interviewService } from '@/features/interview'
 import { createInterviewAudio } from '@/features/interview/audio.js'
 import { interviewPlainText } from '@/features/interview/plain-text.js'
 import StreamingText from '@/features/interview/StreamingText.vue'
+import ResumePreview from '@/features/interview/ResumePreview.vue'
 import { INTERVIEW_DURATIONS, DEFAULT_DURATION, createSessionClock } from '@/features/interview/session-clock.js'
 
 const router = useRouter()
@@ -192,7 +193,7 @@ function handleEscape(event) {
 
 function handleWorkspaceKeydown(event) {
   if (!isExpanded.value || event.key !== 'Tab') return
-  const elements = [...workspaceRef.value.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)')].filter(el => el.getClientRects().length && !el.closest('[inert]'))
+  const elements = [...workspaceRef.value.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]')].filter(el => el.getClientRects().length && !el.closest('[inert]'))
   const first = elements[0], last = elements.at(-1)
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
@@ -889,13 +890,6 @@ const interviewStyleOptions = [
 .interview-resume > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 22px; background: #fff; border-bottom: 1px solid var(--career-border); }
 .interview-resume h2 { font-size: 16px; font-weight: 600; color: #344054; margin-top: 4px; }
 .resume-caption { font-size: 11px; color: #7a8799; }
-.resume-empty { padding: 56px 24px; text-align: center; }
-.resume-paper { display: flex; flex-direction: column; gap: 9px; width: 54px; height: 70px; padding: 18px 10px; margin: 0 auto 24px; border: 1px solid #b8c9de; border-radius: 3px; background: #fff; transform: rotate(-5deg); }
-.resume-paper i { height: 2px; background: #d5dfec; }
-.resume-paper i:last-child { width: 60%; }
-.resume-empty h3 { font-size: 14px; color: #475467; }
-.resume-empty p { font-size: 12px; line-height: 1.9; color: #7a8799; margin-top: 12px; }
-.resume-status { display: inline-block; padding: 4px 9px; margin-top: 18px; font-size: 11px; border: 1px solid #dce4ee; border-radius: 4px; color: #7a8799; }
 .audio-status { color: #8a5a16; font-size: 12px; line-height: 1.7; margin-top: 8px; }
 .interview-chat {
   flex: 1;

@@ -6,6 +6,7 @@ import { LegacyInterviewImplementation, formatLegacyResume } from '../src/featur
 import { readLegacyStream } from '../src/features/interview/legacy/stream.js'
 import { createTextReveal } from '../src/features/interview/text-reveal.js'
 import { createSessionClock } from '../src/features/interview/session-clock.js'
+import { resumePreview } from '../src/features/interview/resume-preview.js'
 
 const baseline = JSON.parse(await readFile(new URL('./fixtures/interview-legacy.json', import.meta.url), 'utf8'))
 
@@ -188,4 +189,19 @@ test('replacement, reduced motion, and teardown never leave an obsolete animatio
   assert.equal(h.visible,'尊重减少动态效果的设置。')
   const other=revealHarness();other.reveal.set('长回复'.repeat(20));other.reveal.dispose()
   assert.equal(other.scheduled,0)
+})
+
+test('resume preview includes all saved sections and tolerates empty optional records', () => {
+  const preview=resumePreview({name:' 示例用户 ',target_position:'前端工程师',phone:'123',email:'demo@example.test',address:'示例城市',
+    self_evaluation:'自评\n第二行',skills:'Vue、Python',education:[{school:'示例学校',major:'计算机',period:'2022—2026',description:'课程'}],
+    experience:[{company:'示例企业',position:'实习生',description:'负责测试'}],projects:[{name:'面试项目',role:'开发',url:'javascript:example',description:'<img src=x onerror=alert(1)>'}],
+    certificates:[{name:'证书',issuer:'示例机构'}],awards:[{name:'奖项',period:'2025'}]})
+  assert.equal(preview.empty,false)
+  assert.equal(preview.name,'示例用户')
+  assert.equal(preview.contacts.length,3)
+  assert.deepEqual(preview.sections.map(s=>s.title),['个人自评','专业技能','教育背景','实习与工作经历','项目经历','证书认证','获奖经历'])
+  assert.equal(preview.sections[4].items[0].description,'<img src=x onerror=alert(1)>')
+  assert.equal(preview.sections[4].items[0].url,'javascript:example')
+  assert.equal(resumePreview({id:1,education:[null,{}, {id:2}],projects:'invalid'}).empty,true)
+  assert.equal(resumePreview(null).empty,true)
 })

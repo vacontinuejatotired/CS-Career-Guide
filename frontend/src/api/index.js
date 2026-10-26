@@ -41,7 +41,7 @@ export const userAPI = {
 
 // Shared by the editing workspace and personal center; paths match Django's routers.
 export const resumeAPI = {
-  get: () => api.get('/resumes/my/'),
+  get: (config) => api.get('/resumes/my/', config),
   save: (data) => api.post('/resumes/my/', data),
   uploadAvatar: (formData) => api.post('/resumes/upload_avatar/', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
