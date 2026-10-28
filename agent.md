@@ -13,6 +13,14 @@
 
 ## 业务实现与验收
 
+五人开发先读 [公共约定](docs/implementation/00-shared-contracts.md)，再读对应专用文档：
+
+- [成员1：数据目录](docs/implementation/01-data-catalog.md)：来源、导入、岗位/企业/题库与专项验收。
+- [成员2：评估调优](docs/implementation/02-evaluation.md)：数据集拆分、指标、策略和对照。
+- [成员3：简历优化](docs/implementation/03-resume-optimization.md)：证据、编辑确认和版本冲突。
+- [成员4：面试RAG](docs/implementation/04-interview-rag.md)：检索、来源、反馈和记录交接。
+- [成员5：练习记录](docs/implementation/05-practice-records.md)：快照、幂等、总结与重试。
+
 | 文档 | 内容与边界 |
 | --- | --- |
 | [当前需求方案与五人分工](docs/career_platform_plan.md) | 唯一有效的需求与分工依据；制定实施计划、拆分模块及约定接口前先读，内容是待开发目标 |
