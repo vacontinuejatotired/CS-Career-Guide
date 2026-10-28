@@ -37,6 +37,7 @@ const navigation = [
   { path: '/company-reviews', label: '企业与职位' },
   { path: '/resume', label: '简历' },
   { path: '/interview', label: 'AI 面试' },
+    { path: '/career-platform/catalog', label: '课程功能' },
 ]
 const isNavActive = item => item.path === '/career-evaluation'
   ? ['/career-evaluation', '/career-plan'].includes(route.path) || route.path.endsWith('/self-introduction')
