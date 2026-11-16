@@ -34,6 +34,10 @@ DOCKER_TIMEOUTS = {'push': 900, 'load': 300, 'save': 300}
 HEARTBEAT_SECONDS = 15
 
 
+class DockerTimeoutError(RuntimeError):
+    """A Docker command exhausted its bounded execution budget."""
+
+
 def docker(*arguments):
     operation = arguments[0]
     timeout = DOCKER_TIMEOUTS.get(operation, 120)
@@ -56,11 +60,13 @@ def docker(*arguments):
                     break
                 except subprocess.TimeoutExpired:
                     print(f'Docker {operation}: running, elapsed {time.monotonic() - started:.0f}s.', flush=True)
-        except (TimeoutError, KeyboardInterrupt):
+        except (TimeoutError, KeyboardInterrupt) as error:
             process.kill()
             process.wait()
             print(f'Docker {operation}: stopped after {time.monotonic() - started:.1f}s.', flush=True)
-            raise RuntimeError(f'Docker {operation} exceeded its time budget or was interrupted.') from None
+            if isinstance(error, KeyboardInterrupt):
+                raise
+            raise DockerTimeoutError(f'Docker {operation} exceeded its time budget.') from None
         elapsed = time.monotonic() - started
         if code:
             print(f'Docker {operation}: failed after {elapsed:.1f}s.', flush=True)
@@ -124,6 +130,20 @@ def push_digest(output):
     return digests.pop()
 
 
+def push_verified_tag(reference):
+    # Re-send the exact same image/tag once after a stalled CLI was reaped.
+    # Never retry an interruption, registry rejection or invalid digest.
+    for attempt in range(2):
+        try:
+            output = docker('push', reference)
+        except DockerTimeoutError:
+            if attempt == 1:
+                raise
+            print('Docker push: timed out; retrying the same verified tag once.', flush=True)
+        else:
+            return push_digest(output)
+
+
 def write_release(output, summary, release):
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(release, indent=2) + '\n', encoding='utf-8')
@@ -162,7 +182,7 @@ def publish_images(directory, registry, namespace, commit, extra_tag, output, su
                 print(f'Publishing {component} tag {tag}: tagging verified image.', flush=True)
                 docker('tag', metadata['image_id'], reference)
                 print(f'Publishing {component} tag {tag}: pushing and resolving digest.', flush=True)
-                digest = push_digest(docker('push', reference))
+                digest = push_verified_tag(reference)
                 image = release['images'][component]
                 if image.get('digest', digest) != digest:
                     raise RuntimeError('Published tags resolved to different manifest digests.')
