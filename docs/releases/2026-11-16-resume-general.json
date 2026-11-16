@@ -157,8 +157,78 @@
   "obsolete_glb_absent": true,
   "vad_model_present": true,
   "limitations": [
-    "Real model acceptance covers one synthetic online resume only.",
+    "Real model acceptance covers one synthetic resume in two online checks, not a quality evaluation set.",
     "Confirmation writeback remains limited to skills and self_evaluation; project/work STAR is preview only.",
     "Manual publication does not convert failed Actions runs to success."
-  ]
+  ],
+  "automatic_backend_followup": {
+    "run": 43827174324,
+    "source_commit": "3dac3c3d9a374e36371cf14aeec9e0175f078c15",
+    "publication": {
+      "commit": "3dac3c3d9a374e36371cf14aeec9e0175f078c15",
+      "components": [
+        "backend"
+      ],
+      "compatibility": "candidate-integration",
+      "complete": true,
+      "images": {
+        "backend": {
+          "repository": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-backend",
+          "tags": [
+            "sha-3dac3c3",
+            "latest"
+          ],
+          "image_id": "sha256:b45f60b56f426f82be2163a1448c8981a22328a5823faf224a0c6ef3aa05df4a",
+          "digest": "sha256:3e0d32ff90ad11c364e65ccb05672280f510c0a3dffe6e1aa5c6357f267be973",
+          "reference": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-backend@sha256:3e0d32ff90ad11c364e65ccb05672280f510c0a3dffe6e1aa5c6357f267be973"
+        }
+      }
+    },
+    "identity_check": {
+      "current_backend_reference": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-backend@sha256:3e0d32ff90ad11c364e65ccb05672280f510c0a3dffe6e1aa5c6357f267be973",
+      "registry_config_matches_runner": true,
+      "runner_config_digest": "sha256:b45f60b56f426f82be2163a1448c8981a22328a5823faf224a0c6ef3aa05df4a"
+    },
+    "deployed_and_healthy": true,
+    "real_model_gateway_http": {
+      "real_model": true,
+      "synthetic_data": true,
+      "mode": "general",
+      "environment": "deployed gateway HTTP",
+      "analyze_status": 200,
+      "matching": {
+        "matches": [],
+        "gaps": []
+      },
+      "star": [
+        {
+          "sections": {
+            "situation": "课程项目需要管理学生选课。",
+            "task": "我负责选课接口开发。",
+            "action": "使用Java实现选课接口，使用MySQL保存选课记录。",
+            "result": ""
+          },
+          "missing": [
+            "result"
+          ]
+        }
+      ],
+      "prompt_version": "resume-star-extractive-v2",
+      "analysis_replayed": true,
+      "suggestion_count": 1,
+      "apply": {
+        "status": 200,
+        "revision": 1,
+        "receipt_replayed": true,
+        "fabricated_edit_rejected": true
+      },
+      "history_count": 1,
+      "migration_0004": true,
+      "catalog_count": 943,
+      "passed": true,
+      "temporary_user_removed": true,
+      "duration_seconds": 29.5
+    },
+    "frontend_publisher": "in_progress_at_this_snapshot"
+  }
 }
