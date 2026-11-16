@@ -5,12 +5,13 @@
         <div class="resume-toolbar">
           <div><p class="career-eyebrow">求职准备 / 我的简历</p><h1>简历工作台</h1><p class="resume-subtitle">把经历整理成清晰的表达。边编辑、边预览，准备好你的下一次机会。</p></div>
           <div class="resume-actions">
-            <button type="button" @click="saveResume" class="career-button" :disabled="isSaving"><WorkspaceIcon name="save" />{{ isSaving ? '同步中…' : '保存简历' }}</button>
-            <button type="button" @click="exportPDF" class="career-button career-button-primary"><WorkspaceIcon name="download" />导出 PDF</button>
-            <button type="button" @click="goToInterview" class="career-button" :disabled="isOpeningInterview">{{ isOpeningInterview ? '正在进入…' : '模拟面试' }}<WorkspaceIcon name="arrow" /></button>
+            <button type="button" @click="saveResume" class="career-button" :disabled="isSaving||optimizationApplied||resumeOptimizing"><WorkspaceIcon name="save" />{{ isSaving ? '同步中…' : '保存简历' }}</button>
+            <button type="button" @click="exportPDF" class="career-button career-button-primary" :disabled="optimizationApplied"><WorkspaceIcon name="download" />导出 PDF</button>
+            <button type="button" @click="goToInterview" class="career-button" :disabled="isOpeningInterview||optimizationApplied">{{ isOpeningInterview ? '正在进入…' : '模拟面试' }}<WorkspaceIcon name="arrow" /></button>
           </div>
         </div>
         <p v-if="saveNotice" role="status" class="resume-save-notice" :class="{ 'is-error': saveFailed }">{{ saveNotice }}</p>
+        <div v-if="optimizationApplied" class="resume-save-notice" role="status"><p>所选建议已保存到服务器。编辑区仍保留旧草稿，请先复制需要保留的内容，再加载新版本。</p><button type="button" class="career-button" :disabled="reloadingApplied" @click="reloadAppliedResume">{{ reloadingApplied?'正在加载…':'加载已应用简历，替换编辑区草稿' }}</button></div>
         <!-- 语音输入状态 -->
         <div v-if="voiceInputStatus" class="p-4 rounded-md bg-gray-100 border border-gray-200">
           <div class="flex items-center gap-2">
@@ -26,7 +27,7 @@
       </div>
 
       <nav class="resume-mode-nav" aria-label="简历工作区"><button type="button" :aria-pressed="!showOptimization" @click="setResumeMode(false)">编辑与预览</button><button type="button" :aria-pressed="showOptimization" @click="setResumeMode(true)">岗位对照与优化</button></nav>
-      <OptimizationPanel v-if="showOptimization" />
+      <OptimizationPanel v-show="showOptimization" :saving="isSaving" @busy="resumeOptimizing=$event" @applied="optimizationApplied=true" />
       <div v-show="!showOptimization">
       <div class="resume-workspace-bar">
         <div><WorkspaceIcon name="file" /><span>整理简历</span><small>内容以你的真实经历为准</small></div>
@@ -490,6 +491,24 @@ import jsPDF from 'jspdf'
 const router = useRouter()
 const route = useRoute()
 const showOptimization = computed(() => route.query.tab === 'optimize')
+const optimizationApplied = ref(false)
+const resumeOptimizing = ref(false)
+const reloadingApplied = ref(false)
+async function reloadAppliedResume() {
+  reloadingApplied.value = true
+  try {
+    const saved = await resumeAPI.get()
+    if (!Number.isInteger(saved?.edit_revision)) throw new Error('missing saved revision')
+    Object.assign(resume.value, saved)
+    localStorage.setItem('resume', JSON.stringify(resume.value))
+    optimizationApplied.value = false
+    saveNotice.value = '已加载服务器简历，可继续编辑、预览和导出。'
+    saveFailed.value = false
+  } catch {
+    saveNotice.value = '加载未完成，编辑区草稿仍保留，请稍后重试。'
+    saveFailed.value = true
+  } finally { reloadingApplied.value = false }
+}
 function setResumeMode(optimize) {
   const query = { ...route.query }
   if (optimize) query.tab = 'optimize'
@@ -810,7 +829,7 @@ const removeCertificate = (index) => {
 }
 
 const saveResume = async () => {
-  if (isSaving.value) return
+  if (isSaving.value || optimizationApplied.value || resumeOptimizing.value) return
   isSaving.value = true
   saveFailed.value = false
   saveNotice.value = ''

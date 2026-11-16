@@ -336,3 +336,41 @@
   "evidence": "backend/company_reviews/management/commands/import_catalog.py; backend/tests/test_catalog_import.py; data/career-platform/import_catalog_via_api.py; data/career-platform/README.md"
 }
 ```
+
+
+## 2026-11-16 943题跨模块消费
+
+数据文件data/career-platform/xiaolincoding-questions.json（943条）的使用范围由用户在本会话明确核实并确认按allowed导入；这不等于集成助手自行审核了原始授权凭证。已有线上导入验收详见单独导入交接记录/PR41，本轮不重复迁移数据库。
+
+成员4读取当前allowed ORM题目，继续沿用文本检索；创建新练习前重新核对题目仍存在且allowed，许可撤回或删除返回409，不创建会话；历史快照继续用于还原已发生的练习。成员2使用同数据文件生成943题冻结语料，评测ID使用dedupe_key，不能当成线上UUID提交到练习接口。
+
+```acceptance-record
+{
+  "commit": "3837421035e310ec77aeb2fa3c017391f605621a",
+  "command": "python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_evaluation --settings=career_platform.test_settings; python -m unittest discover -s backend/tests -p test_interview*.py; python -m unittest discover -s backend/tests -p test_rag_feedback.py; python -m unittest discover -s backend/tests -p test_json_gateway.py; node --test frontend/tests/*.test.mjs; python ci/project_acceptance.py --stage complete --module all",
+  "result": "passed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；本地浏览器使用真实候选API和943题、离线模型替身；服务器独立候选进程使用真实已配置模型和临时账号",
+  "scope": "943题冻结语料可复现、引用ID全部存在；检索快照保留采集时间与分类；授权撤回、删除、用户隔离与过期回执测试通过。",
+  "limitations": "完整业务17项13通过4失败（resume3和integration1因简历接口501）；未通过完整门禁、未部署候选；MySQL/容器由Actions验证。检索为词面基线，评测标签未独立人工复核，且无关检测仍误召；真实模型样本不证明总体质量。 真实模型为独立候选进程快照验证，末次提示词及无命中尾注文字调整仅离线回归。",
+  "evidence": "backend/career_platform/evaluation/datasets/xiaolin-experiment-v1.json; backend/career_platform/evaluation/tests_xiaolin.py; backend/career_platform/rag/tests_feedback.py; backend/career_platform/records/tests_catalog.py; backend/tests/test_interview_catalog.py; frontend/tests/evaluation-page.test.mjs; output/question-bank-live-result.json; output/playwright/question-bank-api-check.js; output/question-bank-all.json（output为本机验收产物）"
+}
+```
+
+
+## 2026-11-16 简历STAR与确认应用首版
+
+简历可引用allowed岗位，保留目标岗位文本和来源快照；不更改目录导入或943题数据。
+
+首版仅写主表skills/self_evaluation；STAR最多20段，逐项最多120字符的原文摘录，缺项保持空并提问，供预览不自动写子记录。有限词典与保守文字规则不等于语义事实或能力评估，人工仍需核对STAR归类。普通简历CRUD跨页签版本协议及所有子表写入口版本维护未在本轮重构；应用时会重验完整快照，当前页会阻止旧草稿直接保存。模型调用在事务外，相同分析键并发可能重复调用模型，但仅保存一条成功记录。SQLite竞争可返回409，显式原键重试恢复。本轮未调用真实模型、未执行线上迁移/发布/部署；MySQL及容器由Actions单独验证。
+
+```acceptance-record
+{
+  "commit": "3e1d550b9b5d6a12113c2c3cb555756c16de9c3a + dirty",
+  "command": "python -m django test career_platform.resume career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_catalog career_platform.tests.accept_evaluation career_platform.tests.accept_resume career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_integration --settings=career_platform.test_settings; python ci/project_acceptance.py --stage complete --module all; python ci/project_acceptance.py --stage scaffold; python -m django makemigrations --check --dry-run --settings=career_platform.test_settings; node --test frontend/tests/*.test.mjs; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；浏览器真实候选API与临时数据库、合成账号和离线模型替身",
+  "scope": "简历可引用allowed岗位，保留目标岗位文本和来源快照；不更改目录导入或943题数据。 本地组合59项通过，固定complete17项及scaffold7项通过；前端113项与生产构建通过；迁移无漂移。浏览器1440/390px无横向溢出、无pageerror，验证STAR缺结果、拦截伪造编辑、确认写回、版本递增、历史重载及旧草稿保护。",
+  "limitations": "首版仅写主表skills/self_evaluation；STAR最多20段，逐项最多120字符的原文摘录，缺项保持空并提问，供预览不自动写子记录。有限词典与保守文字规则不等于语义事实或能力评估，人工仍需核对STAR归类。普通简历CRUD跨页签版本协议及所有子表写入口版本维护未在本轮重构；应用时会重验完整快照，当前页会阻止旧草稿直接保存。模型调用在事务外，相同分析键并发可能重复调用模型，但仅保存一条成功记录。SQLite竞争可返回409，显式原键重试恢复。本轮未调用真实模型、未执行线上迁移/发布/部署；MySQL及容器由Actions单独验证。",
+  "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; backend/career_platform/tests/accept_resume.py; backend/career_platform/tests/accept_integration.py; output/resume-complete.json; output/playwright/resume-optimization-check.js（output为本机验收产物）"
+}
+```

@@ -8,5 +8,7 @@ def get_interview_service():
     # without changing the shared chat route or persistence schema.
     from ai_integration.langgraph.utils.prompt_manager import get_prompt
     from .legacy import LegacyPromptInterview
+    from .catalog import CatalogInterviewContext
+    from career_platform.rag.retrieval import DjangoQuestionRetriever
 
-    return InterviewService(LegacyPromptInterview(get_prompt))
+    return InterviewService(LegacyPromptInterview(get_prompt, CatalogInterviewContext(DjangoQuestionRetriever())))

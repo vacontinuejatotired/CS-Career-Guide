@@ -144,6 +144,8 @@ class ChatRouteIntegrationTests(unittest.TestCase):
             with self.subTest(mode=mode), patch.dict(sys.modules, modules), patch('ai_integration.interview.get_interview_service', return_value=service):
                 model_factory.reset_mock()
                 service.reset_mock()
+                footer = '\n\n本轮题库检索参考：fixture https://example.invalid/q1' if mode == 'interview' else ''
+                service.prepare_turn.return_value = InterviewPrompt('策略系统提示', '策略输入', footer)
                 request = SimpleNamespace(method='POST', FILES={}, body=json.dumps({
                     'mode': mode, 'message': message, 'session_id': 'offline-session', 'interview_style': 'technical',
                 }).encode())
@@ -152,8 +154,12 @@ class ChatRouteIntegrationTests(unittest.TestCase):
                 model_factory.assert_not_called()  # No model invocation before consumption.
                 events = list(response.streaming_content)
                 self.assertIn('下一题', events[0])
-                self.assertIn('data: [DONE]', events[1])
-                self.assertIn('"session_id": "offline-session"', events[2])
+                self.assertIn('data: [DONE]', events[-2])
+                self.assertIn('"session_id": "offline-session"', events[-1])
+                if footer:
+                    self.assertEqual(json.loads(events[1][len('data: '):])['content'], footer)
+                else:
+                    self.assertEqual(len(events), 3)
                 if mode in ('normal', 'career'):
                     service.prepare_turn.assert_not_called()
                     model_factory.return_value.stream.assert_called_with([
@@ -166,7 +172,7 @@ class ChatRouteIntegrationTests(unittest.TestCase):
                     ])
                     service.prepare_turn.assert_called_with(message, [], 'technical', review=mode == 'interview_review')
                 self.assertEqual(pairs.create.call_args.kwargs['user_input'], message)
-                self.assertEqual(pairs.create.call_args.kwargs['ai_output'], '下一题')
+                self.assertEqual(pairs.create.call_args.kwargs['ai_output'], '下一题' + footer)
 
 
 if __name__ == '__main__':

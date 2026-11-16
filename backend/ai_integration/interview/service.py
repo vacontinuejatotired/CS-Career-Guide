@@ -8,6 +8,7 @@ from typing import Protocol
 class InterviewPrompt:
     system: str
     user: str
+    source_footer: str = ''
 
 
 class InterviewImplementation(Protocol):
