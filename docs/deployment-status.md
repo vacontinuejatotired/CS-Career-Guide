@@ -1,5 +1,13 @@
 # 演示部署验收状态与接手记录
 
+## 2026-11-16 后端发布补齐与推送卡顿核验
+
+- PR #52已合并为`b7206e66dc1bfc79a8c6ff5aa63c7129031bfe57`。运行43831847945的双端检查、镜像与网关/持久化联调通过，frontend发布/部署成功；backend发布失败、自动部署跳过，整条Actions结论仍为failure。
+- backend镜像load耗时4.7秒；第一次push仅完成2层、7层Waiting，最后一次输出后180秒终止（该次累计270秒），同标签重试后仍2层已存在、7层Waiting，再于累计210秒终止。固定类别诊断未观察到鉴权、限流或5xx；没有足够证据确定具体网络或仓库端根因。180秒按连续无新CLI输出计算，含前期进度及一次重试的job总时间可能更长。
+- 本次按用户要求补齐发布：核对该运行的失败发布记录与`backend-smoke-image-43831847945`归档，配置摘要均为`sha256:b45f60b56f426f82be2163a1448c8981a22328a5823faf224a0c6ef3aa05df4a`；与ACR已有`sha256:3e0d32ff90ad11c364e65ccb05672280f510c0a3dffe6e1aa5c6357f267be973`镜像的config、linux/amd64与全部RootFS diff_ids一致。使用官方校验和验证过的crane v0.22.1复用已有manifest，写入并回读`sha-b7206e6/latest`，标签发布3.8秒、含registry核验5.8秒，新增上传图层为0。未构建或改写镜像内容；原Actions失败记录保留。
+- 单组件锁定工具按该digest激活backend，耗时13秒。部署前SQLite在线备份quick_check为ok；部署后frontend/backend/gateway均running/healthy，frontend/gateway容器ID、backend卷挂载和`.env`元数据保持。943道allowed题及既有0004迁移存在，无新业务迁移。公网login/resume/interview为200、匿名分析401。应用内容与此前真实模型验收版本相同，本次未重复调用付费模型，也未重新执行浏览器交互验收。
+- 只读核验服务器Docker Hub mirror数量为0；仓库publisher配置只设置`max-concurrent-uploads=1`，保留runner原有daemon选项，不能据此断言runner原镜像配置。Docker Hub的`registry-mirrors`用于拉取缓存，不能给向私有ACR的push提供加速；此次失败阶段为push，非基础镜像拉取。180秒规则继续保留，具体网络根因和长期自动传输修复仍未完成。
+
 ## 2026-11-16 通用简历优化已上线
 
 应用源码为`edb797ef26b8881b3ca2b2e94eaf1e7c17afb41d`（PR #48的通用优化与PR #49的发布配置）。`/resume?tab=optimize`默认通用优化，无需JD；可切换岗位定向优化。分析使用当前登录账号最后一次保存的简历，页面展示来源和版本，未保存编辑不自动加入分析。
