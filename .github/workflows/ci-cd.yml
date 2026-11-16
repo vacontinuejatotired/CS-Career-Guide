@@ -192,13 +192,21 @@ jobs:
           set -o pipefail
           python -m django test tests.test_auth --settings=tests.auth_settings --verbosity=1 2>&1 | tee ../backend-auth.log
           python manage.py check --settings=tests.auth_settings 2>&1 | tee ../backend-check.log
+      - name: Run question bank integration regressions
+        shell: bash
+        working-directory: backend
+        run: |
+          set -o pipefail
+            python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.resume career_platform.tests.test_records_runtime --settings=career_platform.test_settings --verbosity=1 2>&1 | tee ../backend-question-bank.log
       - name: Run configuration tests
         shell: bash
         run: |
           set -o pipefail
           python -m unittest discover -s backend/tests -p 'test_env_config.py' -v 2>&1 | tee backend-config.log
           python -m unittest discover -s backend/tests -p 'test_deploy_runtime.py' -v 2>&1 | tee backend-deploy.log
-          python -m unittest discover -s backend/tests -p 'test_interview.py' -v 2>&1 | tee backend-interview.log
+          python -m unittest discover -s backend/tests -p 'test_interview*.py' -v 2>&1 | tee backend-interview.log
+          python -m unittest discover -s backend/tests -p 'test_rag_feedback.py' -v 2>&1 | tee backend-feedback.log
+          python -m unittest discover -s backend/tests -p 'test_json_gateway.py' -v 2>&1 | tee backend-json-gateway.log
           python -m unittest discover -s backend/tests -p 'test_text_retrieval.py' -v 2>&1 | tee backend-text-retrieval.log
           python -m unittest discover -s backend/tests -p 'test_retrieval_demo.py' -v 2>&1 | tee backend-retrieval-demo.log
           python -m unittest discover -s backend/tests -p 'test_asr.py' -v 2>&1 | tee backend-asr.log

@@ -8,12 +8,16 @@ class JsonModelGateway:
     def generate(self, *, system: str, payload: dict) -> dict:
         from langchain_openai import ChatOpenAI
         from cs_career_guide.ai_config import get_llm_kwargs
+        from openai import APITimeoutError
 
-        model = ChatOpenAI(temperature=0, **get_llm_kwargs())
-        response = model.invoke([
-            ('system', system),
-            ('human', json.dumps(payload, ensure_ascii=False)),
-        ])
+        model = ChatOpenAI(temperature=0, max_retries=0, **get_llm_kwargs())
+        try:
+            response = model.invoke([
+                ('system', system),
+                ('human', json.dumps(payload, ensure_ascii=False)),
+            ])
+        except APITimeoutError:
+            raise TimeoutError('Model request exceeded the configured timeout') from None
         text = response.content if isinstance(response.content, str) else str(response.content)
         return self._parse(text)
 

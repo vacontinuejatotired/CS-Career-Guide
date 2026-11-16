@@ -1,5 +1,5 @@
 <template>
-  <WorkspaceShell title="评估与调优" description="管理员在冻结的评估集上运行离线文本策略，比较基线与参数结果，并导出可复现的逐例证据。页面不预填指标，也不展示模拟成功。">
+  <WorkspaceShell title="评估与调优" stage-label="离线检索评测 · 初步标注" description="管理员在冻结的评估集上运行离线文本策略，比较基线与参数结果，并导出可复现的逐例证据。943题评测使用初步标注，仍需独立人工复核。">
     <form class="platform-form" @submit.prevent="runEvaluation">
       <label>
         评估任务
@@ -12,6 +12,8 @@
         评估集版本
         <input v-model.trim="datasetVersion" list="eval-datasets" required :disabled="busy" />
         <datalist id="eval-datasets">
+          <option value="xiaolin-eval-dev-v1">943题调参集（初步标注）</option>
+          <option value="xiaolin-eval-test-v1">943题冻结测试集（初步标注）</option>
           <option value="java-eval-test-v1">最终测试集（只用于报告结论）</option>
           <option value="java-eval-dev-v1">调参集（只用于选参数）</option>
         </datalist>
@@ -19,6 +21,8 @@
       <label>
         策略
         <select v-model="strategy" :disabled="busy">
+          <option value="xiaolin-baseline">943题文本基线（4/3/2/1）</option>
+          <option value="xiaolin-balanced">943题均衡权重（3/3/3/1）</option>
           <option value="text-baseline">文本基线（题干4/标签3/要点2/答案1）</option>
           <option value="text-balanced">均衡权重变体（题干3/标签3/要点3/答案1）</option>
         </select>
@@ -40,6 +44,7 @@
       <p class="eval-meta">
         记录 ID {{ selected.id }} · 样本 {{ selected.sample_count }} 条 · 失败 {{ selected.failure_count }} 条 ·
         策略版本 {{ selected.model_version }} · 数据集指纹 {{ shortHash(selected.parameters.dataset_sha256) }}
+        <template v-if="selected.parameters.corpus_sha256"> · 语料 {{ selected.parameters.corpus_size }} 题 · 语料指纹 {{ shortHash(selected.parameters.corpus_sha256) }}</template>
       </p>
       <ul class="eval-metrics">
         <li v-for="item in metricCards" :key="item.key">
@@ -51,7 +56,7 @@
       <p v-if="unrelatedSamples.length" class="eval-hint">
         无关检测组 {{ unrelatedSamples.length }} 条：{{ unrelatedHits }} 条返回了候选，按约定不计入宏平均，仅作诊断。
       </p>
-      <table class="eval-table">
+      <div class="eval-table-scroll" role="region" aria-label="逐例评测结果" tabindex="0"><table class="eval-table">
         <thead>
           <tr><th>query</th><th>问法</th><th>相关</th><th>返回</th><th>MRR</th><th>组</th></tr>
         </thead>
@@ -65,7 +70,7 @@
             <td>{{ row.group === 'unrelated' ? '无关检测' : '相关' }}</td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
       <div class="platform-actions">
         <button type="button" class="career-button" :disabled="busy" @click="exportRun(selected.id)">导出 JSON</button>
       </div>
@@ -74,7 +79,7 @@
     <section class="platform-result">
       <h2>最近的评估记录</h2>
       <p v-if="!runs.length" class="eval-hint">还没有评估记录。运行一次评估后，这里按创建时间列出结果。</p>
-      <table v-else class="eval-table">
+      <div v-else class="eval-table-scroll" role="region" aria-label="评估历史" tabindex="0"><table class="eval-table">
         <thead>
           <tr><th>创建时间（UTC）</th><th>任务</th><th>评估集</th><th>策略</th><th>K</th><th>F1@K</th><th>MRR</th><th>操作</th></tr>
         </thead>
@@ -93,7 +98,7 @@
             </td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
     </section>
   </WorkspaceShell>
 </template>
@@ -115,8 +120,8 @@ const METRIC_CARDS = [
 const busy = ref(false)
 const status = ref('尚未运行评估。选择评估集与策略后提交，返回的指标来自服务端保存的记录。')
 const task = ref('question')
-const datasetVersion = ref('java-eval-test-v1')
-const strategy = ref('text-baseline')
+const datasetVersion = ref('xiaolin-eval-dev-v1')
+const strategy = ref('xiaolin-baseline')
 const topK = ref(5)
 const runs = ref([])
 const selected = ref(null)
@@ -162,9 +167,9 @@ async function perform(action) {
 async function loadRuns() {
   const response = await perform(() => api.evaluations())
   if (!response) return
-  runs.value = response.data.results
+  runs.value = response.results
   status.value = runs.value.length
-    ? `已加载 ${response.data.count} 条评估记录，当前页 ${runs.value.length} 条。`
+    ? `已加载 ${response.count} 条评估记录，当前页 ${runs.value.length} 条。`
     : '还没有评估记录。'
 }
 
@@ -177,22 +182,22 @@ async function runEvaluation() {
     request_id: newRequestId(),
   }))
   if (!response) return
-  selected.value = response.data
+  selected.value = response
   await loadRuns()
-  status.value = `评估完成：${response.data.sample_count} 条样本，失败 ${response.data.failure_count} 条。`
+  status.value = `评估完成：${response.sample_count} 条样本，失败 ${response.failure_count} 条。`
 }
 
 async function openRun(id) {
   const response = await perform(() => api.evaluation(id))
   if (!response) return
-  selected.value = response.data
-  status.value = `已读取评估记录 ${response.data.id}。`
+  selected.value = response
+  status.value = `已读取评估记录 ${response.id}。`
 }
 
 async function exportRun(id) {
   const response = await perform(() => api.exportEvaluation(id))
   if (!response) return
-  const payload = response.data
+  const payload = response
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -208,6 +213,9 @@ onMounted(loadRuns)
 
 <style scoped>
 .eval-hint { color: var(--career-muted); font-size: 13px; line-height: 1.7; }
+.platform-result { min-width: 0; overflow-wrap: anywhere; }
+.eval-table-scroll { max-width: 100%; overflow-x: auto; margin-bottom: 16px; }
+.eval-table-scroll:focus-visible { outline: 2px solid #527c60; outline-offset: 3px; }
 .eval-meta { font-size: 13px; color: var(--career-muted); margin-bottom: 16px; }
 .eval-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 20px; }
 .eval-metrics li { list-style: none; border: 1px solid var(--career-border); border-radius: 6px; padding: 12px 14px; }

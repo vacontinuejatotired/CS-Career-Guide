@@ -15,3 +15,4 @@ class ResumeApplyReceipt(OwnedRun):
     analysis = models.ForeignKey(ResumeAnalysisRun, on_delete=models.CASCADE, related_name='applications')
     accepted_suggestion_ids = models.JSONField(default=list)
     applied_revision = models.PositiveBigIntegerField()
+    input_payload = models.JSONField(default=dict)

@@ -534,6 +534,10 @@ def llm_chat(request):
                             audio_data = {"type": "audio", "audio": msg['audio']}
                             yield f'data: {json.dumps(audio_data, ensure_ascii=False)}\n\n'
                     
+                    if response_content and interview_prompt and interview_prompt.source_footer:
+                        footer = interview_prompt.source_footer
+                        response_content += footer
+                        yield f'data: {json.dumps({"type": "chunk", "content": footer}, ensure_ascii=False)}\n\n'
                     yield "data: [DONE]\n\n"  # 这是一种约定俗成的结束标记
                 except Exception as e:
                     logger.error(f"Error during streaming: {str(e)}")

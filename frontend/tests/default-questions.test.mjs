@@ -25,7 +25,7 @@ test('resume optimization lives in the existing resume workspace and legacy link
   const nav=await readFile(new URL('../src/features/career-platform/CourseNav.vue',import.meta.url),'utf8')
   assert.match(router,/name:'PlatformResume',redirect:/)
   assert.match(router,/path:'\/resume',query:\{\.\.\.to.query,tab:'optimize'\}/)
-  assert.match(resume,/<OptimizationPanel v-if="showOptimization"/)
+  assert.match(resume,/<OptimizationPanel v-show="showOptimization"/)
   assert.match(resume,/v-show="!showOptimization"/)
   assert.doesNotMatch(nav,/title: '简历优化'/)
 })
