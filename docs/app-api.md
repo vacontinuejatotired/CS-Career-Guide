@@ -1,6 +1,6 @@
 # App 端 API 接入文档
 
-> 核对日期：2026-11-12。代码基线：本 fork `origin/master` 的 `208aae8`，本地 `codex/personal` 已快进到该提交。本文描述该提交实际挂载的后端接口；“已实现”仅表示存在业务实现，不表示当前服务器已部署、已有数据或真实模型已验收。随后按用户要求完成只读 SSH 检查和真实 curl 鉴权链路验证，临时账号已删除；未调用真实模型、未部署或修改服务器配置。**线上目录接口实测仍为501，与本地代码能力不同，联调先看下文线上状态表。**
+> 2026-11-16 更新：通用简历优化接口已合入本 fork `master` 的 `edb797e`，输入与限制见第10节。接口实现、镜像发布、部署和真实模型验收分别记录于[运维状态](deployment-status.md)。下文2026-11-12基于`208aae8`的curl及目录501为历史快照，不能据此判断当前线上能力；联调前按目标环境重新验证。
 
 本文面向 Android、iOS、Flutter、uni-app 等客户端开发者。App 复用 Django API、DRF Token 和现有流式协议，没有独立的 `/app/` 前缀。需求与分工仍以[当前需求方案](career_platform_plan.md)为准。
 
@@ -35,13 +35,13 @@
 | `POST /api/users/auth/register/` | 201 | 返回 user/token |
 | `POST /api/users/auth/login/` | 200 | 返回 user/token |
 | `GET /api/users/profile/`，有效 Token | 200 | 返回当前临时用户，ID 与注册响应一致 |
-| `GET /api/career-platform/catalog/jobs/?page=1&page_size=1` | **501** | FEATURE_NOT_IMPLEMENTED；当前公网入口尚不可联调岗位目录成功态 |
-| `GET /api/career-platform/catalog/questions/?page=1&page_size=1` | **501** | FEATURE_NOT_IMPLEMENTED；当前公网入口尚不可联调题库目录成功态 |
+| `GET /api/career-platform/catalog/jobs/?page=1&page_size=1` | **501** | 2026-11-12历史结果：FEATURE_NOT_IMPLEMENTED |
+| `GET /api/career-platform/catalog/questions/?page=1&page_size=1` | **501** | 2026-11-12历史结果：FEATURE_NOT_IMPLEMENTED |
 | `GET /api/career-platform/practice-sessions/?page=1&page_size=1` | 200 | count=0，包含 page/page_size/results |
 | `POST /api/users/auth/logout/` | 200 | 空响应体 |
 | `GET /api/users/profile/`，复用退出后的 Token | 401 | Token 撤销生效 |
 
-上述目录501说明线上行为与本文代码基线不同；尚未核对具体运行镜像版本与差异原因，不能直接断言重启或发布即可修复。正式检索、创建练习、模型反馈、总结、简历读写和其他业务不在本次 curl 成功验收范围。脱敏本机证据为 `.runtime/app-api-curl-20261112-164928.json`（忽略目录，不包含密码或 Token）。
+上述目录501反映2026-11-12时的部署差异，不是2026-11-16实时状态。正式检索、创建练习、模型反馈、总结、简历读写和其他业务不在该次curl成功验收范围，后续部署与验收见运维状态。该历史脱敏本机证据为 `.runtime/app-api-curl-20261112-164928.json`（忽略目录，不包含密码或Token）。
 
 ```text
 API_BASE_URL = https://<后端网关域名>/api
@@ -109,7 +109,7 @@ App 只保存业务 Token；模型、ASR、TTS、数据库凭据留在后端。�
 | ASR/TTS | 已有实现，依赖后端配置 | ASR 上传 PCM；TTS 随聊天 SSE 返回，不存在独立 TTS 路由 |
 | 职业路径、招聘列表、建议 | 已实现 | 不同数据源/字段模型，分别接入 |
 | AI 职业推荐/规划 | 已有实现，依赖模型/检索配置 | 存在回退和历史返回差异，见第 9 节 |
-| 简历 AI 分析/确认应用 | 2026-11-16 候选实现，未部署 | 技能/个人自评的保守改写、STAR经历摘录及确认应用；见第10节，不能据本地测试判断线上可用 |
+| 简历 AI 分析/确认应用 | 2026-11-16已部署；通用模式真实HTTP单样本通过 | 默认无需JD，可选岗位定向；技能/个人自评保守改写和确认应用，STAR经历仅预览；见第10节及运维记录 |
 | 评估运行 | 已实现，管理员专用 | 当前内置 question 数据集与离线文本策略，见第 11 节 |
 | 独立 `/company-api` 服务 | 非 Django API，默认网关未提供 | 网页中的独立企业客户端不能视为可用 App 后端 |
 
@@ -537,7 +537,7 @@ company-info 对象采用另一套字段：`id,title,company,salary,tags[],jobDe
 
 职业报告 user_profile 可包含 `name,major,education,skills[],personality,graduation_year,school,grade,career_goal,self_introduction`；省略或空对象时从当前用户资料构造。data 的内容来自报告工作流，客户端按实际结构渲染并容忍部分生成失败；本接口没有另行冻结完整 App DTO。
 
-语音简历输入的是**识别后的文本**，不是音频文件。生成结果先预览和编辑，再通过 `/api/resumes/my/` 保存；正式 JD 简历分析是另一条独立流程，候选实现见第10节。
+语音简历输入的是**识别后的文本**，不是音频文件。生成结果先预览和编辑，再通过 `/api/resumes/my/` 保存；正式简历AI分析是另一条独立流程，支持通用/岗位定向两种模式，见第10节。
 
 ### 9.2 历史保存接口
 
@@ -583,7 +583,7 @@ company-info 对象采用另一套字段：`id,title,company,salary,tags[],jobDe
 
 ## 10. 简历 AI 优化接口
 
-2026-11-16 候选实现支持分析、历史和确认应用，本轮未部署。分析只读取已保存简历；模型使用既有后端配置。技能匹配采用有限技能词典和原文证据，缺项表示未找到文本证据，不是能力评分。主表仅允许改写 `skills`、`self_evaluation`，其他字段和子记录不自动修改。
+2026-11-16已部署分析、历史和确认应用，通用模式通过真实gateway HTTP与模型的单份合成简历验收；证据及限制见[运维状态](deployment-status.md)。分析只读取当前登录账号已保存简历，未保存草稿不参与；模型使用既有后端配置。岗位模式的技能匹配采用有限技能词典和原文证据，缺项表示未找到文本证据，不是能力评分。主表仅允许改写`skills`、`self_evaluation`，其他字段和子记录不自动修改。
 
 | 方法与路径 | 当前校验输入 |
 | --- | --- |

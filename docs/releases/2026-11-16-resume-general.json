@@ -1,0 +1,234 @@
+{
+  "date": "2026-11-16",
+  "application_commit": "edb797ef26b8881b3ca2b2e94eaf1e7c17afb41d",
+  "delivery": "Actions verified images; backend standalone server publication; locked single-component activation",
+  "frontend_publication": {
+    "commit": "edb797ef26b8881b3ca2b2e94eaf1e7c17afb41d",
+    "components": [
+      "frontend"
+    ],
+    "compatibility": "candidate-integration",
+    "complete": true,
+    "images": {
+      "frontend": {
+        "repository": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-frontend",
+        "tags": [
+          "sha-edb797e",
+          "latest"
+        ],
+        "image_id": "sha256:3acc73c69d9785d4e31728a55bb40bd43817cfe6791d6fb0206e4fcfa67d7bf2",
+        "digest": "sha256:9629f4a6c1030040d3540d2585dd609302a8cabc3def79785bed90c2f3acfe8e",
+        "reference": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-frontend@sha256:9629f4a6c1030040d3540d2585dd609302a8cabc3def79785bed90c2f3acfe8e"
+      }
+    }
+  },
+  "backend_publication": {
+    "commit": "edb797ef26b8881b3ca2b2e94eaf1e7c17afb41d",
+    "complete": true,
+    "components": [
+      "backend"
+    ],
+    "compatibility": "candidate-integration",
+    "publisher": "server-crane-v0.22.1-checksummed",
+    "source": "runner-verified-archive",
+    "manifest_config_verified": true,
+    "layer_diff_ids_equal": true,
+    "images": {
+      "backend": {
+        "repository": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-backend",
+        "image_id": "sha256:7fe92369e7bd31c0dba05b6613c16a61761b6f056daa1785e195f4761bd8b957",
+        "runner_config_digest": "sha256:b45f60b56f426f82be2163a1448c8981a22328a5823faf224a0c6ef3aa05df4a",
+        "tags": [
+          "sha-edb797e",
+          "latest"
+        ],
+        "digest": "sha256:8c5aab50e5ccfdc4d38f3c6f29544c907bbe91350d934b197d9712c958b14583",
+        "reference": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-backend@sha256:8c5aab50e5ccfdc4d38f3c6f29544c907bbe91350d934b197d9712c958b14583",
+        "compressed_layer_bytes": 297081113
+      }
+    }
+  },
+  "failed_actions_runs": [
+    43816175405,
+    43820801261
+  ],
+  "delivery_fix": {
+    "pr": 50,
+    "commit": "3dac3c3d9a374e36371cf14aeec9e0175f078c15",
+    "premerge_ci_passed": [
+      43825887485,
+      43825923832
+    ],
+    "master_run": 43827174324,
+    "master_status": "in_progress_at_this_snapshot"
+  },
+  "runtime": {
+    "frontend": {
+      "status": "running",
+      "health": "healthy",
+      "image_id": "sha256:9629f4a6c1030040d3540d2585dd609302a8cabc3def79785bed90c2f3acfe8e",
+      "reference": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-frontend@sha256:9629f4a6c1030040d3540d2585dd609302a8cabc3def79785bed90c2f3acfe8e",
+      "digests": [
+        "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-frontend@sha256:9629f4a6c1030040d3540d2585dd609302a8cabc3def79785bed90c2f3acfe8e"
+      ],
+      "container_id": "53431d978de6b59685fc06f62e635f8dadb2d3ff9250a6f415b05a1a2ce6b333"
+    },
+    "backend": {
+      "status": "running",
+      "health": "healthy",
+      "image_id": "sha256:8c5aab50e5ccfdc4d38f3c6f29544c907bbe91350d934b197d9712c958b14583",
+      "reference": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-backend@sha256:8c5aab50e5ccfdc4d38f3c6f29544c907bbe91350d934b197d9712c958b14583",
+      "digests": [
+        "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-backend@sha256:8c5aab50e5ccfdc4d38f3c6f29544c907bbe91350d934b197d9712c958b14583"
+      ],
+      "container_id": "3968f72dc53625b394ab21186b22e5139cb82378bc5d5c7c9190cd1b749a855f"
+    },
+    "gateway": {
+      "status": "running",
+      "health": "healthy",
+      "image_id": "sha256:91fc9c3924b93f76adc9cd36a0bb93e53885ff8e97df10233caa45bb432789a5",
+      "reference": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-frontend@sha256:91fc9c3924b93f76adc9cd36a0bb93e53885ff8e97df10233caa45bb432789a5",
+      "digests": [
+        "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-frontend@sha256:91fc9c3924b93f76adc9cd36a0bb93e53885ff8e97df10233caa45bb432789a5"
+      ],
+      "container_id": "57aab10cc0771ad57a1e3f1ca1b36b4fd420ab89a2873944bdd3357da09797a5"
+    }
+  },
+  "preservation_checks": {
+    "gateway_container_unchanged": true,
+    "mounts_unchanged": true,
+    "env_file_metadata_unchanged": true
+  },
+  "real_model_gateway_http": {
+    "real_model": true,
+    "synthetic_data": true,
+    "mode": "general",
+    "environment": "deployed gateway HTTP",
+    "analyze_status": 200,
+    "matching": {
+      "matches": [],
+      "gaps": []
+    },
+    "star": [
+      {
+        "sections": {
+          "situation": "课程项目需要管理学生选课。",
+          "task": "我负责选课接口开发。",
+          "action": "使用Java实现选课接口，使用MySQL保存选课记录。",
+          "result": ""
+        },
+        "missing": [
+          "result"
+        ]
+      }
+    ],
+    "prompt_version": "resume-star-extractive-v2",
+    "analysis_replayed": true,
+    "suggestion_count": 1,
+    "apply": {
+      "status": 200,
+      "revision": 1,
+      "receipt_replayed": true,
+      "fabricated_edit_rejected": true
+    },
+    "history_count": 1,
+    "migration_0004": true,
+    "catalog_count": 943,
+    "passed": true,
+    "temporary_user_removed": true,
+    "duration_seconds": 22.2
+  },
+  "public_browser": {
+    "environment": "public browser with actual registration/resume/profile/history APIs; no API mocks; no model call",
+    "sourcePreview": true,
+    "analysisButtonEnabledWithoutJd": true,
+    "unsavedDraftExcluded": true,
+    "jobBlankJdFeedback": true,
+    "layouts": [
+      1440,
+      390
+    ],
+    "glbRequests": 0,
+    "pageErrors": []
+  },
+  "browser_account_cleanup": {
+    "browser_temporary_user_removed": true
+  },
+  "obsolete_glb_absent": true,
+  "vad_model_present": true,
+  "limitations": [
+    "Real model acceptance covers one synthetic resume in two online checks, not a quality evaluation set.",
+    "Confirmation writeback remains limited to skills and self_evaluation; project/work STAR is preview only.",
+    "Manual publication does not convert failed Actions runs to success."
+  ],
+  "automatic_backend_followup": {
+    "run": 43827174324,
+    "source_commit": "3dac3c3d9a374e36371cf14aeec9e0175f078c15",
+    "publication": {
+      "commit": "3dac3c3d9a374e36371cf14aeec9e0175f078c15",
+      "components": [
+        "backend"
+      ],
+      "compatibility": "candidate-integration",
+      "complete": true,
+      "images": {
+        "backend": {
+          "repository": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-backend",
+          "tags": [
+            "sha-3dac3c3",
+            "latest"
+          ],
+          "image_id": "sha256:b45f60b56f426f82be2163a1448c8981a22328a5823faf224a0c6ef3aa05df4a",
+          "digest": "sha256:3e0d32ff90ad11c364e65ccb05672280f510c0a3dffe6e1aa5c6357f267be973",
+          "reference": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-backend@sha256:3e0d32ff90ad11c364e65ccb05672280f510c0a3dffe6e1aa5c6357f267be973"
+        }
+      }
+    },
+    "identity_check": {
+      "current_backend_reference": "crpi-gbihc3e57h3o3f2l.cn-hangzhou.personal.cr.aliyuncs.com/tencent-ubutun22/cs-career-guide-backend@sha256:3e0d32ff90ad11c364e65ccb05672280f510c0a3dffe6e1aa5c6357f267be973",
+      "registry_config_matches_runner": true,
+      "runner_config_digest": "sha256:b45f60b56f426f82be2163a1448c8981a22328a5823faf224a0c6ef3aa05df4a"
+    },
+    "deployed_and_healthy": true,
+    "real_model_gateway_http": {
+      "real_model": true,
+      "synthetic_data": true,
+      "mode": "general",
+      "environment": "deployed gateway HTTP",
+      "analyze_status": 200,
+      "matching": {
+        "matches": [],
+        "gaps": []
+      },
+      "star": [
+        {
+          "sections": {
+            "situation": "课程项目需要管理学生选课。",
+            "task": "我负责选课接口开发。",
+            "action": "使用Java实现选课接口，使用MySQL保存选课记录。",
+            "result": ""
+          },
+          "missing": [
+            "result"
+          ]
+        }
+      ],
+      "prompt_version": "resume-star-extractive-v2",
+      "analysis_replayed": true,
+      "suggestion_count": 1,
+      "apply": {
+        "status": 200,
+        "revision": 1,
+        "receipt_replayed": true,
+        "fabricated_edit_rejected": true
+      },
+      "history_count": 1,
+      "migration_0004": true,
+      "catalog_count": 943,
+      "passed": true,
+      "temporary_user_removed": true,
+      "duration_seconds": 29.5
+    },
+    "frontend_publisher": "in_progress_at_this_snapshot"
+  }
+}
