@@ -245,7 +245,6 @@ jobs:
           set -o pipefail
           npm run build 2>&1 | tee ../frontend-build.log
           test -f dist/index.html
-          test -f dist/models/d51675667acfc8a42b8e40d4c3e9799a.glb
           test -f dist/models/vad/silero_vad_legacy.onnx
       - uses: actions/upload-artifact@v4
         with:
@@ -407,7 +406,7 @@ jobs:
           expect_status /api/ 404
           expect_status /company-api 503
           curl -fsS http://127.0.0.1:18080/models/vad/silero_vad_legacy.onnx -o /dev/null
-          curl -fsS http://127.0.0.1:18080/models/d51675667acfc8a42b8e40d4c3e9799a.glb -o /dev/null
+          docker exec "$container" sh -c 'test -d /usr/share/nginx/html/models/vad && test -z "$(find /usr/share/nginx/html -name "*.glb" -print -quit)"'
       - name: Export tested frontend image
         shell: bash
         run: python3 ci/release_images.py export --component frontend --commit "$GITHUB_SHA" --directory "$RUNNER_TEMP/frontend-export"

@@ -16,9 +16,8 @@ dist
 output
 coverage
 public/models/**
-!public/
-!public/models/
 !public/models/vad
 !public/models/vad/**
+**/*.glb
 tests
 *.log

@@ -36,6 +36,7 @@ class BuildLayoutTests(unittest.TestCase):
             self.assertIn(required, backend)
         frontend = (ROOT / 'frontend/.dockerignore').read_text().splitlines()
         self.assertIn('public/models/**', frontend)
+        self.assertIn('**/*.glb', frontend)
         self.assertFalse(any('.glb' in line and line.startswith('!') for line in frontend))
         self.assertIn('COPY public/models/vad /usr/share/nginx/html/models/vad',
                       (ROOT / 'frontend/Dockerfile').read_text())

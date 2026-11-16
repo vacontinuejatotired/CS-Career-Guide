@@ -142,3 +142,5 @@ Backend checks 新增 `career_platform.evaluation`、`career_platform.records`�
 ## 2026-11-16 简历STAR候选回归
 
 后续简历候选在 Backend checks 的隔离Django组合中加入 `career_platform.resume`，覆盖原文校验、STAR缺项、幂等、用户隔离、旧版本及两个数据库连接的并发应用；固定complete用例和发布条件保持原样。本地完整固定17项已全部通过，组合59项通过，前端113项通过并完成生产构建。该结果只覆盖隔离SQLite和模型替身，不替代Actions MySQL、真实模型或部署验收；前文13/17是题库候选阶段历史快照。
+
+2026-11-16：停用悬浮助手后，前端构建不再要求旧人物GLB存在；容器冒烟改为确认镜像内无GLB，继续验证VAD模型HTTP可读取。其余前后端、数据库与业务门禁保持原验证。
