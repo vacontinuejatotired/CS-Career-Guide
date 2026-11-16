@@ -217,6 +217,13 @@ class DjangoPracticeRepository:
             available = {str(item.get('question_id')): item for item in receipt.get('results', [])}
             if any(key not in available for key in payload['question_ids']):
                 raise ValidationError({'question_ids': '所选题目不属于本次检索结果'})
+            allowed = set(str(key) for key in InterviewQuestion.objects.filter(
+                id__in=payload['question_ids'], permission_status='allowed').values_list('id', flat=True))
+            if allowed != set(payload['question_ids']):
+                raise Conflict('题目已删除或许可已变化，请重新检索')
+            expected_order = [key for key in available if key in payload['question_ids']]
+            if payload['question_ids'] != expected_order:
+                raise ValidationError({'question_ids': '请保留本次检索的题目顺序'})
             presented = [copy.deepcopy(available[key]) for key in payload['question_ids']]
             context = copy.deepcopy(receipt.get('context') or context)
             context['selection_mode'] = 'retrieval_receipt'

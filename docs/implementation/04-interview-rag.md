@@ -408,3 +408,99 @@ Actions 42776569360 的文档、SQLite/MySQL业务验收及前端镜像成功，
 ```acceptance-record
 {"commit":"1782fec + dirty","command":"node --test frontend/tests/*.test.mjs; npm run build --prefix frontend; python ci/project_acceptance.py --stage complete --module all","result":"failed","environment":"2026-11-15；Windows；隔离SQLite；模拟浏览器API","scope":"前端99项和构建通过。浏览器三组自练填写/查看要点无额外API调用；题库、优化、编辑三种状态四种尺寸12视图无溢出和pageerror。完整17项13通过4失败，rag3项通过，resume3与integration1因501失败。","limitations":"共享改动整体仍failed；默认题仅本地自练，不冒充正式题库/模型反馈。未调用真实模型、导入题库或执行MySQL/CI/发布部署。","evidence":"frontend/src/views/career-platform/default-questions.js; frontend/tests/default-questions.test.mjs; output/resume-default-complete.log; output/playwright/resume-default-check.js（output为本机产物）"}
 ```
+
+
+## 2026-11-16 题库与自由面试接入
+
+正式练习继续使用DjangoQuestionRetriever读取当前allowed题目；检索结果保留实际岗位/知识点/难度与collected_at，避免空过滤条件覆盖原始元数据。反馈运行时统一调用严格证据校验：拒绝空回答引用、虚构/重复/交叉要点、无效来源和不在快照中的引用。follow_up按现有HTTP约定接受null或非空且不超过2000字符的生成追问。
+
+受控真实模型测试发现长要点复制与完整引用输出偶有遗漏，因此内部模型改为选择covered_indices/missing_indices；服务端只按合法序号从已下发快照组装逐字要点与证据，再执行公开格式校验。旧完整反馈仍须严格验证，不自动修补伪造内容。非法输出保留回答并返回INVALID_MODEL_OUTPUT，不偷偷重试或伪造成功。
+
+/interview保留legacy策略与现有文字流。开场及自我介绍后的项目邀请不检索；已有两轮历史后的技术追问，从本轮真实回答（最多2000字符）检索3条allowed题，组装有界上下文；复盘不重新检索，无命中/检索异常明确提示并允许继续生成追问。服务端在非空模型输出后追加“本轮题库检索参考（追问由模型结合回答生成）”及实际来源链接，按普通chunk在DONE之前发送，并保存到原AIChatPair。尾注表示提供给模型的参考，不声称生成文字逐字来自题库。
+
+首次实测模型漏来源，说明仅提示词不可靠，已用服务端尾注修复；首次长要点反馈被严格校验拒绝，随后改为序号解析。最终受控验证详情见本轮验收记录。
+
+```acceptance-record
+{
+  "commit": "3837421035e310ec77aeb2fa3c017391f605621a",
+  "command": "python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_evaluation --settings=career_platform.test_settings; python -m unittest discover -s backend/tests -p test_interview*.py; python -m unittest discover -s backend/tests -p test_rag_feedback.py; python -m unittest discover -s backend/tests -p test_json_gateway.py; node --test frontend/tests/*.test.mjs; python ci/project_acceptance.py --stage complete --module all",
+  "result": "passed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；本地浏览器使用真实候选API和943题、离线模型替身；服务器独立候选进程使用真实已配置模型和临时账号",
+  "scope": "专项37项（含RAG/records/evaluation固定验收）通过；自由面试10项、纯反馈14项通过；真实候选进程反馈/总结与来源链路验证，以及隔离浏览器真实API闭环通过。",
+  "limitations": "完整业务17项13通过4失败（resume3和integration1因简历接口501）；未通过完整门禁、未部署候选；MySQL/容器由Actions验证。检索为词面基线，评测标签未独立人工复核，且无关检测仍误召；真实模型样本不证明总体质量。 真实模型为独立候选进程快照验证，末次提示词及无命中尾注文字调整仅离线回归。",
+  "evidence": "backend/career_platform/evaluation/datasets/xiaolin-experiment-v1.json; backend/career_platform/evaluation/tests_xiaolin.py; backend/career_platform/rag/tests_feedback.py; backend/career_platform/records/tests_catalog.py; backend/tests/test_interview_catalog.py; frontend/tests/evaluation-page.test.mjs; output/question-bank-live-result.json; output/playwright/question-bank-api-check.js; output/question-bank-all.json（output为本机验收产物）"
+}
+```
+
+
+## 2026-11-16 简历STAR与确认应用首版
+
+简历应用后练习仍读取当前简历快照，既有题库与legacy面试链路不改；固定跨模块流程现在本地通过。
+
+首版仅写主表skills/self_evaluation；STAR最多20段，逐项最多120字符的原文摘录，缺项保持空并提问，供预览不自动写子记录。有限词典与保守文字规则不等于语义事实或能力评估，人工仍需核对STAR归类。普通简历CRUD跨页签版本协议及所有子表写入口版本维护未在本轮重构；应用时会重验完整快照，当前页会阻止旧草稿直接保存。模型调用在事务外，相同分析键并发可能重复调用模型，但仅保存一条成功记录。SQLite竞争可返回409，显式原键重试恢复。本轮未调用真实模型、未执行线上迁移/发布/部署；MySQL及容器由Actions单独验证。
+
+```acceptance-record
+{
+  "commit": "3e1d550b9b5d6a12113c2c3cb555756c16de9c3a + dirty",
+  "command": "python -m django test career_platform.resume career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_catalog career_platform.tests.accept_evaluation career_platform.tests.accept_resume career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_integration --settings=career_platform.test_settings; python ci/project_acceptance.py --stage complete --module all; python ci/project_acceptance.py --stage scaffold; python -m django makemigrations --check --dry-run --settings=career_platform.test_settings; node --test frontend/tests/*.test.mjs; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；浏览器真实候选API与临时数据库、合成账号和离线模型替身",
+  "scope": "简历应用后练习仍读取当前简历快照，既有题库与legacy面试链路不改；固定跨模块流程现在本地通过。 本地组合59项通过，固定complete17项及scaffold7项通过；前端113项与生产构建通过；迁移无漂移。浏览器1440/390px无横向溢出、无pageerror，验证STAR缺结果、拦截伪造编辑、确认写回、版本递增、历史重载及旧草稿保护。",
+  "limitations": "首版仅写主表skills/self_evaluation；STAR最多20段，逐项最多120字符的原文摘录，缺项保持空并提问，供预览不自动写子记录。有限词典与保守文字规则不等于语义事实或能力评估，人工仍需核对STAR归类。普通简历CRUD跨页签版本协议及所有子表写入口版本维护未在本轮重构；应用时会重验完整快照，当前页会阻止旧草稿直接保存。模型调用在事务外，相同分析键并发可能重复调用模型，但仅保存一条成功记录。SQLite竞争可返回409，显式原键重试恢复。本轮未调用真实模型、未执行线上迁移/发布/部署；MySQL及容器由Actions单独验证。",
+  "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; backend/career_platform/tests/accept_resume.py; backend/career_platform/tests/accept_integration.py; output/resume-complete.json; output/playwright/resume-optimization-check.js（output为本机验收产物）"
+}
+```
+
+## 2026-11-16 简历入口与停用助手资源回归
+
+共享前端控制器补充服务器简历来源和缺少JD的反馈，完整业务回归保持原有五模块契约。前端镜像仅保留面试VAD资源；历史3D人物文件不再交付。
+
+```acceptance-record
+{
+  "commit": "45d65088acee455d20deccf3acb2e65be376ccc5 + dirty",
+  "command": "node --test frontend/tests/*.test.mjs; python -m unittest ci.test_build_layout -q; python ci/project_acceptance.py --stage complete --module all --output output/resume-source-complete.json; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；离线隔离SQLite；Chromium使用临时账号、真实候选API和离线模型替身",
+  "scope": "简历分析入口提示与已保存来源预览；移除停用悬浮助手组件、公开配置、页脚链接和镜像GLB资源。共享前端控制器变更触发五模块完整回归，17项通过；115项前端测试、5项构建布局测试及生产构建通过。浏览器1440/390px验证空JD提示与聚焦、服务器来源、未保存草稿隔离、确认应用和历史，无运行时错误或横向溢出。",
+  "limitations": "本轮仅修改前端及构建布局回归；未修改后端接口、模型提示词、题库数据或迁移。浏览器模型为离线替身，不代表真实模型质量；MySQL、Docker构建及部署由Actions验证，发布结果另记deployment-status.md。",
+  "evidence": "frontend/tests/resume-optimization.test.mjs; ci/test_build_layout.py; output/resume-source-complete.json; output/playwright/resume-source-check.js（output为本机验收产物）"
+}
+```
+
+
+### 2026-11-16 通用简历优化共享回归
+
+简历分析允许省略JD；通用模式无岗位匹配，岗位模式保留原行为。共享序列化器/前端控制器变更按原规则完成五模块回归；未改变题库、检索、练习或评估算法。
+
+```acceptance-record
+{
+  "commit": "434a7d9293e3ceff99a31b61ed0bdd9a981a58ac + dirty",
+  "command": "node --test frontend/tests/*.test.mjs; python -m django test career_platform.resume --settings=career_platform.test_settings; python ci/project_acceptance.py --stage complete --module all --output output/resume-general-complete.json; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；离线隔离SQLite；Chromium使用临时账号、真实候选API和离线模型替身",
+  "scope": "简历分析共享输入允许省略JD；前端默认通用优化，可选岗位定向。前端116项、简历专项18项、固定五模块complete17项及生产构建通过；浏览器验证空JD分析、模式切换与历史、草稿隔离、伪造编辑拒绝和确认写回，1440/390px无溢出或运行时异常。",
+  "limitations": "本地模型为替身，不代表真实模型质量；尚未在本轮运行Actions、发布或部署，后续证据另记deployment-status.md。保守改写仍限技能/自评；STAR仅原文预览，不自动写回子项。无新增迁移。",
+  "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; output/resume-general-complete.json; output/playwright/resume-general-check.js（output为本机产物）"
+}
+```
+
+## 2026-11-16 正式题库稀疏排序与关键词知识点兜底
+
+正式 `DjangoQuestionRetriever` 继续读取当前数据库中 `permission_status=allowed` 的题目，并仍通过 `InterviewRagService` 供练习和 legacy `/interview` 技术追问使用。它不是 LanceDB/Embedding 语义检索：本次将生产题库排序从简单字段词覆盖改为确定性的 BM25 稀疏排序，使用题干、标签、参考要点和参考答案的字段权重、词频、逆文档频率和长度归一化；离线评估的 `TextRetrievalStrategy` 默认 coverage 基线保持不变，避免改变冻结评估对照。
+
+知识点是规范分类时仍严格按分类过滤；输入 `mysql` 无对应分类时，检索器会把它追加为检索词并取消该分类的硬过滤，从题干/标签等字段命中 `topic=数据库` 的题目。页面候选中的数字是“检索相关度”，不是逐题答题成绩，也不是模型置信度；没有随机扰动或伪造分数。
+
+
+仅给岗位、不填知识点或JD时，岗位用于筛选并返回稳定顺序，相关度为0表示未进行文本排序。自由输入知识点的每个分词都须在候选题内容中出现，避免JD命中时带入无关知识点。
+
+```acceptance-record
+{
+  "commit": "0003ecc + dirty",
+  "command": "python -m django test career_platform.evaluation career_platform.rag career_platform.records tests.test_catalog_import --settings=career_platform.test_settings; python -m unittest backend.tests.test_text_retrieval; python -m unittest discover -s backend/tests -p test_rag*.py; python ci/project_acceptance.py --stage complete --module all; node --test frontend/tests/*.test.mjs; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；隔离SQLite；离线模型替身",
+  "scope": "正式检索切换字段加权BM25；只按岗位浏览可选题；关键词知识点需匹配所有分词；题目原分类、来源和练习回执保持可追溯。 文本检索20项、RAG纯函数24项、目录/评估/反馈/记录组合31项、固定五模块17项、前端116项及构建通过。",
+  "limitations": "本轮尚未发布新代码；仍为词法检索，未启用Embedding/LanceDB；真实模型、MySQL、镜像和线上验收分别记录。冻结v1评估语料未修改。",
+  "evidence": "backend/tests/test_text_retrieval.py; backend/tests/test_catalog_import.py; output/mysql-rag-complete.json; output/mysql-bm25-comparison.json"
+}
+```

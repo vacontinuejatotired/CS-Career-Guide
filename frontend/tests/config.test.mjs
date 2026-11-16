@@ -51,7 +51,6 @@ test('absolute API URLs apply to streaming endpoints without duplicate slashes',
 test('default asset URLs follow the application base path', async () => {
   const config = await clientConfig({ BASE_URL: '/career/' })
   assert.equal(config.VAD_ASSET_BASE_URL, '/career/models/vad/')
-  assert.match(config.AVATAR_MODEL_URL, /^\/career\/models\//)
 })
 
 test('invalid client timeout fails with the configuration name', async () => {

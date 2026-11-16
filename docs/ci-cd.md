@@ -28,6 +28,16 @@ changes -> frontend-test --------------------> publish-frontend -> deploy-fronte
 - 各 image：仅等待changes，与自身test并行；自身目录上下文，多阶段构建，push=false/load=true；单镜像冒烟、导出和再次加载身份验证。前端冒烟不提供后端/DNS。后端 image 不等待前端。
 - integration：仅两端同时选中时要求成功；下载两份已测试归档，无 ACR Secrets。`demo_smoke.py` 验证真实 gateway/frontend/Django、注册登录/401、static、资料、SQLite 持久化及独立重建；`gateway_smoke.py` 用合成上游验证头/query、media、SSE 首事件及两端换 IP。仅 runner 可启动 Docker。
 - publish-frontend/backend：只依赖自身测试/image、delivery-checks、业务门禁及所需 integration，不等待另一 publisher。只下载对应归档，确认 commit、image ID、平台后推送同一镜像，不重新构建。共享所需 integration 被跳过/失败时不得发布。
+
+2026-11-16 发布传输调整：master `6801441` 的运行43816175405首次双端push、第二次backend push因图层长时间Preparing/Waiting后触发无输出超时；第二次frontend已发布/部署。没有观察到鉴权、429或5xx类别，不能据此认定具体网络根因。后续两个publisher在下载归档后、登录和加载镜像前，使用`ci/configure_release_docker.py`保留runner已有daemon选项并设置`max-concurrent-uploads=1`，然后重启该临时runner的Docker；不修改服务器Docker，不在测试/构建runner执行重启，也不改变镜像身份、发布条件、180秒无输出限制和有限重试。降低上传并发是传输缓解措施，实际结果需另记部署状态，不能宣称根因已修复。离线配置合并及既有发布专项30项通过，真实Docker配置生效和推送由Actions验证。
+
+2026-11-16 后续诊断：`edb797e` 的运行43820801261已成功设置单层上传，但backend仍因无CLI输出失败；服务器侧同一归档的Docker推送也出现6层完成、3层Waiting。独立客户端后续完成更多图层，且主机网络采样仍有传输，因此180秒没有CLI输出不能证明传输已停。PR #50曾将180秒无输出改为提示并继续等待900秒总预算；该行为已按用户要求恢复为连续180秒无新增CLI输出就终止并回收本次推送，避免发布长时间占用。每15秒心跳、900秒单次总预算、固定词汇诊断、仅一次同tag超时重试、身份/digest校验和完整失败回执继续保留。180秒是快速失败策略，不代表已确定网络停传或修复ACR传输问题。
+
+PR #50的历史本地离线验证：发布脚本24项通过；全部CI工具106项中92通过、14项Windows不适用跳过。此次恢复180秒限制的回归用例要求无输出达到预算时终止并回收CLI，日志不泄露镜像地址；既有总超时、有限重试和不提前推进latest的验证继续保留。各次本地测试、Actions发布与线上状态分别记录。
+
+恢复限制后的本地离线验证：`python -m unittest discover -s ci -p test_release_images.py -q`共24项通过；全部CI工具106项中92通过、14项Windows不适用跳过，`git diff --check`通过。未执行本机Docker构建或真实模型调用；新提交的Linux runner、ACR发布与部署仍须分别核验。
+
+后续备用交付已完成：43820801261的验证归档经SSH加载，核对跨引擎manifest/config和全部diff_ids后，使用校验过的crane v0.22.1独立客户端及服务器已有部署账号登录发布同一镜像；未在本机/服务器构建。压缩图层合计297081113字节，传输846.1秒。发布后再次从仓库读取config/diff_ids和SHA/latest digest核对，再使用已有锁定部署工具激活。该工具仅用于本次备用发布，未安装为系统包、未加入自动流水线，也未修改服务器daemon。记录见[运维状态](deployment-status.md)；失败Actions仍为失败。PR #50的两轮预合并CI成功；master运行43827174324的backend发布/部署成功，但frontend发布等待过久，已于2026-11-16按用户要求取消，整条运行结论为cancelled，不能记为完整交付成功。
 - deploy-frontend/backend：仅对应 publisher 成功、fork/master、非 PR、总开关与对应分端开关同时为 true 时执行。输入是该次发布 digest；前端不接收模型字段。细节见[AI 同步](ai-env-sync.md)。
 - release-summary：对已选组件要求 test/image 与预期发布/部署结果正确；未选组件要求全部 skipped。单端完整容器联调明确记为 SKIPPED，不能报告已通过。
 
@@ -104,6 +114,16 @@ ACR_REGISTRY/ACR_NAMESPACE 仅 publisher 从 Variables 或同名 Secrets 读取�
 
 ## 缓存与耗时定位
 
+### 2026-11-16 推送超时恢复
+
+补充推送诊断：每次15秒心跳及结束/失败时输出固定词表的层状态计数（Preparing、Waiting、Pushing、Pushed、Layer already exists、Retrying）、已观察日志字符数和错误类别（网络超时、连接、鉴权、限流、仓库5xx、TLS）。不输出层ID、仓库URL、原始错误或凭据；日志字符数不是网络上传字节数。原始输出仅保存于私有临时目录，退出后删除；进度读取使用独立句柄，不改变Docker写入位置。该诊断用于收集下一次故障证据，不能据此提前认定网络或仓库为根因。
+
+推送连续180秒没有新增CLI输出时提前结束该次尝试，再按同标签最多一次重试处理；有输出的推送仍受900秒总预算约束。无日志不等于网络无流量，因此这是发布恢复策略，不是断言底层网络停传。两次失败仍阻止部署，不修改仓库、镜像验证或服务器条件。
+
+master 运行 `43734055975`（`6046f16`）首次前端 SHA 标签推送达到900秒预算后失败；此前 `43722555711` 的后端推送也出现相同超时。对 `43734055975` 执行失败任务重跑后，前端发布、前端部署及 release-summary 已成功。原始日志只有阶段心跳，不能据此确定网络、镜像层或仓库服务的具体原因；重跑成功也不证明该问题不会复发。
+
+发布工具增加一次仅针对超时的同标签重试：单次push仍限制900秒，先终止并回收CLI，再重新推送同一个已验证镜像标签，总计最多两次。不重新构建、不扩大组件、不重试普通非零退出、用户中断或缺失/歧义digest；版本标签和latest的顺序、digest一致性与complete校验保持不变。两次均超时仍记录complete=false并阻止部署。CLI终止不保证daemon或远端立即停止，重试只能恢复部分暂时性故障，不保证成功；本地隔离测试与该旧提交的远端重跑证据分别记录，补丁本身须由新提交Actions验证。
+
 当前已启用 `setup-python` 的 pip 下载缓存、`setup-node` 的 npm 下载缓存，以及前后端各自的 BuildKit GHA 层缓存。pip/npm 缓存不会保留安装后的虚拟环境或 node_modules，新的 runner 仍会安装依赖和执行测试；镜像缓存命中也仍需导出、上传归档及运行容器检查。publisher 复用已验证的镜像归档，不重新构建。
 
 2026-11-01 成功运行 [41307140743](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/41307140743) 的 backend pip 日志明确显示 Cache hit / Cache restored，后端 Docker 多个依赖与应用层为 CACHED。该运行前端/后端镜像构建步骤约 17/22 秒；后端完整测试依赖安装约 90 秒，共享联调步骤约 153 秒。整个运行约 7 分钟，主要受后端检查到镜像再到共享联调的依赖链影响；这些数据是单次运行快照，不是后续时延承诺。
@@ -123,3 +143,14 @@ ACR_REGISTRY/ACR_NAMESPACE 仅 publisher 从 Variables 或同名 Secrets 读取�
 ## 2026-11-09 前端独立激活条件修复
 
 手动前端发布运行42579875709已成功发布镜像，但前端激活因上游依赖链中未选中后端的skipped状态被GitHub隐式success条件跳过。前端deploy条件增加`always() && !cancelled()`，仍严格要求frontend publisher成功、本fork/master、非PR及原部署开关；不改变业务门禁、后端部署或测试Job。修复后真实激活及线上验证另记，不将原失败运行视为部署成功。
+## 2026-11-16 题库集成候选的回归入口
+
+Backend checks 新增 `career_platform.evaluation`、`career_platform.records`、`career_platform.rag` 与现有 records runtime 的隔离 Django 回归；面试测试匹配 `test_interview*.py`，另执行 `test_rag_feedback.py` 和 `test_json_gateway.py`。前端标准测试自动包含评测页解包响应、错误保留与导出回归。候选不改变镜像发布或生产激活条件。
+
+本轮共享网关变更仍选择完整业务门禁；本地固定验收17项为13通过、4失败，失败均在尚未实现的简历分析501处（resume3、integration1）。专项通过不能解除该门禁，也未跳过固定测试。最新远端结论以当前PR head的Actions为准；真实模型与浏览器证据分别记录在对应实施文档。
+
+## 2026-11-16 简历STAR候选回归
+
+后续简历候选在 Backend checks 的隔离Django组合中加入 `career_platform.resume`，覆盖原文校验、STAR缺项、幂等、用户隔离、旧版本及两个数据库连接的并发应用；固定complete用例和发布条件保持原样。本地完整固定17项已全部通过，组合59项通过，前端113项通过并完成生产构建。该结果只覆盖隔离SQLite和模型替身，不替代Actions MySQL、真实模型或部署验收；前文13/17是题库候选阶段历史快照。
+
+2026-11-16：停用悬浮助手后，前端构建不再要求旧人物GLB存在；容器冒烟改为确认镜像内无GLB，继续验证VAD模型HTTP可读取。其余前后端、数据库与业务门禁保持原验证。

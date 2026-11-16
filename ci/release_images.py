@@ -32,36 +32,100 @@ def coordinates(registry, namespace, commit, extra_tag=''):
 
 DOCKER_TIMEOUTS = {'push': 900, 'load': 300, 'save': 300}
 HEARTBEAT_SECONDS = 15
+PUSH_IDLE_TIMEOUT = 180
+
+
+class DockerTimeoutError(RuntimeError):
+    """A Docker command exhausted its bounded execution budget."""
+
+
+class PushDiagnostics:
+    """Emit only a fixed vocabulary, never registry output, URLs or credentials."""
+    def __init__(self):
+        self.layers = {}
+        self.errors = set()
+        self.log_chars = 0
+        self.pending = ''
+
+    def consume(self, chunk):
+        self.log_chars += len(chunk)
+        text = self.pending + chunk
+        lines = re.split(r'[\r\n]', text)
+        self.pending = lines.pop()[-4096:]
+        for line in lines:
+            match = re.fullmatch(r'([a-f0-9]{12,64}): (Preparing|Waiting|Pushing|Pushed|Layer already exists|Retrying in \d+ seconds)(?:\s+.*)?', line)
+            if match:
+                state = match[2]
+                self.layers[match[1]] = 'Retrying' if state.startswith('Retrying') else state
+            lower = line.lower()
+            for category, pattern in (
+                ('network-timeout', r'timeout|timed out|deadline exceeded'),
+                ('connection', r'connection reset|connection refused|unexpected eof|no such host'),
+                ('authorization', r'unauthorized|authentication required|denied:'),
+                ('rate-limit', r'too many requests|\b429\b'),
+                ('registry-server', r'\b50[0-4]\b|internal server error|bad gateway'),
+                ('tls', r'tls handshake|x509:'),
+            ):
+                if re.search(pattern, lower):
+                    self.errors.add(category)
+
+    def summary(self):
+        counts = {state: list(self.layers.values()).count(state) for state in sorted(set(self.layers.values()))}
+        return json.dumps(dict(layers=counts, log_chars=self.log_chars, errors=sorted(self.errors)), sort_keys=True)
 
 
 def docker(*arguments):
     operation = arguments[0]
     timeout = DOCKER_TIMEOUTS.get(operation, 120)
     started = time.monotonic()
-    # Raw Docker output can contain private registry data. Keep it in an
-    # unnamed temporary file, never echo arguments/output, and log safe stages.
+    last_activity = started
+    # A second file handle observes progress without moving the child's output
+    # offset. Raw logs stay in a private temporary directory and are deleted.
     print(f'Docker {operation}: started (timeout {timeout}s).', flush=True)
-    with tempfile.TemporaryFile(mode='w+t', encoding='utf-8') as output:
+    with tempfile.TemporaryDirectory() as folder, \
+            open(Path(folder) / 'docker.log', 'w+t', encoding='utf-8') as output, \
+            open(Path(folder) / 'docker.log', 'rt', encoding='utf-8', errors='replace') as progress:
+        diagnostics = PushDiagnostics()
+        def report_progress():
+            if operation == 'push':
+                output.flush()
+                chunk = progress.read()
+                diagnostics.consume(chunk)
+                print('Docker push diagnostics: ' + diagnostics.summary(), flush=True)
+                return bool(chunk)
+            return False
         try:
             process = subprocess.Popen(['docker', *arguments], stdout=output, stderr=subprocess.STDOUT)
         except OSError:
             raise RuntimeError(f'Docker {operation} could not be started.') from None
         try:
             while True:
-                remaining = timeout - (time.monotonic() - started)
+                now = time.monotonic()
+                remaining = timeout - (now - started)
+                if operation == 'push':
+                    remaining = min(remaining, PUSH_IDLE_TIMEOUT - (now - last_activity))
                 if remaining <= 0:
                     raise TimeoutError()
                 try:
                     code = process.wait(timeout=min(HEARTBEAT_SECONDS, remaining))
                     break
                 except subprocess.TimeoutExpired:
-                    print(f'Docker {operation}: running, elapsed {time.monotonic() - started:.0f}s.', flush=True)
-        except (TimeoutError, KeyboardInterrupt):
+                    now = time.monotonic()
+                    print(f'Docker {operation}: running, elapsed {now - started:.0f}s.', flush=True)
+                    if report_progress():
+                        last_activity = now
+        except (TimeoutError, KeyboardInterrupt) as error:
+            if isinstance(error, TimeoutError) and operation == 'push' and now - last_activity >= PUSH_IDLE_TIMEOUT:
+                print(f'Docker push: no new CLI output for at least {PUSH_IDLE_TIMEOUT}s.', flush=True)
             process.kill()
             process.wait()
             print(f'Docker {operation}: stopped after {time.monotonic() - started:.1f}s.', flush=True)
-            raise RuntimeError(f'Docker {operation} exceeded its time budget or was interrupted.') from None
+            report_progress()
+            if isinstance(error, KeyboardInterrupt):
+                raise
+            raise DockerTimeoutError(f'Docker {operation} exceeded its time budget.') from None
         elapsed = time.monotonic() - started
+        report_progress()
         if code:
             print(f'Docker {operation}: failed after {elapsed:.1f}s.', flush=True)
             raise RuntimeError(f'Docker {operation} failed with exit code {code}.')
@@ -124,6 +188,20 @@ def push_digest(output):
     return digests.pop()
 
 
+def push_verified_tag(reference):
+    # Re-send the exact same image/tag once after a stalled CLI was reaped.
+    # Never retry an interruption, registry rejection or invalid digest.
+    for attempt in range(2):
+        try:
+            output = docker('push', reference)
+        except DockerTimeoutError:
+            if attempt == 1:
+                raise
+            print('Docker push: timed out; retrying the same verified tag once.', flush=True)
+        else:
+            return push_digest(output)
+
+
 def write_release(output, summary, release):
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(release, indent=2) + '\n', encoding='utf-8')
@@ -162,7 +240,7 @@ def publish_images(directory, registry, namespace, commit, extra_tag, output, su
                 print(f'Publishing {component} tag {tag}: tagging verified image.', flush=True)
                 docker('tag', metadata['image_id'], reference)
                 print(f'Publishing {component} tag {tag}: pushing and resolving digest.', flush=True)
-                digest = push_digest(docker('push', reference))
+                digest = push_verified_tag(reference)
                 image = release['images'][component]
                 if image.get('digest', digest) != digest:
                     raise RuntimeError('Published tags resolved to different manifest digests.')

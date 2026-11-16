@@ -10,6 +10,34 @@ class InvalidFeedback(ValueError):
     """模型反馈不符合逐题证据约定；异常不携带原始模型内容。"""
 
 
+def resolve_model_feedback(*, answer: str, snapshot: dict, feedback: dict) -> dict:
+    """模型选择要点序号，服务端从快照组装引用；旧完整格式仍须严格校验。"""
+    fields = {'answer_quote', 'covered_indices', 'missing_indices', 'follow_up'}
+    if isinstance(feedback, dict) and set(feedback) == fields:
+        points = snapshot.get('key_points', [])
+        covered, missing = feedback['covered_indices'], feedback['missing_indices']
+        for indices in (covered, missing):
+            if (not isinstance(indices, list) or
+                any(type(index) is not int or not 0 <= index < len(points) for index in indices) or
+                len(indices) != len(set(indices))):
+                raise InvalidFeedback('反馈要点序号无效')
+        if set(covered).intersection(missing) or not covered + missing:
+            raise InvalidFeedback('反馈要点序号冲突或为空')
+        sources = snapshot.get('evidence', [])
+        evidence = []
+        for index in covered + missing:
+            match = next((e for e in sources if e.get('source_id') == str(snapshot.get('question_id'))
+                          and e.get('field_path') == f'key_points[{index}]' and e.get('quote') == points[index]), None)
+            if match is None:
+                raise InvalidFeedback('快照缺少要点依据')
+            evidence.append(deepcopy(match))
+        feedback = {'answer_quote': feedback['answer_quote'],
+                    'key_points_covered': [points[i] for i in covered],
+                    'missing_points': [points[i] for i in missing],
+                    'evidence': evidence, 'follow_up': feedback['follow_up']}
+    return validate_feedback(answer=answer, snapshot=snapshot, feedback=feedback)
+
+
 def validate_feedback(*, answer: str, snapshot: dict, feedback: dict) -> dict:
     """返回隔离副本；不修补、不猜测或自动接受模型多余字段。"""
     def require(condition):
@@ -49,7 +77,8 @@ def validate_feedback(*, answer: str, snapshot: dict, feedback: dict) -> dict:
         require(item['quote'] == points[index])
         require(item['source_id'] == str(snapshot.get('question_id')))
     require(all(any(item['quote'] == point for item in evidence) for point in covered + missing))
-    # 生成追问的具体交接结构尚待审核；本组件首版仅接受无追问。
-    # 不自行扩展公共契约，更不能用生成内容冒充已下发题。
-    require(feedback['follow_up'] is None)
+    # Existing HTTP contract exposes a generated text suggestion, never a catalog ID.
+    require(feedback['follow_up'] is None or
+            (isinstance(feedback['follow_up'], str) and bool(feedback['follow_up'].strip())
+             and len(feedback['follow_up']) <= 2000))
     return deepcopy(feedback)

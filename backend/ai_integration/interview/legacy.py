@@ -6,11 +6,13 @@ from .service import InterviewPrompt
 
 
 class LegacyPromptInterview:
-    def __init__(self, prompt_loader):
+    def __init__(self, prompt_loader, catalog_context=None):
         self.prompt_loader = prompt_loader
+        self.catalog_context = catalog_context
 
     def prepare_turn(self, message, history, style, *, review=False):
         context = ''
+        source_footer = ''
         if review:
             review_prompt = self.prompt_loader('review')
             if review_prompt:
@@ -43,10 +45,20 @@ class LegacyPromptInterview:
                        '完成后邀请介绍一个最熟悉的项目与个人职责，再围绕真实回答逐步追问。'
                        '每轮只提出一个主问题，最多附带一个紧密相关的小点，然后等待回答。'
                        '不一次列出多道题，不输出长篇参考答案，不代替候选人回答。')
+            if self.catalog_context is not None:
+                try:
+                    catalog = self.catalog_context(message, history)
+                    system += catalog.prompt
+                    source_footer = catalog.source_footer
+                except Exception:
+                    # Availability of the optional catalog must not break SSE.
+                    # Never put raw DB/provider diagnostics into a model prompt.
+                    system += '\n题库检索暂不可用。可基于实际回答继续追问，但不得声称已检索题库或编造题库来源。'
+                    source_footer = '\n\n本轮题库检索暂不可用，追问由模型结合回答生成。'
         system += ('\n\n输出要求：只输出纯文本，不使用 Markdown 标记、代码围栏、表格、标题符号或星号。'
                    '代码和技术名词用普通文本表达。复盘使用中文段落标题和换行，'
                    '保留“回答的优点：”“需要改进的地方：”“具体改进建议：”“综合评分：”等字段。')
-        return InterviewPrompt(system=system, user=prompt)
+        return InterviewPrompt(system=system, user=prompt, source_footer=source_footer)
 
     def parse_review(self, content):
         return {

@@ -1,5 +1,11 @@
 # Docker 镜像
 
+2026-11-16 推送排障：Docker的`registry-mirrors`是Docker Hub拉取缓存，不能加速向私有ACR上传，官方说明见[Docker Hub mirror](https://docs.docker.com/docker-hub/image-library/mirror/)。当前仓库publisher设置单层上传，不主动配置Hub mirror；服务器只读检查mirror数量为0，未修改系统daemon。43831847945的backend构建通过后，在push阶段出现2层完成、7层Waiting并触发180秒无输出终止及一次重试；未观察到明确鉴权、429或5xx类别，具体链路根因未确认。
+
+同一镜像内容已有于ACR时，本次人工补发先核对最新runner发布记录与归档配置摘要，再核对ACR config、平台和全部RootFS diff_ids，全部一致后才复用已有manifest发布新SHA/latest标签，回读digest后单端激活。仅源码未变或tag存在不能代替内容核验；内容变化时此方法不能跳过新层上传。此次未将该人工补发流程加入自动publisher，180秒无输出策略保持，具体交付证据见[部署状态](deployment-status.md)。
+
+2026-11-16：发布runner在读取已验证归档之前，将自身Docker daemon的`max-concurrent-uploads`设为1并重启；只限制推送图层的并发，保留其他daemon选项。该步骤由`ci/configure_release_docker.py`执行，不修改镜像层、构建资源、生产服务器配置或部署引用。既有镜像身份校验和发布失败拒绝激活规则保留，实际发布结果见deployment-status.md。
+
 已合入 master 的构建入口为 frontend/Dockerfile 与 backend/Dockerfile，构建上下文分别是 frontend/、backend/。仓库仍是一个 Git 仓库，ACR 仍为 cs-career-guide-frontend、cs-career-guide-backend 两个独立镜像仓库；两端可以分别构建和发布；共享变更仍同时验证两端。历史发布证据见 deployment-status.md，新拓扑与操作见[独立交付](split-delivery.md)。
 
 ## 独立构建
@@ -37,3 +43,5 @@ GLB 与 VAD ONNX/WASM/worklet 为公开运行资源，必须保留。根 `.docke
 两端 cache scope 不变，使用 type=gha，provenance/sbom=false。各自测试后导出归档，publisher 验证完整 commit、image ID、linux/amd64 后发布同一镜像；不重新构建、不要求另一端归档。单端/共享验证策略、发布记录和 digest 回滚见[独立交付](split-delivery.md)。
 
 2026-11-01 的最终交付代码已通过 Actions 双端镜像与网关联调；新 frontend 与 gateway 已安装到服务器，保留原 backend。网关镜像经既有 ACR 仓库的专用 `gateway-nginx-<imageID>` 标签传送并在服务器固定 digest，不覆盖前端应用标签。实际发布/安装/独立审计证据见[部署状态](deployment-status.md)，本机没有 Docker 构建。缓存命中与耗时见[CI/CD](ci-cd.md#缓存与耗时定位)。
+
+2026-11-16：前端镜像仅携带仍用于面试麦克风的 `public/models/vad/`；停用悬浮助手的 GLB 从 Docker 上下文和运行镜像中排除，删除无人引用的 AIFloat 组件及头像配置。仓库中的历史媒体文件保留。

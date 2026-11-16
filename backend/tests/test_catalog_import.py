@@ -71,6 +71,9 @@ class CatalogImportTests(AcceptanceCase):
         self.assertEqual(result['results'][0]['source'], allowed['source'])
         self.assertTrue(result['results'][0]['collected_at'])
 
+        case_insensitive = self.get('catalog/questions/?role=java后端&topic=java基础&difficulty=easy')
+        self.assertEqual(case_insensitive['count'], 1)
+
     def test_allowed_question_is_available_to_member4_retrieval(self):
         from career_platform.rag.retrieval import DjangoQuestionRetriever
 
@@ -129,6 +132,10 @@ class CatalogImportTests(AcceptanceCase):
         self.assertGreater(catalog['count'], 0)
         self.assertTrue(catalog['results'][0]['source_url'])
 
+        mysql = self.get('catalog/questions/?topic=mysql&page_size=5')
+        self.assertGreater(mysql['count'], 0)
+        self.assertTrue(any('mysql' in row['question'].lower() for row in mysql['results']))
+
         candidate = InterviewQuestion.objects.filter(
             topic='集合', question__icontains='ArrayList').first()
         self.assertIsNotNone(candidate)
@@ -137,6 +144,31 @@ class CatalogImportTests(AcceptanceCase):
             difficulty=candidate.difficulty, top_k=5)
         self.assertTrue(results)
         self.assertEqual(results[0].origin, 'catalog')
+
+        mysql_results = DjangoQuestionRetriever().retrieve(
+            query='', role='', topic='mysql', difficulty='', top_k=5)
+        self.assertTrue(mysql_results)
+        self.assertTrue(any('mysql' in item.question.lower() for item in mysql_results))
+
+        # 使用真实服务编排验证自由输入知识点的回执可创建练习，保留规范分类。
+        from career_platform.rag.service import InterviewRagService
+        from career_platform.records.service import PracticeService
+        from career_platform.tests.helpers import request_id
+        records = PracticeService()
+        self.wire(rag=InterviewRagService(retriever=DjangoQuestionRetriever(), records=records), records=records)
+        response = self.post('questions/retrieve/', dict(
+            role='Java后端', topic='mysql', difficulty='easy', top_k=5, request_id=request_id()))
+        self.assertGreater(response['count'], 0)
+        session = self.post('practice-sessions/', dict(
+            role='Java后端', topic='mysql', difficulty='easy',
+            question_ids=[item['question_id'] for item in response['results']],
+            retrieval_id=response['retrieval_id'], request_id=request_id()))
+        self.assertTrue(all(item['topic'] == '数据库' for item in session['presented_questions']))
+
+        browse = DjangoQuestionRetriever().retrieve(
+            query='Java后端', role='Java后端', topic='', difficulty='easy', top_k=5)
+        self.assertTrue(browse)
+        self.assertTrue(all(item.score == 0 for item in browse))
 
         second = StringIO()
         call_command('import_catalog', str(AUTHORIZED_FILE), '--kind', 'questions',

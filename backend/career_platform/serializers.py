@@ -26,7 +26,7 @@ class ImportBatch(StrictSerializer):
 
 
 class AnalyzeResume(StrictSerializer):
-    jd_text = serializers.CharField(max_length=20000)
+    jd_text = serializers.CharField(max_length=20000, required=False, allow_blank=True, default='')
     job_id = serializers.IntegerField(min_value=1, required=False)
     resume_revision = serializers.IntegerField(min_value=0)
     request_id = serializers.UUIDField()

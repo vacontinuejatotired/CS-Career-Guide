@@ -67,7 +67,7 @@ ${resumePrompt}
 2. 每轮只问一个主问题，最多附带一个紧密相关的小点，等待回答后再继续。
 3. 评价至多一句，不列长篇点评、参考答案或多题清单。
 
-注意：你只需扮演面试官角色，不要查询任何数据库信息。`, promptType, style, sessionId, { enableTts, signal }
+注意：你只需扮演面试官角色；技术追问可参考服务端提供的题库依据，使用时注明来源，不得编造来源或提前展示参考答案。`, promptType, style, sessionId, { enableTts, signal }
     )
     await readLegacyStream(response, onEvent)
   }

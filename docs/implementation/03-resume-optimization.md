@@ -1,5 +1,7 @@
 # 成员3：简历 NLP 与有依据的建议
 
+> 2026-11-16 通用优化与岗位定向优化均已部署，发布证据及真实模型限制见 deployment-status.md。下文早期501、候选和未部署记录为历史快照；不填JD的通用优化及本次线上验收见文末。
+
 ## 2026-11-15 优化入口并入简历工作台
 
 - `/resume` 新增“编辑与预览 / 岗位对照与优化”切换；优化URL为 `/resume?tab=optimize`。编辑区使用v-show保留未保存内容，切换不重新创建编辑器。
@@ -248,4 +250,108 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
 
 ```acceptance-record
 {"commit":"1782fec + dirty","command":"node --test frontend/tests/*.test.mjs; npm run build --prefix frontend; python ci/project_acceptance.py --stage complete --module all","result":"failed","environment":"2026-11-15；Windows；隔离SQLite；模拟浏览器API","scope":"前端99项、构建通过。浏览器验证旧入口重定向、501明确提示和编辑草稿跨页签保留，三种状态四种尺寸12视图无溢出。完整业务17项13通过4失败，resume3与integration1仍因501失败。","limitations":"只整合入口，不代表NLP、建议或应用实现；未真实写简历、调用模型或迁移数据库；无MySQL、CI、发布部署验收。","evidence":"frontend/src/views/resume/OptimizationPanel.vue; frontend/tests/default-questions.test.mjs; output/resume-default-complete.log; output/playwright/resume-default-check.js（output为本机产物）"}
+```
+
+
+## 2026-11-16 共享网关回归边界
+
+本轮共享网关随题库集成修改了超时映射与隐式重试；未实现或启用简历NLP、建议或应用接口。完整固定业务验收17项中，resume3项与依赖它的integration1项仍因501失败。不能把题库接入或模型专项成功写成简历模块完成，也不通过降低CI门禁掩盖此缺口。
+
+```acceptance-record
+{
+  "commit": "3837421035e310ec77aeb2fa3c017391f605621a",
+  "command": "python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_evaluation --settings=career_platform.test_settings; python -m unittest discover -s backend/tests -p test_interview*.py; python -m unittest discover -s backend/tests -p test_rag_feedback.py; python -m unittest discover -s backend/tests -p test_json_gateway.py; node --test frontend/tests/*.test.mjs; python ci/project_acceptance.py --stage complete --module all",
+  "result": "failed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；本地浏览器使用真实候选API和943题、离线模型替身；服务器独立候选进程使用真实已配置模型和临时账号",
+  "scope": "共享网关回归已执行；简历固定专项3项与跨模块integration1项返回501，完整业务尚不通过。",
+  "limitations": "完整业务17项13通过4失败（resume3和integration1因简历接口501）；未通过完整门禁、未部署候选；MySQL/容器由Actions验证。检索为词面基线，评测标签未独立人工复核，且无关检测仍误召；真实模型样本不证明总体质量。 真实模型为独立候选进程快照验证，末次提示词及无命中尾注文字调整仅离线回归。",
+  "evidence": "backend/career_platform/evaluation/datasets/xiaolin-experiment-v1.json; backend/career_platform/evaluation/tests_xiaolin.py; backend/career_platform/rag/tests_feedback.py; backend/career_platform/records/tests_catalog.py; backend/tests/test_interview_catalog.py; frontend/tests/evaluation-page.test.mjs; output/question-bank-live-result.json; output/playwright/question-bank-api-check.js; output/question-bank-all.json（output为本机验收产物）"
+}
+```
+
+
+## 2026-11-16 简历STAR与确认应用首版
+
+首版允许skills/self_evaluation保守改写并逐条确认；项目/经历按STAR原文摘录，缺项提问，不生成新数字；历史、权限、版本、幂等和并发回归。
+
+首版仅写主表skills/self_evaluation；STAR最多20段，逐项最多120字符的原文摘录，缺项保持空并提问，供预览不自动写子记录。有限词典与保守文字规则不等于语义事实或能力评估，人工仍需核对STAR归类。普通简历CRUD跨页签版本协议及所有子表写入口版本维护未在本轮重构；应用时会重验完整快照，当前页会阻止旧草稿直接保存。模型调用在事务外，相同分析键并发可能重复调用模型，但仅保存一条成功记录。SQLite竞争可返回409，显式原键重试恢复。本轮未调用真实模型、未执行线上迁移/发布/部署；MySQL及容器由Actions单独验证。
+
+```acceptance-record
+{
+  "commit": "3e1d550b9b5d6a12113c2c3cb555756c16de9c3a + dirty",
+  "command": "python -m django test career_platform.resume career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_catalog career_platform.tests.accept_evaluation career_platform.tests.accept_resume career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_integration --settings=career_platform.test_settings; python ci/project_acceptance.py --stage complete --module all; python ci/project_acceptance.py --stage scaffold; python -m django makemigrations --check --dry-run --settings=career_platform.test_settings; node --test frontend/tests/*.test.mjs; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；浏览器真实候选API与临时数据库、合成账号和离线模型替身",
+  "scope": "首版允许skills/self_evaluation保守改写并逐条确认；项目/经历按STAR原文摘录，缺项提问，不生成新数字；历史、权限、版本、幂等和并发回归。 本地组合59项通过，固定complete17项及scaffold7项通过；前端113项与生产构建通过；迁移无漂移。浏览器1440/390px无横向溢出、无pageerror，验证STAR缺结果、拦截伪造编辑、确认写回、版本递增、历史重载及旧草稿保护。",
+  "limitations": "首版仅写主表skills/self_evaluation；STAR最多20段，逐项最多120字符的原文摘录，缺项保持空并提问，供预览不自动写子记录。有限词典与保守文字规则不等于语义事实或能力评估，人工仍需核对STAR归类。普通简历CRUD跨页签版本协议及所有子表写入口版本维护未在本轮重构；应用时会重验完整快照，当前页会阻止旧草稿直接保存。模型调用在事务外，相同分析键并发可能重复调用模型，但仅保存一条成功记录。SQLite竞争可返回409，显式原键重试恢复。本轮未调用真实模型、未执行线上迁移/发布/部署；MySQL及容器由Actions单独验证。",
+  "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; backend/career_platform/tests/accept_resume.py; backend/career_platform/tests/accept_integration.py; output/resume-complete.json; output/playwright/resume-optimization-check.js（output为本机验收产物）"
+}
+```
+
+## 2026-11-16 分析入口与数据来源
+
+- JD 为空时按钮可点击并提示填写、聚焦输入框；保存中明确提示并禁用，避免无反馈。
+- 优化页读取当前登录账号 `/api/resumes/my/`，显示姓名、意向岗位、保存版本及纯文本内容预览；不会使用其他账号或示例简历。编辑区未保存修改不参与分析，需先保存再刷新。
+- 每次分析重新读取服务器版本；若与预览不同，更新预览并要求重新点击，后端继续检查版本。分析和应用仍分开，STAR 不补造事实或数据。
+
+## 2026-11-16 简历入口与停用助手资源回归
+
+共享前端控制器补充服务器简历来源和缺少JD的反馈，完整业务回归保持原有五模块契约。前端镜像仅保留面试VAD资源；历史3D人物文件不再交付。
+
+```acceptance-record
+{
+  "commit": "45d65088acee455d20deccf3acb2e65be376ccc5 + dirty",
+  "command": "node --test frontend/tests/*.test.mjs; python -m unittest ci.test_build_layout -q; python ci/project_acceptance.py --stage complete --module all --output output/resume-source-complete.json; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；离线隔离SQLite；Chromium使用临时账号、真实候选API和离线模型替身",
+  "scope": "简历分析入口提示与已保存来源预览；移除停用悬浮助手组件、公开配置、页脚链接和镜像GLB资源。共享前端控制器变更触发五模块完整回归，17项通过；115项前端测试、5项构建布局测试及生产构建通过。浏览器1440/390px验证空JD提示与聚焦、服务器来源、未保存草稿隔离、确认应用和历史，无运行时错误或横向溢出。",
+  "limitations": "本轮仅修改前端及构建布局回归；未修改后端接口、模型提示词、题库数据或迁移。浏览器模型为离线替身，不代表真实模型质量；MySQL、Docker构建及部署由Actions验证，发布结果另记deployment-status.md。",
+  "evidence": "frontend/tests/resume-optimization.test.mjs; ci/test_build_layout.py; output/resume-source-complete.json; output/playwright/resume-source-check.js（output为本机验收产物）"
+}
+```
+
+
+## 2026-11-16 通用优化与岗位定向优化
+
+`/resume?tab=optimize` 的工作区页签改为“AI 简历优化”，默认选择通用优化：不需要JD，只读取当前账号已保存版本，整理技能/自评表达和STAR原文。岗位定向优化需要JD，并保留原关键词匹配。切换回通用优化不会发送留存的JD，历史结果按其实际JD显示模式，不随当前表单切换。
+
+分析API的jd_text改为可选，默认空；无job_id且JD为空时不调用匹配器，matches/gaps/evidence为空、matching.version=not-applicable，不能把空缺项解读成岗位匹配成功。有job_id仍核验allowed和岗位内容，旧非空JD请求及已存幂等输入保持兼容。数据表和返回结构不变，无新增迁移。
+
+提示词升级resume-star-extractive-v2：显式提供当前项目/工作记录允许的star_sources路径，删除固定项目ID示例，要求逐字复制路径并区分行动/结果。严格原文/事实/数字校验不放宽；这降低照抄示例的风险，不保证模型每次都返回有效内容。技能/自评仍仅支持保守文字整理，项目/工作STAR仅供预览和补充问题，需返回编辑区自行修改；并未实现任意全文自动润色。
+
+
+### 2026-11-16 通用简历优化共享回归
+
+简历分析允许省略JD；通用模式无岗位匹配，岗位模式保留原行为。共享序列化器/前端控制器变更按原规则完成五模块回归；未改变题库、检索、练习或评估算法。
+
+```acceptance-record
+{
+  "commit": "434a7d9293e3ceff99a31b61ed0bdd9a981a58ac + dirty",
+  "command": "node --test frontend/tests/*.test.mjs; python -m django test career_platform.resume --settings=career_platform.test_settings; python ci/project_acceptance.py --stage complete --module all --output output/resume-general-complete.json; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；离线隔离SQLite；Chromium使用临时账号、真实候选API和离线模型替身",
+  "scope": "简历分析共享输入允许省略JD；前端默认通用优化，可选岗位定向。前端116项、简历专项18项、固定五模块complete17项及生产构建通过；浏览器验证空JD分析、模式切换与历史、草稿隔离、伪造编辑拒绝和确认写回，1440/390px无溢出或运行时异常。",
+  "limitations": "本地模型为替身，不代表真实模型质量；尚未在本轮运行Actions、发布或部署，后续证据另记deployment-status.md。保守改写仍限技能/自评；STAR仅原文预览，不自动写回子项。无新增迁移。",
+  "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; output/resume-general-complete.json; output/playwright/resume-general-check.js（output为本机产物）"
+}
+```
+
+### 2026-11-16 通用优化线上验收
+
+`edb797e`已使用Actions验证归档完成服务器侧备用发布，并依次激活后端/前端；发布失败历史、镜像身份与实际digest见[运维记录](../deployment-status.md)和[脱敏交付证据](../releases/2026-11-16-resume-general.json)。正式Actions运行43820801261仍为失败，不用手动发布覆盖其结果。
+
+真实gateway HTTP加已配置模型的合成简历验证22.2秒通过：省略JD分析200、STAR缺成果留空、原键分析回放、历史、技能/自评建议确认写回、版本+1、回执回放；伪造Redis/50%的编辑被拒绝。临时账号及关联数据已删除。该单样本不代表总体模型质量；此前独立进程的通用32.9秒/岗位16.8秒两样本亦不替代评估集。
+
+公网浏览器使用真实API和另一临时账号，确认分析按钮在空JD下可用、来源预览与保存版本一致、未保存草稿不进入来源、岗位模式空JD明确提示，1440/390px无溢出或pageerror、无GLB请求；无API拦截，本次浏览器未调用模型。浏览器账号已删除。STAR子记录仍仅预览，确认写回仍限主表技能/自评。
+
+```acceptance-record
+{
+  "commit": "edb797ef26b8881b3ca2b2e94eaf1e7c17afb41d",
+  "command": "python output/run_resume_general_http.py; python output/run_resume_live_browser.py; python output/cleanup_resume_browser_user.py; python output/verify_resume_source_release.py",
+  "result": "passed",
+  "environment": "2026-11-16；已部署演示服务器；真实gateway HTTP和已配置模型；公网Chromium使用合成账号和真实API",
+  "scope": "省略JD分析、STAR留空成果、分析/应用回放、历史、伪造编辑拒绝及确认写回；浏览器来源、按钮、草稿隔离、岗位必填和双尺寸；两个临时账号已清理",
+  "limitations": "真实模型仅一份线上合成简历，22.2秒，不代表总体质量。浏览器未调用模型。写回仅主表技能/自评，STAR子项仅预览。手动备用发布成功，不代表失败Actions成功；PR50的自动发布复验另记运维状态。output脚本和浏览器产物为本机忽略文件。",
+  "evidence": "docs/releases/2026-11-16-resume-general.json; docs/deployment-status.md"
+}
 ```
