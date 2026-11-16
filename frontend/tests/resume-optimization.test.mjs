@@ -5,7 +5,7 @@ import { createResumeOptimization } from '../src/features/career-platform/resume
 function fixture() {
   const calls=[], applied=[]
   const row={id:'analysis',base_revision:3,result:{matches:['Java'],gaps:['Redis'],suggestions:[{id:'suggestion',suggested:'使用Java开发项目'}]}}
-  const state={jd:'Java Redis',busy:false,status:'',analysis:null,selected:[],edits:{},applied:false,history:null}
+  const state={mode:'job',jd:'Java Redis',busy:false,status:'',analysis:null,selected:[],edits:{},applied:false,history:null}
   const api={analyze:async body=>{calls.push(['analyze',body]);return structuredClone(row)},
     apply:async (id,body)=>{calls.push(['apply',id,body]);return {applied_revision:4}},
     analyses:async()=>({results:[row]}),analysis:async()=>structuredClone(row)}
@@ -20,6 +20,20 @@ test('analysis reads saved revision, unwraps production response, never auto app
   assert.deepEqual(f.state.selected,[])
   assert.equal(f.state.edits.suggestion,'使用Java开发项目')
   assert.equal(f.calls.length,1);assert.equal(f.applied.length,0)
+})
+
+test('general optimization ignores retained JD and mode changes get distinct request IDs',async()=>{
+  const f=fixture();f.state.mode='general'
+  await f.actions.analyze()
+  assert.equal(f.calls[0][1].jd_text,'')
+  assert.equal(f.state.jd,'Java Redis')
+  f.state.jd='';await f.actions.analyze()
+  assert.equal(f.calls[1][1].request_id,f.calls[0][1].request_id)
+  f.state.mode='job';await f.actions.analyze()
+  assert.equal(f.calls.length,2);assert.match(f.state.status,/填写目标岗位/)
+  f.state.jd='Java';await f.actions.analyze()
+  assert.equal(f.calls[2][1].jd_text,'Java')
+  assert.notEqual(f.calls[2][1].request_id,f.calls[0][1].request_id)
 })
 
 test('explicit apply submits selected edited text only and notifies workspace',async()=>{

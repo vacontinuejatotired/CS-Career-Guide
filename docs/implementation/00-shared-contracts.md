@@ -59,7 +59,7 @@ Vue 页面 → `features/career-platform/api.js` → 视图/序列化器 → 应
 | --- | --- |
 | `catalog/companies/`、`catalog/jobs/`、`catalog/questions/` | GET：page/page_size/q/city/role/topic/difficulty；成员1，按资源支持的条件筛选，不适用条件返回可理解错误 |
 | `catalog/imports/` | POST：kind=companies/jobs/questions、records[1..1000]、dry_run默认true；仅staff，成员1 |
-| `resume-analyses/` | GET列表；POST jd_text、可选job_id、resume_revision、request_id；成员3 |
+| `resume-analyses/` | GET列表；POST resume_revision、request_id、可选jd_text/job_id；无JD/岗位为通用优化，有JD/岗位为岗位定向优化；成员3 |
 | `resume-analyses/{id}/`、`{id}/apply/` | GET详情；POST base_revision、accepted_suggestion_ids、suggestion_edits（建议UUID到编辑文本字典）、request_id；成员3 |
 | `questions/retrieve/` | POST role、可选job_id/jd_text/topic、difficulty默认easy、top_k默认5上限20、request_id；返回有序结果及短期、用户绑定的 retrieval_id；成员4 |
 | `practice-sessions/`、`{id}/` | GET列表/详情；POST创建 role、可选job_id/jd_text/topic、difficulty、question_ids、可选retrieval_id、request_id；成员5 |
@@ -379,5 +379,22 @@ Actions 42771897363已确认：Platform documentation与Backend checks失败，F
   "scope": "简历分析入口提示与已保存来源预览；移除停用悬浮助手组件、公开配置、页脚链接和镜像GLB资源。共享前端控制器变更触发五模块完整回归，17项通过；115项前端测试、5项构建布局测试及生产构建通过。浏览器1440/390px验证空JD提示与聚焦、服务器来源、未保存草稿隔离、确认应用和历史，无运行时错误或横向溢出。",
   "limitations": "本轮仅修改前端及构建布局回归；未修改后端接口、模型提示词、题库数据或迁移。浏览器模型为离线替身，不代表真实模型质量；MySQL、Docker构建及部署由Actions验证，发布结果另记deployment-status.md。",
   "evidence": "frontend/tests/resume-optimization.test.mjs; ci/test_build_layout.py; output/resume-source-complete.json; output/playwright/resume-source-check.js（output为本机验收产物）"
+}
+```
+
+
+### 2026-11-16 通用简历优化共享回归
+
+简历分析允许省略JD；通用模式无岗位匹配，岗位模式保留原行为。共享序列化器/前端控制器变更按原规则完成五模块回归；未改变题库、检索、练习或评估算法。
+
+```acceptance-record
+{
+  "commit": "434a7d9293e3ceff99a31b61ed0bdd9a981a58ac + dirty",
+  "command": "node --test frontend/tests/*.test.mjs; python -m django test career_platform.resume --settings=career_platform.test_settings; python ci/project_acceptance.py --stage complete --module all --output output/resume-general-complete.json; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；离线隔离SQLite；Chromium使用临时账号、真实候选API和离线模型替身",
+  "scope": "简历分析共享输入允许省略JD；前端默认通用优化，可选岗位定向。前端116项、简历专项18项、固定五模块complete17项及生产构建通过；浏览器验证空JD分析、模式切换与历史、草稿隔离、伪造编辑拒绝和确认写回，1440/390px无溢出或运行时异常。",
+  "limitations": "本地模型为替身，不代表真实模型质量；尚未在本轮运行Actions、发布或部署，后续证据另记deployment-status.md。保守改写仍限技能/自评；STAR仅原文预览，不自动写回子项。无新增迁移。",
+  "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; output/resume-general-complete.json; output/playwright/resume-general-check.js（output为本机产物）"
 }
 ```

@@ -21,7 +21,7 @@ export function createResumeOptimization({ api, getResume, state, requestId = ne
   async function analyze() {
     if (state.busy) return
     if (isBlocked()) { state.status = '简历正在保存，请保存完成后再分析。'; return }
-    if (!state.jd.trim()) { state.status = '请先填写目标岗位 JD，再分析已保存简历。'; return }
+    if (state.mode === 'job' && !state.jd.trim()) { state.status = '请先填写目标岗位 JD，再分析已保存简历。'; return }
     state.busy = true; state.status = ''
     try {
       const saved = unwrap(await getResume())
@@ -31,12 +31,12 @@ export function createResumeOptimization({ api, getResume, state, requestId = ne
       if (previousRevision !== undefined && previousRevision !== saved.edit_revision) {
         state.status = '服务器简历已更新，请核对下方预览后再次分析。'; return
       }
-      const input = { jd_text: state.jd.trim(), resume_revision: saved.edit_revision }
+      const input = { jd_text: state.mode === 'general' ? '' : state.jd.trim(), resume_revision: saved.edit_revision }
       const fingerprint = JSON.stringify(input)
       if (analysisRequest?.fingerprint !== fingerprint) analysisRequest = { fingerprint, id: requestId() }
       const row = unwrap(await api.analyze({ ...input, request_id: analysisRequest.id }))
       show(row)
-      state.status = row.result.suggestions.length ? '分析完成。请选择需要应用的建议；确认前不会修改简历。' : '分析完成，暂无符合原文依据规则的改写建议。可查看匹配与缺项。'
+      state.status = row.result.suggestions.length ? '分析完成。请选择需要应用的建议；确认前不会修改简历。' : '分析完成，暂无符合原文依据规则的改写建议。可查看经历整理及待补充问题。'
     } catch (error) { state.status = failure(error) }
     finally { state.busy = false }
   }
