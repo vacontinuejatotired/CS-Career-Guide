@@ -1,5 +1,18 @@
 # 演示部署验收状态与接手记录
 
+## 2026-11-16 授权题库与 STAR 简历候选
+
+用户已授权改完直接上线。PR #43 将题库集成及简历优化完整候选合入 master，提交 `809266651bd451cab9cdc0855993fffac5df68eb`；PR #42 的提交已包含其中。分支候选 `f379fd6a832f8fd577886c82297eea29a18e8800` 的 CI 43795944455 全部通过；master 发布运行见 [43797130336](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/43797130336)。
+
+- 迁移前完成 SQLite 在线备份 `/data/catalog-backups/before-resume-20261116T031505Z.sqlite3`，大小 5509120 字节，权限 0600，`quick_check=ok`，SHA256 `34450c2ae95562c955da0b95c8331e2f7dd79d4fe155f6f63e98055ad6400133`。保持现有 SQLite、卷和网关，不切换数据库。
+- 后端已发布并部署，运行镜像 RepoDigest 与发布记录匹配 `sha256:878a41842a8a1f76cbd4edd68970d30d20d522f54752cbba6c4247aef6552736`，容器 running/healthy；迁移 `0004_resumeapplyreceipt_input_payload` 已执行。
+- 部署后通过真实网关 HTTP 与已配置模型验证合成简历：分析 200，Java/MySQL 匹配而 Redis 为缺口；STAR 背景/任务/行动均逐字摘录，没有依据的结果为空。分析原键重放、历史查询、确认应用 200、版本递增到 1、应用回执重放均通过；添加 Redis 与提升 50% 的编辑返回 400。临时账号及关联数据已删除，943 道 allowed 题目保持。真实模型检查耗时 19.8 秒，为单份合成样本，不代表总体质量评估。
+- 原 master 运行 43797130336 的前端首次 SHA 标签 push 在900秒超时，重跑仍长时间未完成，随后取消旧运行；未将其记为发布成功。PR #40 补齐脱敏层进度、错误类别、180秒无CLI输出退出和一次有限超时重试，24项发布专项通过，分支与PR CI 43799603835/43799608316均成功后合入 `171adda617e406bf34cfc09b9416ed300aef36a1`。
+- 最终发布 [43800231536](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/43800231536) 整体成功：前后端检查、双镜像、交付检查、网关联调、双端发布、双端部署及summary均成功；本次仅修改CI工具，固定五模块业务验收按路径规则skipped，完整业务验收依据此前8092666运行的SQLite/MySQL通过结果。
+- 前端 SHA 标签推送22.8秒、latest推送7.0秒，12层完成，未触发重试；运行镜像 RepoDigest 匹配 `sha256:032b2d5bc41457b710398cb32c6125fc5d1df8c8fbc0ce836eebb1085b1acd4f`，后端digest保持上述值，三容器running/healthy。旧失败的sha-8092666 manifest不存在；不能据此确认具体网络或ACR根因，也不能把本次成功视作偶发故障已根治。
+
+待完善：STAR 项目/经历确认写回、岗位与简历评测、检索质量调优、多 worker 共享回执和并发一致性。当前 STAR 仅预览，技能/个人自评可确认写回；保守文字规则不等于通用语义事实验证。普通简历 CRUD 跨页签版本协议尚未整体重构。此前本地离线浏览器验收通过，线上登录后的浏览器交互未重新验收。
+
 ## 2026-11-03 双端部署与独立审计通过
 
 按用户本次授权，现有应用改动已通过 GitHub Actions 部署到服务器；五模块完整业务验收跳过，原固定测试、业务变更路径规则及 SSH 校验继续保留。五模块仍为 `501 / FEATURE_NOT_IMPLEMENTED` 骨架，不将跳过写成业务通过。
