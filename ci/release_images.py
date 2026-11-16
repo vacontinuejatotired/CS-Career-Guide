@@ -32,6 +32,7 @@ def coordinates(registry, namespace, commit, extra_tag=''):
 
 DOCKER_TIMEOUTS = {'push': 900, 'load': 300, 'save': 300}
 HEARTBEAT_SECONDS = 15
+PUSH_IDLE_TIMEOUT = 180
 
 
 class DockerTimeoutError(RuntimeError):
@@ -77,6 +78,7 @@ def docker(*arguments):
     operation = arguments[0]
     timeout = DOCKER_TIMEOUTS.get(operation, 120)
     started = time.monotonic()
+    last_activity = started
     # A second file handle observes progress without moving the child's output
     # offset. Raw logs stay in a private temporary directory and are deleted.
     print(f'Docker {operation}: started (timeout {timeout}s).', flush=True)
@@ -87,27 +89,37 @@ def docker(*arguments):
         def report_progress():
             if operation == 'push':
                 output.flush()
-                diagnostics.consume(progress.read())
+                chunk = progress.read()
+                diagnostics.consume(chunk)
                 print('Docker push diagnostics: ' + diagnostics.summary(), flush=True)
+                return bool(chunk)
+            return False
         try:
             process = subprocess.Popen(['docker', *arguments], stdout=output, stderr=subprocess.STDOUT)
         except OSError:
             raise RuntimeError(f'Docker {operation} could not be started.') from None
         try:
             while True:
-                remaining = timeout - (time.monotonic() - started)
+                now = time.monotonic()
+                remaining = timeout - (now - started)
+                if operation == 'push':
+                    remaining = min(remaining, PUSH_IDLE_TIMEOUT - (now - last_activity))
                 if remaining <= 0:
                     raise TimeoutError()
                 try:
                     code = process.wait(timeout=min(HEARTBEAT_SECONDS, remaining))
                     break
                 except subprocess.TimeoutExpired:
-                    print(f'Docker {operation}: running, elapsed {time.monotonic() - started:.0f}s.', flush=True)
-                    report_progress()
+                    now = time.monotonic()
+                    print(f'Docker {operation}: running, elapsed {now - started:.0f}s.', flush=True)
+                    if report_progress():
+                        last_activity = now
         except (TimeoutError, KeyboardInterrupt) as error:
             process.kill()
             process.wait()
             print(f'Docker {operation}: stopped after {time.monotonic() - started:.1f}s.', flush=True)
+            if isinstance(error, TimeoutError) and operation == 'push' and now - last_activity >= PUSH_IDLE_TIMEOUT:
+                print(f'Docker push: no new CLI output for at least {PUSH_IDLE_TIMEOUT}s.', flush=True)
             report_progress()
             if isinstance(error, KeyboardInterrupt):
                 raise

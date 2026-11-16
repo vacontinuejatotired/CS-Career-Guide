@@ -19,6 +19,15 @@ MANIFESTS = {'backend': 'sha256:' + 'c' * 64, 'frontend': 'sha256:' + 'd' * 64}
 
 
 class DockerProgressTests(unittest.TestCase):
+    def test_push_without_new_output_stops_at_idle_budget(self):
+        process = Mock()
+        process.wait.side_effect = [subprocess.TimeoutExpired('docker', 15), 0]
+        with patch('release_images.subprocess.Popen', return_value=process), \
+                patch('release_images.time.monotonic', side_effect=[0, 0, 180, 181, 182]), \
+                patch('builtins.print'), self.assertRaises(DockerTimeoutError):
+            docker('push', 'private-reference')
+        process.kill.assert_called_once()
+
     def test_push_diagnostics_reports_layer_states_and_error_classes_without_raw_data(self):
         progress = PushDiagnostics()
         progress.consume('abcdef123456: Pushing [==>] 10MB/20MB\nprivate-token https://private-registry/path\n')
