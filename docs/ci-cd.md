@@ -28,6 +28,8 @@ changes -> frontend-test --------------------> publish-frontend -> deploy-fronte
 - 各 image：仅等待changes，与自身test并行；自身目录上下文，多阶段构建，push=false/load=true；单镜像冒烟、导出和再次加载身份验证。前端冒烟不提供后端/DNS。后端 image 不等待前端。
 - integration：仅两端同时选中时要求成功；下载两份已测试归档，无 ACR Secrets。`demo_smoke.py` 验证真实 gateway/frontend/Django、注册登录/401、static、资料、SQLite 持久化及独立重建；`gateway_smoke.py` 用合成上游验证头/query、media、SSE 首事件及两端换 IP。仅 runner 可启动 Docker。
 - publish-frontend/backend：只依赖自身测试/image、delivery-checks、业务门禁及所需 integration，不等待另一 publisher。只下载对应归档，确认 commit、image ID、平台后推送同一镜像，不重新构建。共享所需 integration 被跳过/失败时不得发布。
+
+2026-11-16 发布传输调整：master `6801441` 的运行43816175405首次双端push、第二次backend push因图层长时间Preparing/Waiting后触发无输出超时；第二次frontend已发布/部署。没有观察到鉴权、429或5xx类别，不能据此认定具体网络根因。后续两个publisher在下载归档后、登录和加载镜像前，使用`ci/configure_release_docker.py`保留runner已有daemon选项并设置`max-concurrent-uploads=1`，然后重启该临时runner的Docker；不修改服务器Docker，不在测试/构建runner执行重启，也不改变镜像身份、发布条件、180秒无输出限制和有限重试。降低上传并发是传输缓解措施，实际结果需另记部署状态，不能宣称根因已修复。离线配置合并及既有发布专项30项通过，真实Docker配置生效和推送由Actions验证。
 - deploy-frontend/backend：仅对应 publisher 成功、fork/master、非 PR、总开关与对应分端开关同时为 true 时执行。输入是该次发布 digest；前端不接收模型字段。细节见[AI 同步](ai-env-sync.md)。
 - release-summary：对已选组件要求 test/image 与预期发布/部署结果正确；未选组件要求全部 skipped。单端完整容器联调明确记为 SKIPPED，不能报告已通过。
 

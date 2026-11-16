@@ -1,5 +1,7 @@
 # Docker 镜像
 
+2026-11-16：发布runner在读取已验证归档之前，将自身Docker daemon的`max-concurrent-uploads`设为1并重启；只限制推送图层的并发，保留其他daemon选项。该步骤由`ci/configure_release_docker.py`执行，不修改镜像层、构建资源、生产服务器配置或部署引用。既有镜像身份校验和发布失败拒绝激活规则保留，实际发布结果见deployment-status.md。
+
 已合入 master 的构建入口为 frontend/Dockerfile 与 backend/Dockerfile，构建上下文分别是 frontend/、backend/。仓库仍是一个 Git 仓库，ACR 仍为 cs-career-guide-frontend、cs-career-guide-backend 两个独立镜像仓库；两端可以分别构建和发布；共享变更仍同时验证两端。历史发布证据见 deployment-status.md，新拓扑与操作见[独立交付](split-delivery.md)。
 
 ## 独立构建

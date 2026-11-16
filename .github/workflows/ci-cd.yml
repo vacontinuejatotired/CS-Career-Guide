@@ -504,6 +504,11 @@ jobs:
         with:
           name: backend-smoke-image-${{ github.run_id }}
           path: ${{ runner.temp }}/release-images
+      - name: Serialize registry layer uploads on publisher runner
+        run: |
+          sudo python3 ci/configure_release_docker.py --config /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info >/dev/null
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.ACR_REGISTRY }}
@@ -586,6 +591,11 @@ jobs:
         with:
           name: frontend-smoke-image-${{ github.run_id }}
           path: ${{ runner.temp }}/release-images
+      - name: Serialize registry layer uploads on publisher runner
+        run: |
+          sudo python3 ci/configure_release_docker.py --config /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info >/dev/null
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.ACR_REGISTRY }}
