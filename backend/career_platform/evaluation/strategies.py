@@ -5,7 +5,7 @@
 约定的 ID 列表，避免在评估模块复制一份检索实现。
 """
 from ..rag.retrieval import TextRetrievalStrategy
-from .datasets import load_corpus
+from .datasets import DATASET_DIR, load_corpus
 
 # 对照组：沿用成员4 文本基线的默认权重（题干4/标签3/要点2/答案1）。
 BASELINE_WEIGHTS = None
@@ -17,7 +17,8 @@ DEFAULT_MIN_SCORE = 0.0
 class TextRankingStrategy:
     """把文本检索基线包装成只返回排序 ID 的评估策略。"""
 
-    def __init__(self, questions, *, field_weights=None, min_score=DEFAULT_MIN_SCORE):
+    def __init__(self, questions, *, field_weights=None, min_score=DEFAULT_MIN_SCORE, corpus_summary=None):
+        self.corpus_summary = dict(corpus_summary or {})
         self._retrieval = TextRetrievalStrategy(
             questions, field_weights=field_weights, min_score=min_score)
 
@@ -32,7 +33,13 @@ def build_default_strategies() -> tuple[dict, dict]:
     corpus, summary = load_corpus()
     questions = corpus['questions']
     strategies = {
-        'text-baseline': TextRankingStrategy(questions),
-        'text-balanced': TextRankingStrategy(questions, field_weights=BALANCED_WEIGHTS),
+        'text-baseline': TextRankingStrategy(questions, corpus_summary=summary),
+        'text-balanced': TextRankingStrategy(questions, field_weights=BALANCED_WEIGHTS, corpus_summary=summary),
     }
+    xiaolin, xiaolin_summary = load_corpus(DATASET_DIR / 'xiaolin-corpus-v1.json')
+    strategies.update({
+        'xiaolin-baseline': TextRankingStrategy(xiaolin['questions'], corpus_summary=xiaolin_summary),
+        'xiaolin-balanced': TextRankingStrategy(xiaolin['questions'], field_weights=BALANCED_WEIGHTS,
+                                                corpus_summary=xiaolin_summary),
+    })
     return strategies, summary

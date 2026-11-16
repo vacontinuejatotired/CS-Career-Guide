@@ -5,7 +5,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from career_platform.rag.feedback import InvalidFeedback, validate_feedback
+from career_platform.rag.feedback import InvalidFeedback, resolve_model_feedback, validate_feedback
 
 
 class FeedbackTests(unittest.TestCase):
@@ -75,8 +75,12 @@ class FeedbackTests(unittest.TestCase):
             self.feedback['evidence'] = [item]
             with self.subTest(changes=changes), self.assertRaises(InvalidFeedback): self.validate()
 
-    def test_follow_up_requires_future_contract_review(self):
-        for follow_up in ('请举例', {'origin': 'catalog', 'question': '请举例'}, {'origin': 'generated', 'question': '请举例', 'question_id': 'fake'}, {'origin': 'generated', 'question': ' '}):
+    def test_follow_up_accepts_bounded_generated_text(self):
+        self.feedback['follow_up'] = '请举例'
+        self.assertEqual(self.validate()['follow_up'], '请举例')
+
+    def test_follow_up_rejects_uncontracted_structures_and_unbounded_text(self):
+        for follow_up in ('', ' ', '长' * 2001, {'origin': 'catalog', 'question': '请举例'}, {'origin': 'generated', 'question': '请举例', 'question_id': 'fake'}, {'origin': 'generated', 'question': ' '}):
             self.feedback['follow_up'] = follow_up
             with self.subTest(follow_up=follow_up), self.assertRaises(InvalidFeedback): self.validate()
 
@@ -84,6 +88,21 @@ class FeedbackTests(unittest.TestCase):
         self.feedback['answer_quote'] = 'PRIVATE-MODEL-OUTPUT'
         with self.assertRaises(InvalidFeedback) as error: self.validate()
         self.assertNotIn('PRIVATE', str(error.exception))
+
+    def test_model_indices_resolve_to_exact_server_evidence(self):
+        model = {'answer_quote': 'List 保留顺序', 'covered_indices': [0], 'missing_indices': [], 'follow_up': None}
+        result = resolve_model_feedback(answer=self.answer, snapshot=self.snapshot, feedback=model)
+        self.assertEqual(result, self.feedback)
+        result['evidence'][0]['quote'] = 'changed'
+        self.assertEqual(self.snapshot['evidence'][0]['quote'], 'List 保留顺序')
+
+    def test_invalid_indices_never_create_or_guess_evidence(self):
+        base = {'answer_quote': 'List 保留顺序', 'covered_indices': [0], 'missing_indices': [], 'follow_up': None}
+        for changes in ({'covered_indices': [True]}, {'covered_indices': [-1]}, {'covered_indices': [2]},
+                        {'covered_indices': [0, 0]}, {'covered_indices': ['0']}, {'covered_indices': []},
+                        {'missing_indices': [0]}, {'missing_indices': [1]}, {'extra': 'ignored?'}):
+            with self.subTest(changes=changes), self.assertRaises(InvalidFeedback):
+                resolve_model_feedback(answer=self.answer, snapshot=self.snapshot, feedback=base | changes)
 
 
 if __name__ == '__main__':

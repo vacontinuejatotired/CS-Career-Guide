@@ -102,9 +102,13 @@ class TextRetrievalStrategy:
                 continue
             question_id = str(candidate['id'])
             evidence = [Evidence(question_id, 'source', candidate['source'])]
-            for field in ('source_url', 'question', 'reference_answer'):
+            for field in ('source_url', 'question', 'reference_answer', 'role', 'topic', 'difficulty'):
                 if candidate.get(field):
                     evidence.append(Evidence(question_id, field, candidate[field]))
+            collected = candidate.get('collected_at')
+            if collected:
+                collected = collected.isoformat() if hasattr(collected, 'isoformat') else str(collected)
+                evidence.append(Evidence(question_id, 'collected_at', collected))
             for field in ('tags', 'key_points'):
                 evidence.extend(
                     Evidence(question_id, f'{field}[{index}]', quote)
