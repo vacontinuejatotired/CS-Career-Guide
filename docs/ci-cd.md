@@ -128,3 +128,7 @@ ACR_REGISTRY/ACR_NAMESPACE 仅 publisher 从 Variables 或同名 Secrets 读取�
 Backend checks 新增 `career_platform.evaluation`、`career_platform.records`、`career_platform.rag` 与现有 records runtime 的隔离 Django 回归；面试测试匹配 `test_interview*.py`，另执行 `test_rag_feedback.py` 和 `test_json_gateway.py`。前端标准测试自动包含评测页解包响应、错误保留与导出回归。候选不改变镜像发布或生产激活条件。
 
 本轮共享网关变更仍选择完整业务门禁；本地固定验收17项为13通过、4失败，失败均在尚未实现的简历分析501处（resume3、integration1）。专项通过不能解除该门禁，也未跳过固定测试。最新远端结论以当前PR head的Actions为准；真实模型与浏览器证据分别记录在对应实施文档。
+
+## 2026-11-16 简历STAR候选回归
+
+后续简历候选在 Backend checks 的隔离Django组合中加入 `career_platform.resume`，覆盖原文校验、STAR缺项、幂等、用户隔离、旧版本及两个数据库连接的并发应用；固定complete用例和发布条件保持原样。本地完整固定17项已全部通过，组合59项通过，前端113项通过并完成生产构建。该结果只覆盖隔离SQLite和模型替身，不替代Actions MySQL、真实模型或部署验收；前文13/17是题库候选阶段历史快照。

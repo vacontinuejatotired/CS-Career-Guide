@@ -15,7 +15,7 @@
 - [7. 自由模拟面试与语音](#7-自由模拟面试与语音)
 - [8. 职业路径、招聘查询与建议](#8-职业路径招聘查询与建议)
 - [9. 职业推荐、规划及历史](#9-职业推荐规划及历史)
-- [10. 简历 AI 优化预留接口](#10-简历-ai-优化预留接口)
+- [10. 简历 AI 优化接口](#10-简历-ai-优化接口)
 - [11. 管理员接口](#11-管理员接口)
 - [12. 错误、重试与联调检查](#12-错误重试与联调检查)
 - [13. 代码定位与维护](#13-代码定位与维护)
@@ -109,7 +109,7 @@ App 只保存业务 Token；模型、ASR、TTS、数据库凭据留在后端。�
 | ASR/TTS | 已有实现，依赖后端配置 | ASR 上传 PCM；TTS 随聊天 SSE 返回，不存在独立 TTS 路由 |
 | 职业路径、招聘列表、建议 | 已实现 | 不同数据源/字段模型，分别接入 |
 | AI 职业推荐/规划 | 已有实现，依赖模型/检索配置 | 存在回退和历史返回差异，见第 9 节 |
-| 简历 AI 分析/确认应用 | 业务未实现 | 有路由和校验，有效业务调用返回 501；不能以此交付优化闭环 |
+| 简历 AI 分析/确认应用 | 2026-11-16 候选实现，未部署 | 技能/个人自评的保守改写、STAR经历摘录及确认应用；见第10节，不能据本地测试判断线上可用 |
 | 评估运行 | 已实现，管理员专用 | 当前内置 question 数据集与离线文本策略，见第 11 节 |
 | 独立 `/company-api` 服务 | 非 Django API，默认网关未提供 | 网页中的独立企业客户端不能视为可用 App 后端 |
 
@@ -537,7 +537,7 @@ company-info 对象采用另一套字段：`id,title,company,salary,tags[],jobDe
 
 职业报告 user_profile 可包含 `name,major,education,skills[],personality,graduation_year,school,grade,career_goal,self_introduction`；省略或空对象时从当前用户资料构造。data 的内容来自报告工作流，客户端按实际结构渲染并容忍部分生成失败；本接口没有另行冻结完整 App DTO。
 
-语音简历输入的是**识别后的文本**，不是音频文件。生成结果先预览和编辑，再通过 `/api/resumes/my/` 保存；它与仍未实现的正式 JD 简历分析不同。
+语音简历输入的是**识别后的文本**，不是音频文件。生成结果先预览和编辑，再通过 `/api/resumes/my/` 保存；正式 JD 简历分析是另一条独立流程，候选实现见第10节。
 
 ### 9.2 历史保存接口
 
@@ -581,9 +581,9 @@ company-info 对象采用另一套字段：`id,title,company,salary,tags[],jobDe
 
 这些历史接口不作为新练习链路必需依赖；不能从 URL 存在推断数据源、模型或记忆适配器在目标环境可用。
 
-## 10. 简历 AI 优化预留接口
+## 10. 简历 AI 优化接口
 
-当前 `ResumeAnalysisService` 继承占位服务，无实际分析/应用实现。下列接口仅有路由、权限、输入校验和预留操作，**有效业务请求返回501 `FEATURE_NOT_IMPLEMENTED`**；详情可能先因记录不存在返回404。App 暂不显示可完成优化的承诺，不编造成功响应。
+2026-11-16 候选实现支持分析、历史和确认应用，本轮未部署。分析只读取已保存简历；模型使用既有后端配置。技能匹配采用有限技能词典和原文证据，缺项表示未找到文本证据，不是能力评分。主表仅允许改写 `skills`、`self_evaluation`，其他字段和子记录不自动修改。
 
 | 方法与路径 | 当前校验输入 |
 | --- | --- |
@@ -592,7 +592,13 @@ company-info 对象采用另一套字段：`id,title,company,salary,tags[],jobDe
 | `GET /api/career-platform/resume-analyses/{id}/` | UUID id；通用 Query |
 | `POST /api/career-platform/resume-analyses/{id}/apply/` | `base_revision>=0`、非空 UUID 数组 accepted_suggestion_ids、UUID request_id；可选 suggestion_edits 对象，值为最大20000字符文本 |
 
-预留版本冲突/建议确认目标见[成员3实施文档](implementation/03-resume-optimization.md)，不能将这些输入字段当作并发确认业务已实现。
+分析返回 `{id,status,base_revision,resume_snapshot,jd_text,job_snapshot,result,model_version,prompt_version,created_at}`。`result` 包含 `matches`、`gaps`、`matching`（关键词匹配版本与原文证据）、`suggestions`、`star_reviews`。列表返回 `{count,page,page_size,results}`，详情保持原快照；全部按当前用户隔离。
+
+建议保留 `{id,field_path,original,suggested,reason,evidence}`。首版保守规则要求去除有限连接词与标点后的文字保持一致、数字逐项保持一致，理由最多120字符；它限制改写范围，不是通用语义事实验证器。证据必须逐字引用同一简历的目标字段。模型建议不符合规则返回400且不保存分析，格式解析失败502，模型不可用503，超时504。
+
+`star_reviews` 按项目/工作描述提供 `{field_path,source_id,label,sections,missing,questions,text}`，最多20段。`sections` 为 `situation/task/action/result`，每项只允许不超过120字符的原文摘录，缺少依据为空字符串并给出补充问题；`text` 由服务端用已有摘录组成，不补造结果或数字。STAR整理仅供预览，不通过apply写回子记录；模型未提供的槽位显示待补充，不能据此断言原简历没有相关事实。
+
+应用返回 `{id,analysis_id,status,accepted_suggestion_ids,applied_revision}`。事务锁定用户及简历，比较版本与完整快照，重新检查用户编辑，仅写所选主表字段并递增一次版本。`request_id` 相同且输入相同复用回执，输入不同409；旧快照409且零写入。SQLite锁竞争或MySQL死锁/锁等待失败返回409，可显式使用原请求键重试。迁移0004为应用回执新增 `input_payload`，存储用于幂等比对的输入；并非对线上自动执行迁移的授权。普通旧简历CRUD仍是原保存协议，跨页签旧草稿覆盖需另行完善；当前工作台应用后阻止旧编辑区直接保存，须用户明确加载新版本。详见[成员3实施文档](implementation/03-resume-optimization.md)。
 
 ## 11. 管理员接口
 

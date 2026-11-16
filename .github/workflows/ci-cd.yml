@@ -197,7 +197,7 @@ jobs:
         working-directory: backend
         run: |
           set -o pipefail
-          python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime --settings=career_platform.test_settings --verbosity=1 2>&1 | tee ../backend-question-bank.log
+            python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.resume career_platform.tests.test_records_runtime --settings=career_platform.test_settings --verbosity=1 2>&1 | tee ../backend-question-bank.log
       - name: Run configuration tests
         shell: bash
         run: |
