@@ -10,7 +10,8 @@ from unittest.mock import Mock, patch
 
 import yaml
 
-from release_images import coordinates, docker, export_image, load_verified_images, publish_images, push_digest, source_image
+from release_images import (DockerTimeoutError, PushDiagnostics, coordinates, docker, export_image, load_verified_images,
+                            publish_images, push_digest, push_verified_tag, source_image)
 
 COMMIT = '1' * 40
 IDS = {'backend': 'sha256:' + 'a' * 64, 'frontend': 'sha256:' + 'b' * 64}
@@ -18,6 +19,27 @@ MANIFESTS = {'backend': 'sha256:' + 'c' * 64, 'frontend': 'sha256:' + 'd' * 64}
 
 
 class DockerProgressTests(unittest.TestCase):
+    def test_push_without_new_output_stops_at_idle_budget(self):
+        process = Mock()
+        process.wait.side_effect = [subprocess.TimeoutExpired('docker', 15), 0]
+        with patch('release_images.subprocess.Popen', return_value=process), \
+                patch('release_images.time.monotonic', side_effect=[0, 0, 180, 181, 182]), \
+                patch('builtins.print'), self.assertRaises(DockerTimeoutError):
+            docker('push', 'private-reference')
+        process.kill.assert_called_once()
+
+    def test_push_diagnostics_reports_layer_states_and_error_classes_without_raw_data(self):
+        progress = PushDiagnostics()
+        progress.consume('abcdef123456: Pushing [==>] 10MB/20MB\nprivate-token https://private-registry/path\n')
+        progress.consume('abcdef123456: Pushed\n123456abcdef: Retry')
+        progress.consume('ing in 5 seconds\nerror: connection reset by peer https://secret\n')
+        report = json.loads(progress.summary())
+        self.assertEqual(report['layers'], {'Pushed':1, 'Retrying':1})
+        self.assertEqual(report['errors'], ['connection'])
+        self.assertNotIn('private', progress.summary())
+        self.assertNotIn('secret', progress.summary())
+        self.assertNotIn('abcdef', progress.summary())
+
     def test_heartbeat_and_completion_are_safe_and_return_digest(self):
         def spawn(command, **kwargs):
             kwargs['stdout'].write('private-token registry.example/user\ndigest: ' + MANIFESTS['frontend'])
@@ -50,8 +72,55 @@ class DockerProgressTests(unittest.TestCase):
                 docker('load', '--input', 'private/path')
         self.assertNotIn('private', str(error.exception))
 
+    def test_interruption_reaps_process_and_remains_an_interruption(self):
+        process = Mock()
+        process.wait.side_effect = [KeyboardInterrupt(), 0]
+        with patch('release_images.subprocess.Popen', return_value=process), patch('builtins.print'):
+            with self.assertRaises(KeyboardInterrupt):
+                docker('push', 'private-reference')
+        process.kill.assert_called_once()
+        self.assertEqual(process.wait.call_count, 2)
+
 
 class ReleaseImageTests(unittest.TestCase):
+    def test_stalled_push_retries_only_the_same_tag_once(self):
+        reference = 'registry.example/demo/frontend:sha-1111111'
+        with patch('release_images.docker', side_effect=[DockerTimeoutError(),
+                   'digest: ' + MANIFESTS['frontend']]) as runner, patch('builtins.print'):
+            self.assertEqual(push_verified_tag(reference), MANIFESTS['frontend'])
+        self.assertEqual(runner.call_args_list, [unittest.mock.call('push', reference)] * 2)
+
+    def test_repeated_timeout_records_failure_without_advancing_latest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.artifacts(root)
+            calls = []
+            fake = self.fake_docker(calls)
+            def run(*arguments):
+                if arguments[0] == 'push':
+                    calls.append(arguments)
+                    raise DockerTimeoutError('Synthetic timeout')
+                return fake(*arguments)
+            with patch('release_images.docker', side_effect=run), patch('builtins.print'):
+                with self.assertRaises(DockerTimeoutError):
+                    publish_images(root, 'registry.example', 'demo', COMMIT, '',
+                                   root / 'release.json', root / 'summary.md', ['frontend'])
+            self.assertEqual([c for c in calls if c[0] == 'push'],
+                             [('push', 'registry.example/demo/cs-career-guide-frontend:sha-1111111')] * 2)
+            record = json.loads((root / 'release.json').read_text())
+            self.assertFalse(record['complete'])
+            self.assertEqual(record['images']['frontend']['tags'], [])
+
+    def test_rejection_interruption_and_invalid_digest_are_not_retried(self):
+        for failure in (RuntimeError('rejected'), KeyboardInterrupt(), 'no digest',
+                        f"digest: {MANIFESTS['frontend']} digest: {MANIFESTS['backend']}"):
+            with self.subTest(failure=type(failure).__name__):
+                options = {'side_effect': failure} if isinstance(failure, BaseException) else {'return_value': failure}
+                with patch('release_images.docker', **options) as runner:
+                    with self.assertRaises((RuntimeError, KeyboardInterrupt)):
+                        push_verified_tag('private-reference')
+                runner.assert_called_once_with('push', 'private-reference')
+
     def artifacts(self, root):
         for component, image_id in IDS.items():
             (root / f'{component}-image.tar').write_bytes(b'synthetic-unit-test-archive')
