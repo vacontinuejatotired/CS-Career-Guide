@@ -159,13 +159,26 @@ class DjangoCatalogRepository:
         queryset = InterviewQuestion.objects.filter(permission_status='allowed')
         role = data.get('role')
         if role:
-            queryset = queryset.filter(role=role)
+            queryset = queryset.filter(role__iexact=role)
         topic = data.get('topic')
         if topic:
-            queryset = queryset.filter(topic=topic)
+            exact_topic = queryset.filter(topic__iexact=topic)
+            if exact_topic.exists():
+                queryset = exact_topic
+            else:
+                # 题库的 topic 是规范分类（如“数据库”），用户常会输入
+                # “mysql”等题干关键词；无规范分类时按允许题目的可检索文本兜底。
+                queryset = queryset.filter(
+                    Q(topic__icontains=topic)
+                    | Q(question__icontains=topic)
+                    | Q(reference_answer__icontains=topic)
+                    | Q(category__icontains=topic)
+                    | Q(role__icontains=topic)
+                    | Q(tags__icontains=topic)
+                )
         difficulty = data.get('difficulty')
         if difficulty:
-            queryset = queryset.filter(difficulty=difficulty)
+            queryset = queryset.filter(difficulty__iexact=difficulty)
         query = data.get('q')
         if query:
             queryset = queryset.filter(

@@ -407,3 +407,22 @@
   "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; output/resume-general-complete.json; output/playwright/resume-general-check.js（output为本机产物）"
 }
 ```
+
+## 2026-11-16 来源展示与知识点查询修复
+
+题库页面展示的 `source` 已去掉成员授权声明，仅保留“小林coding · xiaolincoding.com”；授权状态仍由题目记录的 `permission_status` 和数据文件顶层授权元数据维护。线上 943 条 allowed 记录已在备份后事务更新并通过目录接口抽样核验，历史练习快照不回写。
+
+知识点筛选对规范分类采用大小写不敏感匹配；输入 `mysql` 这类没有独立分类的关键词时，会在允许题目的分类、题干、参考答案、角色和标签中兜底搜索，因此可命中 `topic=数据库` 下包含 MySQL 的题目。未知关键词仍返回空结果。
+
+
+```acceptance-record
+{
+  "commit": "0003ecc + dirty",
+  "command": "python -m django test career_platform.evaluation career_platform.rag career_platform.records tests.test_catalog_import --settings=career_platform.test_settings; python -m unittest backend.tests.test_text_retrieval; python -m unittest discover -s backend/tests -p test_rag*.py; python ci/project_acceptance.py --stage complete --module all; node --test frontend/tests/*.test.mjs; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；隔离SQLite；离线模型替身",
+  "scope": "943条展示来源缩写；规范分类大小写不敏感、mysql关键词兜底；本地真实导入943题后检索与回执创建练习通过。 文本检索20项、RAG纯函数24项、目录/评估/反馈/记录组合31项、固定五模块17项、前端116项及构建通过。",
+  "limitations": "本轮尚未发布新代码；仍为词法检索，未启用Embedding/LanceDB；真实模型、MySQL、镜像和线上验收分别记录。冻结v1评估语料未修改。",
+  "evidence": "backend/tests/test_text_retrieval.py; backend/tests/test_catalog_import.py; output/mysql-rag-complete.json; output/mysql-bm25-comparison.json"
+}
+```

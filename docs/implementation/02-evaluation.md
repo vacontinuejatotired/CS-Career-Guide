@@ -382,3 +382,21 @@ K=10的dev扫描也保留在JSON中。均衡权重未优于基线；Top-3在本�
   "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; output/resume-general-complete.json; output/playwright/resume-general-check.js（output为本机产物）"
 }
 ```
+
+## 2026-11-16 展示来源缩写兼容与BM25离线对照
+
+目录展示来源去掉成员授权声明后，v1生成器仅新增接受已登记的展示文件整文件SHA256；还原这943个已知source文本后再次验证原始整文件SHA256，再生成原v1内容。冻结语料、标签和指纹全部保持原样；篡改题目内容仍拒绝。
+
+生产默认改用字段加权BM25，评估接口的coverage基线与balanced对照保持原样。本地在原v1语料、固定K=5、默认参数上比较：8条dev相关查询的Hit@5从7/8至8/8、MRR从0.667至0.792；8条test相关查询的Hit@5从7/8至8/8，MRR从0.729降至0.698。两条无关查询仍各误召5题，未据test调参，不能宣称全面优于基线或语义检索完成。标签仅为初步单锚题标注，未经成员2独立复核，样本量很小。
+
+```acceptance-record
+{
+  "commit": "0003ecc + dirty",
+  "command": "python -m django test career_platform.evaluation career_platform.rag career_platform.records tests.test_catalog_import --settings=career_platform.test_settings; python -m unittest backend.tests.test_text_retrieval; python -m unittest discover -s backend/tests -p test_rag*.py; python ci/project_acceptance.py --stage complete --module all; node --test frontend/tests/*.test.mjs; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；隔离SQLite；固定943题v1语料；无模型调用",
+  "scope": "冻结重建和篡改拒绝、指标与目录/RAG/记录组合31项通过；固定五模块17项通过；默认BM25和coverage离线K=5对照已运行。",
+  "limitations": "非穷尽相关性标注，无关查询仍误召；test排序MRR下降已如实记录；不据test反向调参。生产发布与真实语义模型另验收。",
+  "evidence": "backend/career_platform/evaluation/build_xiaolin.py; backend/career_platform/evaluation/tests_xiaolin.py; output/mysql-bm25-comparison.json; output/mysql-rag-complete.json"
+}
+```

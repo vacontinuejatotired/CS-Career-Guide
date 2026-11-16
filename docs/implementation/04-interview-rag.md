@@ -483,3 +483,24 @@ Actions 42776569360 的文档、SQLite/MySQL业务验收及前端镜像成功，
   "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; output/resume-general-complete.json; output/playwright/resume-general-check.js（output为本机产物）"
 }
 ```
+
+## 2026-11-16 正式题库稀疏排序与关键词知识点兜底
+
+正式 `DjangoQuestionRetriever` 继续读取当前数据库中 `permission_status=allowed` 的题目，并仍通过 `InterviewRagService` 供练习和 legacy `/interview` 技术追问使用。它不是 LanceDB/Embedding 语义检索：本次将生产题库排序从简单字段词覆盖改为确定性的 BM25 稀疏排序，使用题干、标签、参考要点和参考答案的字段权重、词频、逆文档频率和长度归一化；离线评估的 `TextRetrievalStrategy` 默认 coverage 基线保持不变，避免改变冻结评估对照。
+
+知识点是规范分类时仍严格按分类过滤；输入 `mysql` 无对应分类时，检索器会把它追加为检索词并取消该分类的硬过滤，从题干/标签等字段命中 `topic=数据库` 的题目。页面候选中的数字是“检索相关度”，不是逐题答题成绩，也不是模型置信度；没有随机扰动或伪造分数。
+
+
+仅给岗位、不填知识点或JD时，岗位用于筛选并返回稳定顺序，相关度为0表示未进行文本排序。自由输入知识点的每个分词都须在候选题内容中出现，避免JD命中时带入无关知识点。
+
+```acceptance-record
+{
+  "commit": "0003ecc + dirty",
+  "command": "python -m django test career_platform.evaluation career_platform.rag career_platform.records tests.test_catalog_import --settings=career_platform.test_settings; python -m unittest backend.tests.test_text_retrieval; python -m unittest discover -s backend/tests -p test_rag*.py; python ci/project_acceptance.py --stage complete --module all; node --test frontend/tests/*.test.mjs; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；隔离SQLite；离线模型替身",
+  "scope": "正式检索切换字段加权BM25；只按岗位浏览可选题；关键词知识点需匹配所有分词；题目原分类、来源和练习回执保持可追溯。 文本检索20项、RAG纯函数24项、目录/评估/反馈/记录组合31项、固定五模块17项、前端116项及构建通过。",
+  "limitations": "本轮尚未发布新代码；仍为词法检索，未启用Embedding/LanceDB；真实模型、MySQL、镜像和线上验收分别记录。冻结v1评估语料未修改。",
+  "evidence": "backend/tests/test_text_retrieval.py; backend/tests/test_catalog_import.py; output/mysql-rag-complete.json; output/mysql-bm25-comparison.json"
+}
+```

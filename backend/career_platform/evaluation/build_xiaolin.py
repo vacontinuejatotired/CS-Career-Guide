@@ -11,6 +11,7 @@ from pathlib import Path
 from .datasets import DATASET_DIR, fingerprint
 
 SOURCE_SHA256 = 'd5b4d0834c70558d933367f71afe13453506c5499fc56819d2f463660b0f507c'
+DISPLAY_SOURCE_SHA256 = '5c41c2a85e812e11529d5023db7598da2351ff50c4e229b099c88256e0d89fab'
 
 
 SAMPLES = {
@@ -39,6 +40,12 @@ SAMPLES = {
 
 def build(source, destination=DATASET_DIR):
     raw = Path(source).read_bytes()
+    if hashlib.sha256(raw).hexdigest() == DISPLAY_SOURCE_SHA256:
+        # 仅接受已登记的943条展示来源缩写；重建v1时还原原始元数据，
+        # 再校验原始整文件哈希。题干/答案/标签等任何其他变化仍被拒绝。
+        raw = raw.replace(
+            '"source": "小林coding · xiaolincoding.com"'.encode('utf-8'),
+            '"source": "小林coding · xiaolincoding.com（成员1声明已获作者授权）"'.encode('utf-8'))
     if hashlib.sha256(raw).hexdigest() != SOURCE_SHA256:
         raise ValueError('源数据指纹已变化，请登记新的语料/评测版本，不覆盖v1快照')
     data = json.loads(raw)
