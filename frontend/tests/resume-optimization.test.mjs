@@ -71,3 +71,23 @@ test('in-flight operations and workspace save prevent duplicate analysis or appl
   const actions=createResumeOptimization({...f.options,isBlocked:()=>true})
   await actions.analyze();assert.equal(f.calls.length,0)
 })
+
+test('empty JD and saving explain why analysis cannot proceed',async()=>{
+  const f=fixture();f.state.jd='  ';await f.actions.analyze()
+  assert.match(f.state.status,/请先填写目标岗位 JD/);assert.equal(f.calls.length,0)
+  f.state.jd='Java'
+  await createResumeOptimization({...f.options,isBlocked:()=>true}).analyze()
+  assert.match(f.state.status,/正在保存/);assert.equal(f.calls.length,0)
+})
+
+test('saved source is server data, refresh errors clear old preview, changed revision needs review',async()=>{
+  const f=fixture();let saved={name:'我的服务器简历',edit_revision:3,skills:'Java'}
+  const actions=createResumeOptimization({...f.options,getResume:async()=>({data:saved})})
+  await actions.refreshResume();assert.deepEqual(f.state.savedResume,saved)
+  saved={...saved,edit_revision:4,skills:'Java Python'}
+  await actions.analyze();assert.equal(f.calls.length,0)
+  assert.equal(f.state.savedResume.edit_revision,4);assert.match(f.state.status,/核对下方预览/)
+  await actions.analyze();assert.equal(f.calls[0][1].resume_revision,4)
+  const failed=createResumeOptimization({...f.options,getResume:async()=>{throw {response:{status:404}}}})
+  await failed.refreshResume();assert.equal(f.state.savedResume,null);assert.match(f.state.status,/先保存/)
+})

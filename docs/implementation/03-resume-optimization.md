@@ -1,6 +1,6 @@
 # 成员3：简历 NLP 与有依据的建议
 
-> 2026-11-16 当前工作分支已实现简历首版：技能/自评确认应用、STAR原文摘录、历史与版本校验；本地固定17项通过，尚未部署。下文早期501记录为历史快照，最新边界和验收见文末。
+> 2026-11-16 简历首版已部署，发布证据及真实模型限制见 deployment-status.md。下文早期501和未部署记录为历史快照；本轮分析入口修复与本地验收见文末。
 
 ## 2026-11-15 优化入口并入简历工作台
 
@@ -285,5 +285,27 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
   "scope": "首版允许skills/self_evaluation保守改写并逐条确认；项目/经历按STAR原文摘录，缺项提问，不生成新数字；历史、权限、版本、幂等和并发回归。 本地组合59项通过，固定complete17项及scaffold7项通过；前端113项与生产构建通过；迁移无漂移。浏览器1440/390px无横向溢出、无pageerror，验证STAR缺结果、拦截伪造编辑、确认写回、版本递增、历史重载及旧草稿保护。",
   "limitations": "首版仅写主表skills/self_evaluation；STAR最多20段，逐项最多120字符的原文摘录，缺项保持空并提问，供预览不自动写子记录。有限词典与保守文字规则不等于语义事实或能力评估，人工仍需核对STAR归类。普通简历CRUD跨页签版本协议及所有子表写入口版本维护未在本轮重构；应用时会重验完整快照，当前页会阻止旧草稿直接保存。模型调用在事务外，相同分析键并发可能重复调用模型，但仅保存一条成功记录。SQLite竞争可返回409，显式原键重试恢复。本轮未调用真实模型、未执行线上迁移/发布/部署；MySQL及容器由Actions单独验证。",
   "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; backend/career_platform/tests/accept_resume.py; backend/career_platform/tests/accept_integration.py; output/resume-complete.json; output/playwright/resume-optimization-check.js（output为本机验收产物）"
+}
+```
+
+## 2026-11-16 分析入口与数据来源
+
+- JD 为空时按钮可点击并提示填写、聚焦输入框；保存中明确提示并禁用，避免无反馈。
+- 优化页读取当前登录账号 `/api/resumes/my/`，显示姓名、意向岗位、保存版本及纯文本内容预览；不会使用其他账号或示例简历。编辑区未保存修改不参与分析，需先保存再刷新。
+- 每次分析重新读取服务器版本；若与预览不同，更新预览并要求重新点击，后端继续检查版本。分析和应用仍分开，STAR 不补造事实或数据。
+
+## 2026-11-16 简历入口与停用助手资源回归
+
+共享前端控制器补充服务器简历来源和缺少JD的反馈，完整业务回归保持原有五模块契约。前端镜像仅保留面试VAD资源；历史3D人物文件不再交付。
+
+```acceptance-record
+{
+  "commit": "45d65088acee455d20deccf3acb2e65be376ccc5 + dirty",
+  "command": "node --test frontend/tests/*.test.mjs; python -m unittest ci.test_build_layout -q; python ci/project_acceptance.py --stage complete --module all --output output/resume-source-complete.json; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；离线隔离SQLite；Chromium使用临时账号、真实候选API和离线模型替身",
+  "scope": "简历分析入口提示与已保存来源预览；移除停用悬浮助手组件、公开配置、页脚链接和镜像GLB资源。共享前端控制器变更触发五模块完整回归，17项通过；115项前端测试、5项构建布局测试及生产构建通过。浏览器1440/390px验证空JD提示与聚焦、服务器来源、未保存草稿隔离、确认应用和历史，无运行时错误或横向溢出。",
+  "limitations": "本轮仅修改前端及构建布局回归；未修改后端接口、模型提示词、题库数据或迁移。浏览器模型为离线替身，不代表真实模型质量；MySQL、Docker构建及部署由Actions验证，发布结果另记deployment-status.md。",
+  "evidence": "frontend/tests/resume-optimization.test.mjs; ci/test_build_layout.py; output/resume-source-complete.json; output/playwright/resume-source-check.js（output为本机验收产物）"
 }
 ```

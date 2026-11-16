@@ -27,7 +27,7 @@
       </div>
 
       <nav class="resume-mode-nav" aria-label="简历工作区"><button type="button" :aria-pressed="!showOptimization" @click="setResumeMode(false)">编辑与预览</button><button type="button" :aria-pressed="showOptimization" @click="setResumeMode(true)">岗位对照与优化</button></nav>
-      <OptimizationPanel v-show="showOptimization" :saving="isSaving" @busy="resumeOptimizing=$event" @applied="optimizationApplied=true" />
+      <OptimizationPanel v-show="showOptimization" :active="showOptimization" :saving="isSaving" @busy="resumeOptimizing=$event" @applied="optimizationApplied=true" />
       <div v-show="!showOptimization">
       <div class="resume-workspace-bar">
         <div><WorkspaceIcon name="file" /><span>整理简历</span><small>内容以你的真实经历为准</small></div>
