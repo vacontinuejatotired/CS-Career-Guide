@@ -374,3 +374,19 @@
   "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; backend/career_platform/tests/accept_resume.py; backend/career_platform/tests/accept_integration.py; output/resume-complete.json; output/playwright/resume-optimization-check.js（output为本机验收产物）"
 }
 ```
+
+## 2026-11-16 简历入口与停用助手资源回归
+
+共享前端控制器补充服务器简历来源和缺少JD的反馈，完整业务回归保持原有五模块契约。前端镜像仅保留面试VAD资源；历史3D人物文件不再交付。
+
+```acceptance-record
+{
+  "commit": "45d65088acee455d20deccf3acb2e65be376ccc5 + dirty",
+  "command": "node --test frontend/tests/*.test.mjs; python -m unittest ci.test_build_layout -q; python ci/project_acceptance.py --stage complete --module all --output output/resume-source-complete.json; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；离线隔离SQLite；Chromium使用临时账号、真实候选API和离线模型替身",
+  "scope": "简历分析入口提示与已保存来源预览；移除停用悬浮助手组件、公开配置、页脚链接和镜像GLB资源。共享前端控制器变更触发五模块完整回归，17项通过；115项前端测试、5项构建布局测试及生产构建通过。浏览器1440/390px验证空JD提示与聚焦、服务器来源、未保存草稿隔离、确认应用和历史，无运行时错误或横向溢出。",
+  "limitations": "本轮仅修改前端及构建布局回归；未修改后端接口、模型提示词、题库数据或迁移。浏览器模型为离线替身，不代表真实模型质量；MySQL、Docker构建及部署由Actions验证，发布结果另记deployment-status.md。",
+  "evidence": "frontend/tests/resume-optimization.test.mjs; ci/test_build_layout.py; output/resume-source-complete.json; output/playwright/resume-source-check.js（output为本机验收产物）"
+}
+```

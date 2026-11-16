@@ -35,8 +35,12 @@ class BuildLayoutTests(unittest.TestCase):
         for required in ('media', 'staticfiles', 'ai_integration/lancedb', '**/*.sqlite*', '.runtime'):
             self.assertIn(required, backend)
         frontend = (ROOT / 'frontend/.dockerignore').read_text().splitlines()
-        for public_asset in ('!public/models/d51675667acfc8a42b8e40d4c3e9799a.glb',
-                             '!public/models/vad', '!public/models/vad/**'):
+        self.assertIn('public/models/**', frontend)
+        self.assertIn('**/*.glb', frontend)
+        self.assertFalse(any('.glb' in line and line.startswith('!') for line in frontend))
+        self.assertIn('COPY public/models/vad /usr/share/nginx/html/models/vad',
+                      (ROOT / 'frontend/Dockerfile').read_text())
+        for public_asset in ('!public/models/vad', '!public/models/vad/**'):
             self.assertIn(public_asset, frontend)
 
     def test_frontend_nginx_has_no_upstream_and_gateway_owns_streaming_and_files(self):

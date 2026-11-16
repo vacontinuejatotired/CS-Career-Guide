@@ -14,9 +14,9 @@ RUN npm run build && rm -rf dist/models
 
 FROM nginx:1.27-alpine
 
-# Stable public models have their own layer, independent of the Vue build.
+# Interview voice activity detection assets have their own stable layer.
 # Keep this before frequently changing config/application files.
-COPY public/models /usr/share/nginx/html/models
+COPY public/models/vad /usr/share/nginx/html/models/vad
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /build/frontend/dist /usr/share/nginx/html
 RUN mkdir -p /var/cache/nginx \

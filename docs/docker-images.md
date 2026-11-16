@@ -37,3 +37,5 @@ GLB 与 VAD ONNX/WASM/worklet 为公开运行资源，必须保留。根 `.docke
 两端 cache scope 不变，使用 type=gha，provenance/sbom=false。各自测试后导出归档，publisher 验证完整 commit、image ID、linux/amd64 后发布同一镜像；不重新构建、不要求另一端归档。单端/共享验证策略、发布记录和 digest 回滚见[独立交付](split-delivery.md)。
 
 2026-11-01 的最终交付代码已通过 Actions 双端镜像与网关联调；新 frontend 与 gateway 已安装到服务器，保留原 backend。网关镜像经既有 ACR 仓库的专用 `gateway-nginx-<imageID>` 标签传送并在服务器固定 digest，不覆盖前端应用标签。实际发布/安装/独立审计证据见[部署状态](deployment-status.md)，本机没有 Docker 构建。缓存命中与耗时见[CI/CD](ci-cd.md#缓存与耗时定位)。
+
+2026-11-16：前端镜像仅携带仍用于面试麦克风的 `public/models/vad/`；停用悬浮助手的 GLB 从 Docker 上下文和运行镜像中排除，删除无人引用的 AIFloat 组件及头像配置。仓库中的历史媒体文件保留。

@@ -6,9 +6,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ImageLayerTests(unittest.TestCase):
-    def test_frontend_models_are_copied_before_application_in_separate_layer(self):
+    def test_frontend_vad_is_copied_before_application_in_separate_layer(self):
         text = (ROOT / 'frontend/Dockerfile').read_text()
-        model = 'COPY public/models /usr/share/nginx/html/models'
+        model = 'COPY public/models/vad /usr/share/nginx/html/models/vad'
         application = 'COPY --from=builder /build/frontend/dist /usr/share/nginx/html'
         self.assertLess(text.index(model), text.index('COPY nginx.conf'))
         self.assertLess(text.index(model), text.index(application))
