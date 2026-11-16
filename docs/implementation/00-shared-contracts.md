@@ -323,3 +323,24 @@ Actions 42771897363已确认：Platform documentation与Backend checks失败，F
 ```acceptance-record
 {"commit":"1782fec + dirty","command":"node --test frontend/tests/*.test.mjs; npm run build --prefix frontend; python ci/project_acceptance.py --stage complete --module all","result":"failed","environment":"2026-11-15；Windows；隔离SQLite；模拟浏览器API","scope":"前端99项与构建通过；浏览器12视图无溢出、无pageerror，验证旧路由跳转与编辑草稿保留、本地题组无API请求。完整业务17项13通过4失败，resume3与integration1仍因501失败。","limitations":"未改固定测试或门禁，未实现简历优化后端，未导入正式题库；无真实模型、MySQL、CI或部署验收。","evidence":"frontend/tests/default-questions.test.mjs; output/resume-default-tests.log; output/resume-default-complete.log; output/playwright/resume-default-check.js（output为本机产物）"}
 ```
+
+
+## 2026-11-16 共享边界与集成结果
+
+本轮接入成员1的943道正式题到成员4/5与legacy自由面试，并为成员2新增独立冻结评测。HTTP公开字段不变；检索evidence新增role/topic/difficulty/collected_at原文，结果与快照保留实际题目元数据；评测parameters增加服务端计算的corpus_sha256/corpus_size。自由面试来源通过普通chunk追加，不新增SSE事件类型。
+
+逐题模型内部输出改为answer_quote、covered_indices、missing_indices、follow_up，服务端按可信快照展开为既有公开字段并严格校验；旧完整格式也必须通过同一校验。共享JsonModelGateway关闭隐式自动重试并将供应商APITimeoutError映射为现有MODEL_TIMEOUT，失败仍保留回答。
+
+完整固定验收仍为13/17，通过题库专项不能代表整个平台完成。原简历优化接口尚返回501，本轮未扩大为成员3实现，也未修改或跳过固定业务门禁。
+
+```acceptance-record
+{
+  "commit": "3837421035e310ec77aeb2fa3c017391f605621a",
+  "command": "python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_evaluation --settings=career_platform.test_settings; python -m unittest discover -s backend/tests -p test_interview*.py; python -m unittest discover -s backend/tests -p test_rag_feedback.py; python -m unittest discover -s backend/tests -p test_json_gateway.py; node --test frontend/tests/*.test.mjs; python ci/project_acceptance.py --stage complete --module all",
+  "result": "failed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；本地浏览器使用真实候选API和943题、离线模型替身；服务器独立候选进程使用真实已配置模型和临时账号",
+  "scope": "共享网关、来源、模型引用组装；专项37项、自由面试10项、纯反馈14项、JSON网关2项、前端106项通过；完整固定17项13通过4失败。",
+  "limitations": "完整业务17项13通过4失败（resume3和integration1因简历接口501）；未通过完整门禁、未部署候选；MySQL/容器由Actions验证。检索为词面基线，评测标签未独立人工复核，且无关检测仍误召；真实模型样本不证明总体质量。 真实模型为独立候选进程快照验证，末次提示词及无命中尾注文字调整仅离线回归。",
+  "evidence": "backend/career_platform/evaluation/datasets/xiaolin-experiment-v1.json; backend/career_platform/evaluation/tests_xiaolin.py; backend/career_platform/rag/tests_feedback.py; backend/career_platform/records/tests_catalog.py; backend/tests/test_interview_catalog.py; frontend/tests/evaluation-page.test.mjs; output/question-bank-live-result.json; output/playwright/question-bank-api-check.js; output/question-bank-all.json（output为本机验收产物）"
+}
+```

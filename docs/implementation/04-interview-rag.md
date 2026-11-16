@@ -408,3 +408,26 @@ Actions 42776569360 的文档、SQLite/MySQL业务验收及前端镜像成功，
 ```acceptance-record
 {"commit":"1782fec + dirty","command":"node --test frontend/tests/*.test.mjs; npm run build --prefix frontend; python ci/project_acceptance.py --stage complete --module all","result":"failed","environment":"2026-11-15；Windows；隔离SQLite；模拟浏览器API","scope":"前端99项和构建通过。浏览器三组自练填写/查看要点无额外API调用；题库、优化、编辑三种状态四种尺寸12视图无溢出和pageerror。完整17项13通过4失败，rag3项通过，resume3与integration1因501失败。","limitations":"共享改动整体仍failed；默认题仅本地自练，不冒充正式题库/模型反馈。未调用真实模型、导入题库或执行MySQL/CI/发布部署。","evidence":"frontend/src/views/career-platform/default-questions.js; frontend/tests/default-questions.test.mjs; output/resume-default-complete.log; output/playwright/resume-default-check.js（output为本机产物）"}
 ```
+
+
+## 2026-11-16 题库与自由面试接入
+
+正式练习继续使用DjangoQuestionRetriever读取当前allowed题目；检索结果保留实际岗位/知识点/难度与collected_at，避免空过滤条件覆盖原始元数据。反馈运行时统一调用严格证据校验：拒绝空回答引用、虚构/重复/交叉要点、无效来源和不在快照中的引用。follow_up按现有HTTP约定接受null或非空且不超过2000字符的生成追问。
+
+受控真实模型测试发现长要点复制与完整引用输出偶有遗漏，因此内部模型改为选择covered_indices/missing_indices；服务端只按合法序号从已下发快照组装逐字要点与证据，再执行公开格式校验。旧完整反馈仍须严格验证，不自动修补伪造内容。非法输出保留回答并返回INVALID_MODEL_OUTPUT，不偷偷重试或伪造成功。
+
+/interview保留legacy策略与现有文字流。开场及自我介绍后的项目邀请不检索；已有两轮历史后的技术追问，从本轮真实回答（最多2000字符）检索3条allowed题，组装有界上下文；复盘不重新检索，无命中/检索异常明确提示并允许继续生成追问。服务端在非空模型输出后追加“本轮题库检索参考（追问由模型结合回答生成）”及实际来源链接，按普通chunk在DONE之前发送，并保存到原AIChatPair。尾注表示提供给模型的参考，不声称生成文字逐字来自题库。
+
+首次实测模型漏来源，说明仅提示词不可靠，已用服务端尾注修复；首次长要点反馈被严格校验拒绝，随后改为序号解析。最终受控验证详情见本轮验收记录。
+
+```acceptance-record
+{
+  "commit": "3837421035e310ec77aeb2fa3c017391f605621a",
+  "command": "python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_evaluation --settings=career_platform.test_settings; python -m unittest discover -s backend/tests -p test_interview*.py; python -m unittest discover -s backend/tests -p test_rag_feedback.py; python -m unittest discover -s backend/tests -p test_json_gateway.py; node --test frontend/tests/*.test.mjs; python ci/project_acceptance.py --stage complete --module all",
+  "result": "passed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；本地浏览器使用真实候选API和943题、离线模型替身；服务器独立候选进程使用真实已配置模型和临时账号",
+  "scope": "专项37项（含RAG/records/evaluation固定验收）通过；自由面试10项、纯反馈14项通过；真实候选进程反馈/总结与来源链路验证，以及隔离浏览器真实API闭环通过。",
+  "limitations": "完整业务17项13通过4失败（resume3和integration1因简历接口501）；未通过完整门禁、未部署候选；MySQL/容器由Actions验证。检索为词面基线，评测标签未独立人工复核，且无关检测仍误召；真实模型样本不证明总体质量。 真实模型为独立候选进程快照验证，末次提示词及无命中尾注文字调整仅离线回归。",
+  "evidence": "backend/career_platform/evaluation/datasets/xiaolin-experiment-v1.json; backend/career_platform/evaluation/tests_xiaolin.py; backend/career_platform/rag/tests_feedback.py; backend/career_platform/records/tests_catalog.py; backend/tests/test_interview_catalog.py; frontend/tests/evaluation-page.test.mjs; output/question-bank-live-result.json; output/playwright/question-bank-api-check.js; output/question-bank-all.json（output为本机验收产物）"
+}
+```

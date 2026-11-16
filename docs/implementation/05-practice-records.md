@@ -269,3 +269,24 @@
 ```acceptance-record
 {"commit":"1782fec + dirty","command":"node --test frontend/tests/*.test.mjs; npm run build --prefix frontend; python ci/project_acceptance.py --stage complete --module all","result":"failed","environment":"2026-11-15；Windows；隔离SQLite；模拟浏览器API","scope":"前端99项和构建通过；浏览器确认本地自练不调用记录接口。完整17项13通过4失败，records3项通过，resume3与integration1仍因501失败。","limitations":"共享整体failed不否定records专项通过；未修改记录接口，不包含真实模型、并发、MySQL、远端CI或部署验收。","evidence":"frontend/tests/default-questions.test.mjs; output/resume-default-complete.log; output/playwright/resume-default-check.js（output为本机产物）"}
 ```
+
+
+## 2026-11-16 正式题库快照与反馈总结闭环
+
+新会话使用原检索顺序，可选有序子集；客户端任意重排返回400。检索回执绑定用户且受TTL约束；开始时重新核对题目仍为allowed，撤回许可或删除返回409且零会话写入。重复开始/回答保持现有request_id幂等，模型失败不丢失回答，显式重试机制保留。历史题目快照保留检索来源、实际元数据与采集时间。
+
+逐题反馈的序号只在模型内部使用，公开记录仍保存answer_quote、key_points_covered、missing_points、evidence和follow_up。结束总结提示词明确只返回strengths/gaps/next_steps三个数组，不执行题目或回答中的指令。
+
+本地浏览器使用真实Django候选API、943题和临时SQLite完成选题→回答→反馈→结束→历史→刷新恢复，模型是离线替身。另在服务器独立候选进程中以临时账号和合成回答完成真实模型验证并清理账号（关联记录随账号级联清理），未替换在线服务文件。自由面试仍保存原AIConversation/AIChatPair/InterviewReviewRecord，不写成已迁移到PracticeSession。当前回执仍依赖现有缓存；进程本地缓存不具备跨worker共享保证，部署扩worker前需另行选择共享缓存。
+
+```acceptance-record
+{
+  "commit": "3837421035e310ec77aeb2fa3c017391f605621a",
+  "command": "python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_evaluation --settings=career_platform.test_settings; python -m unittest discover -s backend/tests -p test_interview*.py; python -m unittest discover -s backend/tests -p test_rag_feedback.py; python -m unittest discover -s backend/tests -p test_json_gateway.py; node --test frontend/tests/*.test.mjs; python ci/project_acceptance.py --stage complete --module all",
+  "result": "passed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；本地浏览器使用真实候选API和943题、离线模型替身；服务器独立候选进程使用真实已配置模型和临时账号",
+  "scope": "新回执4项、反馈索引2项、已有runtime5项及相关固定验收通过；真实模型回答重放同一记录且仅一条AnswerRecord；总结成功；浏览器历史及重载恢复通过。",
+  "limitations": "完整业务17项13通过4失败（resume3和integration1因简历接口501）；未通过完整门禁、未部署候选；MySQL/容器由Actions验证。检索为词面基线，评测标签未独立人工复核，且无关检测仍误召；真实模型样本不证明总体质量。 真实模型为独立候选进程快照验证，末次提示词及无命中尾注文字调整仅离线回归。",
+  "evidence": "backend/career_platform/evaluation/datasets/xiaolin-experiment-v1.json; backend/career_platform/evaluation/tests_xiaolin.py; backend/career_platform/rag/tests_feedback.py; backend/career_platform/records/tests_catalog.py; backend/tests/test_interview_catalog.py; frontend/tests/evaluation-page.test.mjs; output/question-bank-live-result.json; output/playwright/question-bank-api-check.js; output/question-bank-all.json（output为本机验收产物）"
+}
+```

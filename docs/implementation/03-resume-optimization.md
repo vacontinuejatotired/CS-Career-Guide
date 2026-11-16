@@ -249,3 +249,20 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
 ```acceptance-record
 {"commit":"1782fec + dirty","command":"node --test frontend/tests/*.test.mjs; npm run build --prefix frontend; python ci/project_acceptance.py --stage complete --module all","result":"failed","environment":"2026-11-15；Windows；隔离SQLite；模拟浏览器API","scope":"前端99项、构建通过。浏览器验证旧入口重定向、501明确提示和编辑草稿跨页签保留，三种状态四种尺寸12视图无溢出。完整业务17项13通过4失败，resume3与integration1仍因501失败。","limitations":"只整合入口，不代表NLP、建议或应用实现；未真实写简历、调用模型或迁移数据库；无MySQL、CI、发布部署验收。","evidence":"frontend/src/views/resume/OptimizationPanel.vue; frontend/tests/default-questions.test.mjs; output/resume-default-complete.log; output/playwright/resume-default-check.js（output为本机产物）"}
 ```
+
+
+## 2026-11-16 共享网关回归边界
+
+本轮共享网关随题库集成修改了超时映射与隐式重试；未实现或启用简历NLP、建议或应用接口。完整固定业务验收17项中，resume3项与依赖它的integration1项仍因501失败。不能把题库接入或模型专项成功写成简历模块完成，也不通过降低CI门禁掩盖此缺口。
+
+```acceptance-record
+{
+  "commit": "3837421035e310ec77aeb2fa3c017391f605621a",
+  "command": "python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_evaluation --settings=career_platform.test_settings; python -m unittest discover -s backend/tests -p test_interview*.py; python -m unittest discover -s backend/tests -p test_rag_feedback.py; python -m unittest discover -s backend/tests -p test_json_gateway.py; node --test frontend/tests/*.test.mjs; python ci/project_acceptance.py --stage complete --module all",
+  "result": "failed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；本地浏览器使用真实候选API和943题、离线模型替身；服务器独立候选进程使用真实已配置模型和临时账号",
+  "scope": "共享网关回归已执行；简历固定专项3项与跨模块integration1项返回501，完整业务尚不通过。",
+  "limitations": "完整业务17项13通过4失败（resume3和integration1因简历接口501）；未通过完整门禁、未部署候选；MySQL/容器由Actions验证。检索为词面基线，评测标签未独立人工复核，且无关检测仍误召；真实模型样本不证明总体质量。 真实模型为独立候选进程快照验证，末次提示词及无命中尾注文字调整仅离线回归。",
+  "evidence": "backend/career_platform/evaluation/datasets/xiaolin-experiment-v1.json; backend/career_platform/evaluation/tests_xiaolin.py; backend/career_platform/rag/tests_feedback.py; backend/career_platform/records/tests_catalog.py; backend/tests/test_interview_catalog.py; frontend/tests/evaluation-page.test.mjs; output/question-bank-live-result.json; output/playwright/question-bank-api-check.js; output/question-bank-all.json（output为本机验收产物）"
+}
+```

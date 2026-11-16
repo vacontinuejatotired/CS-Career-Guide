@@ -284,7 +284,7 @@ GET /api/career-platform/catalog/questions/?role=Java%E5%90%8E%E7%AB%AF&difficul
 }
 ```
 
-score 为文本排序分，不是面试成绩。无命中仍为 200，`count=0/results=[]`，message 提示调整条件。当前检索结果的 `collected_at` 固定 null，详细来源时间可查目录，不能据此伪造采集时间。
+score 为文本排序分，不是面试成绩。无命中仍为 200，`count=0/results=[]`，message 提示调整条件。本轮候选检索结果的 `collected_at` 来自题库采集时间，缺失时仍为 null；题目实际岗位、知识点与难度不被空筛选条件覆盖。部署状态见带日期的验收记录。
 
 返回 `retrieval_id` 为绑定当前用户的缓存回执，默认有效 900 秒，可由后端 `PRACTICE_RETRIEVAL_TTL` 调整。缓存丢失/过期后创建练习可能 409；重新检索后使用新回执和新的创建 request_id。不要把 receipt 当作可长期收藏记录。
 
@@ -706,3 +706,11 @@ message 可能是框架默认英文或粗粒度信息，字段原因在 details 
 | legacy提示词与解码 | `frontend/src/features/interview/legacy/implementation.js`、`stream.js` |
 
 接口变更与本文一起更新；需求中的目标能力和实现中的现有行为分别标注。本文不引入接口、迁移、部署或客户端代码。发现的现有字段/权限/幂等局限记录在对应章节，后续修复需要单独实现与验证。
+## 2026-11-16 题库集成候选补充
+
+以下为本轮分支实现与隔离验收结果，不代表部署已更新。
+
+- 自由面试仍使用原共享聊天SSE。技术轮检索命中时，非空回答后会多一个普通 `chunk`，以“本轮题库检索参考（追问由模型结合回答生成）”列出实际来源；之后仍为 `[DONE]`、`end/session_id`。调用方应按既有规则拼接全部文字块。开场、复盘不追加尾注；无命中或检索异常追加对应生成追问说明，不伪造题库来源。
+- 正式题库检索结果及练习快照保留题目实际 role/topic/difficulty/collected_at；evidence中可包含这些元数据。开始练习时，已删除或许可撤回的题返回409且不创建会话；question_ids须保持检索顺序，可选有序子集，重排返回400。
+- 回答与反馈公开字段不变。模型内部选择参考要点序号，由服务端组装可信快照原文与引用；非法引用仍返回502并保存原回答，可按原显式重试接口恢复。follow_up为null或至多2000字符的非空生成追问。
+- 管理员评测新增 `xiaolin-eval-dev-v1` / `xiaolin-eval-test-v1` 与 `xiaolin-baseline` / `xiaolin-balanced`。语料不匹配返回400；parameters增加实际 `corpus_sha256` 与 `corpus_size`。评测标签是未经独立人工复核的初步小样本，原Java版本仍可使用。

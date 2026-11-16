@@ -289,3 +289,44 @@ Top-K 单变量扫描（text-baseline，其余参数不变）：dev 在 K=3/5/10
 ```acceptance-record
 {"commit":"1782fec + dirty","command":"node --test frontend/tests/*.test.mjs; npm run build --prefix frontend; python ci/project_acceptance.py --stage complete --module all","result":"failed","environment":"2026-11-15；Windows；隔离SQLite；模拟浏览器API","scope":"前端99项与构建通过，浏览器12视图无溢出。完整业务17项13通过4失败，evaluation3项通过，resume3与integration1因501失败。","limitations":"共享改动整体仍failed；未重新调优，job/resume评估缺口不变，无真实模型、MySQL、CI或部署验收。","evidence":"frontend/tests/default-questions.test.mjs; output/resume-default-complete.log; output/playwright/resume-default-check.js（output为本机产物）"}
 ```
+
+
+## 2026-11-16 943题冻结评测与页面接入
+
+新增xiaolin-corpus-v1、xiaolin-eval-dev-v1、xiaolin-eval-test-v1，语料保留943题和源文件SHA-256。每个split有8条相关查询和1条无关检测；题目与查询互不重合。相关标注仅由集成助手按题干选择一个锚题，不是穷尽相关性标注，未经成员2独立人工复核，不能据此宣称真实检索质量达标。
+
+注册xiaolin-baseline（4/3/2/1）和xiaolin-balanced（3/3/3/1）；旧Java语料与策略保留。策略与数据集的语料版本不一致或指纹不一致返回400且零写入。结果parameters保存实际语料hash/size，并在页面显示；导出保持原记录一致。默认页面进入dev集与xiaolin-baseline；运行时默认K仍为5，未自动改变线上RAG参数。
+
+修复页面把已解包响应再次读取.data导致列表与结果崩溃的问题；结果/历史表在窄屏可单独滚动，整体页面无溢出。
+
+复现（backend目录）：
+
+```powershell
+..\.venv\Scripts\python.exe -m career_platform.evaluation.build_xiaolin --source ../data/career-platform/xiaolincoding-questions.json
+..\.venv\Scripts\python.exe -m career_platform.evaluation.benchmark --output career_platform/evaluation/datasets/xiaolin-experiment-v1.json
+```
+
+实验完整逐例预测见同目录xiaolin-experiment-v1.json。只按dev宏平均F1选择候选，同分保留基线；冻结test只用于报告，不反向调参：
+
+| 集合 | 策略 | K | Precision | Recall/HitRate | F1 | MRR | 无关查询返回数 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| dev | baseline | 3 | 0.292 | 0.875 | 0.438 | 0.667 | 3 |
+| dev | baseline | 5 | 0.175 | 0.875 | 0.292 | 0.667 | 5 |
+| dev | balanced | 3 | 0.250 | 0.750 | 0.375 | 0.563 | 3 |
+| dev | balanced | 5 | 0.175 | 0.875 | 0.292 | 0.594 | 5 |
+| test | baseline | 5 | 0.175 | 0.875 | 0.292 | 0.729 | 5 |
+| test | dev选定baseline | 3 | 0.292 | 0.875 | 0.438 | 0.729 | 3 |
+
+K=10的dev扫描也保留在JSON中。均衡权重未优于基线；Top-3在本小样本上与Top-5召回相同，但标注不穷尽，且无关查询仍误召，故不能把调参结果当作可上线的相关性门槛，也不据此调整现有生产检索。
+
+```acceptance-record
+{
+  "commit": "3837421035e310ec77aeb2fa3c017391f605621a",
+  "command": "python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_evaluation --settings=career_platform.test_settings; python -m unittest discover -s backend/tests -p test_interview*.py; python -m unittest discover -s backend/tests -p test_rag_feedback.py; python -m unittest discover -s backend/tests -p test_json_gateway.py; node --test frontend/tests/*.test.mjs; python ci/project_acceptance.py --stage complete --module all",
+  "result": "passed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；本地浏览器使用真实候选API和943题、离线模型替身；服务器独立候选进程使用真实已配置模型和临时账号",
+  "scope": "新旧评测共存；可复现快照；错配及篡改hash拒绝；实际语料hash与size落库；导出一致；浏览器真实候选API运行943题评测并展示结果。",
+  "limitations": "完整业务17项13通过4失败（resume3和integration1因简历接口501）；未通过完整门禁、未部署候选；MySQL/容器由Actions验证。检索为词面基线，评测标签未独立人工复核，且无关检测仍误召；真实模型样本不证明总体质量。 真实模型为独立候选进程快照验证，末次提示词及无命中尾注文字调整仅离线回归。",
+  "evidence": "backend/career_platform/evaluation/datasets/xiaolin-experiment-v1.json; backend/career_platform/evaluation/tests_xiaolin.py; backend/career_platform/rag/tests_feedback.py; backend/career_platform/records/tests_catalog.py; backend/tests/test_interview_catalog.py; frontend/tests/evaluation-page.test.mjs; output/question-bank-live-result.json; output/playwright/question-bank-api-check.js; output/question-bank-all.json（output为本机验收产物）"
+}
+```
