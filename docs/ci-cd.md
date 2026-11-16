@@ -30,6 +30,10 @@ changes -> frontend-test --------------------> publish-frontend -> deploy-fronte
 - publish-frontend/backend：只依赖自身测试/image、delivery-checks、业务门禁及所需 integration，不等待另一 publisher。只下载对应归档，确认 commit、image ID、平台后推送同一镜像，不重新构建。共享所需 integration 被跳过/失败时不得发布。
 
 2026-11-16 发布传输调整：master `6801441` 的运行43816175405首次双端push、第二次backend push因图层长时间Preparing/Waiting后触发无输出超时；第二次frontend已发布/部署。没有观察到鉴权、429或5xx类别，不能据此认定具体网络根因。后续两个publisher在下载归档后、登录和加载镜像前，使用`ci/configure_release_docker.py`保留runner已有daemon选项并设置`max-concurrent-uploads=1`，然后重启该临时runner的Docker；不修改服务器Docker，不在测试/构建runner执行重启，也不改变镜像身份、发布条件、180秒无输出限制和有限重试。降低上传并发是传输缓解措施，实际结果需另记部署状态，不能宣称根因已修复。离线配置合并及既有发布专项30项通过，真实Docker配置生效和推送由Actions验证。
+
+2026-11-16 后续诊断：`edb797e` 的运行43820801261已成功设置单层上传，但backend仍因无CLI输出失败；服务器侧同一归档的Docker推送也出现6层完成、3层Waiting。独立客户端后续完成更多图层，且主机网络采样仍有传输，因此180秒没有CLI输出不能证明传输已停。当前改为每180秒提示安静状态，继续受原900秒总预算约束；保留每15秒心跳、固定词汇诊断、总超时终止回收、仅一次同tag超时重试、身份/digest校验和完整失败回执。该修复只纠正无输出的判定，不保证带宽或ACR故障恢复；新CI、发布和部署结果分别记录。
+
+此项本地离线验证：发布脚本24项通过；全部CI工具106项中92通过、14项Windows不适用跳过。新增行为用例验证180秒无输出后可在总预算内完成，既有总超时终止/回收、脱敏、拒绝重试和不提前推进latest的用例继续通过。该结果不代表ACR传输或线上部署已成功。
 - deploy-frontend/backend：仅对应 publisher 成功、fork/master、非 PR、总开关与对应分端开关同时为 true 时执行。输入是该次发布 digest；前端不接收模型字段。细节见[AI 同步](ai-env-sync.md)。
 - release-summary：对已选组件要求 test/image 与预期发布/部署结果正确；未选组件要求全部 skipped。单端完整容器联调明确记为 SKIPPED，不能报告已通过。
 
