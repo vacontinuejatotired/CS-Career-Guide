@@ -39,6 +39,18 @@ class XiaolinFrozenTests(SimpleTestCase):
                 frozen = json.loads((DATASET_DIR / f'{version}.json').read_text(encoding='utf-8'))
                 self.assertEqual(fingerprint(payload), fingerprint(frozen))
 
+    def test_display_source_compatibility_does_not_accept_changed_question_content(self):
+        source = Path(__file__).resolve().parents[3] / 'data/career-platform/xiaolincoding-questions.json'
+        if not source.exists():
+            self.skipTest('运行镜像不包含仓库根数据；指纹校验在源码检出验证')
+        with TemporaryDirectory() as directory:
+            tampered = Path(directory) / 'tampered.json'
+            data = json.loads(source.read_text(encoding='utf-8'))
+            data['questions'][0]['question'] += '（篡改测试）'
+            tampered.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+            with self.assertRaises(ValueError):
+                build(tampered, Path(directory) / 'out')
+
 
 class XiaolinEvaluationTests(AcceptanceCase):
     @classmethod
