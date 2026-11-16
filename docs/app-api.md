@@ -588,11 +588,13 @@ company-info 对象采用另一套字段：`id,title,company,salary,tags[],jobDe
 | 方法与路径 | 当前校验输入 |
 | --- | --- |
 | `GET /api/career-platform/resume-analyses/` | 通用 Query |
-| `POST /api/career-platform/resume-analyses/` | 必填 `jd_text`（最大20000）、`resume_revision>=0`、UUID request_id；可选正整数 job_id |
+| `POST /api/career-platform/resume-analyses/` | 必填 `resume_revision>=0`、UUID request_id；可选 `jd_text`（最大20000，默认空）、正整数 job_id。无JD/岗位时通用优化，有JD/岗位时岗位定向优化 |
 | `GET /api/career-platform/resume-analyses/{id}/` | UUID id；通用 Query |
 | `POST /api/career-platform/resume-analyses/{id}/apply/` | `base_revision>=0`、非空 UUID 数组 accepted_suggestion_ids、UUID request_id；可选 suggestion_edits 对象，值为最大20000字符文本 |
 
 分析返回 `{id,status,base_revision,resume_snapshot,jd_text,job_snapshot,result,model_version,prompt_version,created_at}`。`result` 包含 `matches`、`gaps`、`matching`（关键词匹配版本与原文证据）、`suggestions`、`star_reviews`。列表返回 `{count,page,page_size,results}`，详情保持原快照；全部按当前用户隔离。
+
+2026-11-16 新增通用优化：省略或传空 `jd_text` 且无 `job_id` 时，仅根据当前账号已保存简历整理表达和STAR，`matches/gaps/evidence`为空，`matching.version=not-applicable`，不做岗位能力判断。有JD或获允许的岗位时沿用原关键词匹配；岗位内容为空仍400。返回的`jd_text`可区分历史记录的模式，原有非空JD调用方式继续兼容。两种模式的事实校验、人工选择应用、版本与幂等规则相同，尚不支持自动改写项目/工作经历子记录。
 
 建议保留 `{id,field_path,original,suggested,reason,evidence}`。首版保守规则要求去除有限连接词与标点后的文字保持一致、数字逐项保持一致，理由最多120字符；它限制改写范围，不是通用语义事实验证器。证据必须逐字引用同一简历的目标字段。模型建议不符合规则返回400且不保存分析，格式解析失败502，模型不可用503，超时504。
 

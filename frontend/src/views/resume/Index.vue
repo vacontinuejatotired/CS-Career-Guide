@@ -26,7 +26,7 @@
         </div>
       </div>
 
-      <nav class="resume-mode-nav" aria-label="简历工作区"><button type="button" :aria-pressed="!showOptimization" @click="setResumeMode(false)">编辑与预览</button><button type="button" :aria-pressed="showOptimization" @click="setResumeMode(true)">岗位对照与优化</button></nav>
+      <nav class="resume-mode-nav" aria-label="简历工作区"><button type="button" :aria-pressed="!showOptimization" @click="setResumeMode(false)">编辑与预览</button><button type="button" :aria-pressed="showOptimization" @click="setResumeMode(true)">AI 简历优化</button></nav>
       <OptimizationPanel v-show="showOptimization" :active="showOptimization" :saving="isSaving" @busy="resumeOptimizing=$event" @applied="optimizationApplied=true" />
       <div v-show="!showOptimization">
       <div class="resume-workspace-bar">

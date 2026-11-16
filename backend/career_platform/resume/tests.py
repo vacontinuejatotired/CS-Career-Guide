@@ -42,6 +42,58 @@ class ResumeRuntimeTests(AcceptanceCase):
         self.post('resume-analyses/', dict(self.body, jd_text='Python'), expected=409)
         self.assertEqual(ResumeAnalysisRun.objects.count(), 1)
 
+    def test_general_analysis_without_jd_skips_matching_and_can_apply(self):
+        del self.body['jd_text']
+        with patch('career_platform.resume.matching.ResumeMatcher.match', side_effect=AssertionError('no JD matching')):
+            row = self.analyze()
+        self.assertEqual(row['jd_text'], '')
+        self.assertEqual(row['result']['matches'], [])
+        self.assertEqual(row['result']['gaps'], [])
+        self.assertEqual(row['result']['matching']['version'], 'not-applicable')
+        self.assertEqual(self.gateway.calls[0]['analysis_mode'], 'general')
+        self.assertEqual(self.analyze(), row)
+        self.post('resume-analyses/', dict(self.body, jd_text='Java'), expected=409)
+        self.post(f"resume-analyses/{row['id']}/apply/", self.application(row))
+        self.resume.refresh_from_db()
+        self.assertEqual(self.resume.skills, self.suggestion['suggested'])
+        self.assertEqual(self.resume.edit_revision, 1)
+
+    def test_blank_jd_is_general_and_invalid_type_is_rejected(self):
+        for text in ('', '   '):
+            self.body.update(jd_text=text, request_id=request_id())
+            self.assertEqual(self.analyze()['jd_text'], '')
+        self.post('resume-analyses/', dict(self.body, jd_text=None), expected=400)
+
+    def test_job_id_without_jd_keeps_source_permissions_and_rejects_empty_job(self):
+        from company_reviews.models import Company, Job
+        company = Company.objects.create(name='离线企业', city='演示', description='隔离测试')
+        job = Job.objects.create(company=company, title='开发', requirements='Java Redis', permission_status='allowed')
+        del self.body['jd_text']
+        self.body['job_id'] = job.pk
+        row = self.analyze()
+        self.assertEqual(row['result']['gaps'], ['Redis'])
+        self.assertEqual(self.gateway.calls[0]['analysis_mode'], 'job')
+        job.permission_status = 'restricted'; job.save()
+        self.body['request_id'] = request_id()
+        self.post('resume-analyses/', self.body, expected=400)
+        job.permission_status = 'allowed'; job.requirements = ''; job.save()
+        self.post('resume-analyses/', self.body, expected=400)
+        self.assertEqual(len(self.gateway.calls), 1)
+
+    def test_star_gateway_receives_current_source_paths_without_fixed_example(self):
+        project = Project.objects.create(id=438, resume=self.resume, name='课程', role='成员', period='2026',
+            description='负责接口开发。使用Java完成选课接口。')
+        self.gateway.result['star_reviews'] = [dict(field_path=f'projects.{project.pk}.description',
+            situation='', task='负责接口开发。', action='使用Java完成选课接口。', result='')]
+        row = self.analyze()
+        from .service import SYSTEM
+        call = self.gateway.calls[0]
+        self.assertNotIn('projects.1.description', SYSTEM)
+        self.assertEqual(call['star_sources'], [dict(field_path='projects.438.description',
+            description=project.description)])
+        self.assertEqual(call['analysis_mode'], 'job')
+        self.assertEqual(row['result']['star_reviews'][0]['sections']['result'], '')
+
     def test_history_is_owned_and_preserves_snapshot(self):
         row = self.analyze()
         self.resume.skills = '新稿'; self.resume.save()

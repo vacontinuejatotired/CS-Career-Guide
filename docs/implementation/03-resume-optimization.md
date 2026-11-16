@@ -1,6 +1,6 @@
 # 成员3：简历 NLP 与有依据的建议
 
-> 2026-11-16 简历首版已部署，发布证据及真实模型限制见 deployment-status.md。下文早期501和未部署记录为历史快照；本轮分析入口修复与本地验收见文末。
+> 2026-11-16 简历首版已部署，发布证据及真实模型限制见 deployment-status.md。下文早期501和未部署记录为历史快照；新增不填JD的通用优化候选，行为与本地验收见文末；发布/部署以运维记录为准。
 
 ## 2026-11-15 优化入口并入简历工作台
 
@@ -307,5 +307,31 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
   "scope": "简历分析入口提示与已保存来源预览；移除停用悬浮助手组件、公开配置、页脚链接和镜像GLB资源。共享前端控制器变更触发五模块完整回归，17项通过；115项前端测试、5项构建布局测试及生产构建通过。浏览器1440/390px验证空JD提示与聚焦、服务器来源、未保存草稿隔离、确认应用和历史，无运行时错误或横向溢出。",
   "limitations": "本轮仅修改前端及构建布局回归；未修改后端接口、模型提示词、题库数据或迁移。浏览器模型为离线替身，不代表真实模型质量；MySQL、Docker构建及部署由Actions验证，发布结果另记deployment-status.md。",
   "evidence": "frontend/tests/resume-optimization.test.mjs; ci/test_build_layout.py; output/resume-source-complete.json; output/playwright/resume-source-check.js（output为本机验收产物）"
+}
+```
+
+
+## 2026-11-16 通用优化与岗位定向优化
+
+`/resume?tab=optimize` 的工作区页签改为“AI 简历优化”，默认选择通用优化：不需要JD，只读取当前账号已保存版本，整理技能/自评表达和STAR原文。岗位定向优化需要JD，并保留原关键词匹配。切换回通用优化不会发送留存的JD，历史结果按其实际JD显示模式，不随当前表单切换。
+
+分析API的jd_text改为可选，默认空；无job_id且JD为空时不调用匹配器，matches/gaps/evidence为空、matching.version=not-applicable，不能把空缺项解读成岗位匹配成功。有job_id仍核验allowed和岗位内容，旧非空JD请求及已存幂等输入保持兼容。数据表和返回结构不变，无新增迁移。
+
+提示词升级resume-star-extractive-v2：显式提供当前项目/工作记录允许的star_sources路径，删除固定项目ID示例，要求逐字复制路径并区分行动/结果。严格原文/事实/数字校验不放宽；这降低照抄示例的风险，不保证模型每次都返回有效内容。技能/自评仍仅支持保守文字整理，项目/工作STAR仅供预览和补充问题，需返回编辑区自行修改；并未实现任意全文自动润色。
+
+
+### 2026-11-16 通用简历优化共享回归
+
+简历分析允许省略JD；通用模式无岗位匹配，岗位模式保留原行为。共享序列化器/前端控制器变更按原规则完成五模块回归；未改变题库、检索、练习或评估算法。
+
+```acceptance-record
+{
+  "commit": "434a7d9293e3ceff99a31b61ed0bdd9a981a58ac + dirty",
+  "command": "node --test frontend/tests/*.test.mjs; python -m django test career_platform.resume --settings=career_platform.test_settings; python ci/project_acceptance.py --stage complete --module all --output output/resume-general-complete.json; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；离线隔离SQLite；Chromium使用临时账号、真实候选API和离线模型替身",
+  "scope": "简历分析共享输入允许省略JD；前端默认通用优化，可选岗位定向。前端116项、简历专项18项、固定五模块complete17项及生产构建通过；浏览器验证空JD分析、模式切换与历史、草稿隔离、伪造编辑拒绝和确认写回，1440/390px无溢出或运行时异常。",
+  "limitations": "本地模型为替身，不代表真实模型质量；尚未在本轮运行Actions、发布或部署，后续证据另记deployment-status.md。保守改写仍限技能/自评；STAR仅原文预览，不自动写回子项。无新增迁移。",
+  "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; output/resume-general-complete.json; output/playwright/resume-general-check.js（output为本机产物）"
 }
 ```
