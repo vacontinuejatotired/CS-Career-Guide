@@ -79,7 +79,6 @@ def docker(*arguments):
     timeout = DOCKER_TIMEOUTS.get(operation, 120)
     started = time.monotonic()
     last_activity = started
-    last_quiet_notice = started
     # A second file handle observes progress without moving the child's output
     # offset. Raw logs stay in a private temporary directory and are deleted.
     print(f'Docker {operation}: started (timeout {timeout}s).', flush=True)
@@ -103,6 +102,8 @@ def docker(*arguments):
             while True:
                 now = time.monotonic()
                 remaining = timeout - (now - started)
+                if operation == 'push':
+                    remaining = min(remaining, PUSH_IDLE_TIMEOUT - (now - last_activity))
                 if remaining <= 0:
                     raise TimeoutError()
                 try:
@@ -113,15 +114,9 @@ def docker(*arguments):
                     print(f'Docker {operation}: running, elapsed {now - started:.0f}s.', flush=True)
                     if report_progress():
                         last_activity = now
-                    elif (operation == 'push' and now - last_activity >= PUSH_IDLE_TIMEOUT
-                          and now - last_quiet_notice >= PUSH_IDLE_TIMEOUT):
-                        # Non-TTY Docker output may stay quiet while a large
-                        # layer is uploading. Silence is diagnostic evidence,
-                        # not proof that the daemon stopped transferring data.
-                        print(f'Docker push: no new CLI output for at least {PUSH_IDLE_TIMEOUT}s; '
-                              f'continuing within the {timeout}s total budget.', flush=True)
-                        last_quiet_notice = now
         except (TimeoutError, KeyboardInterrupt) as error:
+            if isinstance(error, TimeoutError) and operation == 'push' and now - last_activity >= PUSH_IDLE_TIMEOUT:
+                print(f'Docker push: no new CLI output for at least {PUSH_IDLE_TIMEOUT}s.', flush=True)
             process.kill()
             process.wait()
             print(f'Docker {operation}: stopped after {time.monotonic() - started:.1f}s.', flush=True)
