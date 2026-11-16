@@ -2,7 +2,22 @@
 
 日期：2026-11-15
 
-状态：数据与导入代码已合入主项目；**尚未导入运行数据库**，等待有 staff Token 或服务器/数据库访问权限的同学执行。本文只描述导入操作，不把 CI 通过写成线上数据已导入。
+状态（2026-11-16 更新）：**943 道题已导入现有演示服务的 SQLite 数据库**；重复导入、真实网关目录查询、正式检索与练习会话创建已通过。原 2026-11-15 交接内容保留为操作说明；实际执行证据见下文，不以 CI 通过代替数据验收。
+
+## 2026-11-16 导入签收
+
+- 授权：项目用户在本次会话明确确认，已核实允许用于本项目线上题库和面试检索，按 `allowed` 导入。凭证由项目方保管，本仓库不附原件；不将会话确认写成助手已独立审阅原件。
+- 执行：Codex 按用户授权，通过既有严格主机密钥核验 SSH 通道，在运行中的 `cs-career-guide-backend` 调用 `import_catalog --kind questions`。没有 staff 用户，沿用命令已有 `management-command` 系统 actor；未创建管理员、读取已有 Token 或修改账号权限。
+- 环境：现有演示服务器 `123.207.252.243`，后端健康；SQLite 文件 `/data/cs-career-guide.sqlite3`，导入前题库 0 条。后端镜像 ID 为 `sha256:6d739130e365c9f08319418caccb3c0af1a0c5281250286d15a1b84ff8deb656`；包含导入命令，不为本次导入重新部署或切换数据库。
+- 备份：2026-11-16 09:22:28（北京时间），使用 SQLite backup API 创建 `/data/catalog-backups/before-xiaolincoding-20261116T012228Z.sqlite3`，1,454,080 字节，权限 `0600`，`PRAGMA quick_check=ok`；SHA-256 为 `8b77a79f00de115353e86240bc33be81dd83a4f1f2a3332e7ec4cd2274672b41`。备份留在服务器持久卷，不下载或入库；完整库恢复会覆盖后续数据，不能默认用备份整体替换当前库。
+- 数据文件 SHA-256：`d5b4d0834c70558d933367f71afe13453506c5499fc56819d2f463660b0f507c`。本地离线校验 943/943 通过，重复去重键与重复题干均为 0；服务器接收后再次校验同一 hash，数据临时文件随命令结束清理。
+- 线上 dry-run：`created=943 updated=0 unchanged=0`，前后计数均为 0；正式导入：`created=943 updated=0 unchanged=0`；第二次正式执行：`created=0 updated=0 unchanged=943`。最终 `xl-` 前缀记录与全表计数均为 943，全部 `allowed`、`is_demo=false`，来源、来源链接和采集时间完整。
+- 索引：首次 `index_notification=not_configured`，重复执行 `not_required`；这是既有 ORM 检索架构的预期行为，不代表已建立向量索引。
+- 实际 HTTP 验收：后端容器通过 `gateway:8080` 访问现有网关与 Gunicorn，匿名目录查询返回 401；带临时验收 Token 的 `catalog/questions/?role=Java后端&topic=集合&page_size=1` 返回 200、`count=69` 且来源/采集时间完整。正式 `questions/retrieve/` 使用 `ArrayList` 与集合主题返回 200、1 条 `origin=catalog` 且带来源链接；底层 `DjangoQuestionRetriever` 同样命中。
+- 练习验收：使用本次正式检索回执和题目 ID 创建练习会话，返回 200、1 条目录题快照；重复同一请求返回同一会话。临时普通用户、临时 Token 与其练习记录已删除并核对不存在；没有提交答案或调用反馈/总结模型。
+- 范围限制：未做浏览器页面点击、真实模型、MySQL 或成员2评估基线重跑；不代表所有16主题/全部难度的检索质量已验收。自由模拟面试继续使用 legacy 主链路，本次没有将其改接题库。
+
+原第9节为交接模板：本次已完成授权确认、备份、dry-run、正式导入、幂等与 API/练习创建验证；浏览器验证和成员2/成员4后续质量评估仍待对应成员执行，本次未代发通知。
 
 ## 1. 已完成
 
