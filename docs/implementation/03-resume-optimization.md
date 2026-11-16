@@ -1,6 +1,6 @@
 # 成员3：简历 NLP 与有依据的建议
 
-> 2026-11-16 简历首版已部署，发布证据及真实模型限制见 deployment-status.md。下文早期501和未部署记录为历史快照；新增不填JD的通用优化候选，行为与本地验收见文末；发布/部署以运维记录为准。
+> 2026-11-16 通用优化与岗位定向优化均已部署，发布证据及真实模型限制见 deployment-status.md。下文早期501、候选和未部署记录为历史快照；不填JD的通用优化及本次线上验收见文末。
 
 ## 2026-11-15 优化入口并入简历工作台
 
@@ -333,5 +333,25 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
   "scope": "简历分析共享输入允许省略JD；前端默认通用优化，可选岗位定向。前端116项、简历专项18项、固定五模块complete17项及生产构建通过；浏览器验证空JD分析、模式切换与历史、草稿隔离、伪造编辑拒绝和确认写回，1440/390px无溢出或运行时异常。",
   "limitations": "本地模型为替身，不代表真实模型质量；尚未在本轮运行Actions、发布或部署，后续证据另记deployment-status.md。保守改写仍限技能/自评；STAR仅原文预览，不自动写回子项。无新增迁移。",
   "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; output/resume-general-complete.json; output/playwright/resume-general-check.js（output为本机产物）"
+}
+```
+
+### 2026-11-16 通用优化线上验收
+
+`edb797e`已使用Actions验证归档完成服务器侧备用发布，并依次激活后端/前端；发布失败历史、镜像身份与实际digest见[运维记录](../deployment-status.md)和[脱敏交付证据](../releases/2026-11-16-resume-general.json)。正式Actions运行43820801261仍为失败，不用手动发布覆盖其结果。
+
+真实gateway HTTP加已配置模型的合成简历验证22.2秒通过：省略JD分析200、STAR缺成果留空、原键分析回放、历史、技能/自评建议确认写回、版本+1、回执回放；伪造Redis/50%的编辑被拒绝。临时账号及关联数据已删除。该单样本不代表总体模型质量；此前独立进程的通用32.9秒/岗位16.8秒两样本亦不替代评估集。
+
+公网浏览器使用真实API和另一临时账号，确认分析按钮在空JD下可用、来源预览与保存版本一致、未保存草稿不进入来源、岗位模式空JD明确提示，1440/390px无溢出或pageerror、无GLB请求；无API拦截，本次浏览器未调用模型。浏览器账号已删除。STAR子记录仍仅预览，确认写回仍限主表技能/自评。
+
+```acceptance-record
+{
+  "commit": "edb797ef26b8881b3ca2b2e94eaf1e7c17afb41d",
+  "command": "python output/run_resume_general_http.py; python output/run_resume_live_browser.py; python output/cleanup_resume_browser_user.py; python output/verify_resume_source_release.py",
+  "result": "passed",
+  "environment": "2026-11-16；已部署演示服务器；真实gateway HTTP和已配置模型；公网Chromium使用合成账号和真实API",
+  "scope": "省略JD分析、STAR留空成果、分析/应用回放、历史、伪造编辑拒绝及确认写回；浏览器来源、按钮、草稿隔离、岗位必填和双尺寸；两个临时账号已清理",
+  "limitations": "真实模型仅一份线上合成简历，22.2秒，不代表总体质量。浏览器未调用模型。写回仅主表技能/自评，STAR子项仅预览。手动备用发布成功，不代表失败Actions成功；PR50的自动发布复验另记运维状态。output脚本和浏览器产物为本机忽略文件。",
+  "evidence": "docs/releases/2026-11-16-resume-general.json; docs/deployment-status.md"
 }
 ```
