@@ -1,5 +1,14 @@
 # 演示部署验收状态与接手记录
 
+## 2026-11-16 MySQL知识点检索与BM25双端上线
+
+- PR #54合并至 `7c429bde8197f9af22f529b73dc463801ec66c1b`，功能提交为 `b4ab16c`。master运行 [43842334129](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/43842334129) 整体success，双端检查、SQLite/MySQL业务验收、双镜像、网关/持久化联调、双端发布、双端部署及summary成功。本次上传正常完成，不表示历史ACR卡顿根因已解决；180秒连续无CLI输出终止规则保留。
+- 下载核对两份publisher记录均complete=true、commit一致。服务器frontend/backend/gateway均running/healthy，前后端配置镜像引用与各自发布reference一致：frontend为 `sha256:c6068c3fdb7bc2c6b5b9c67150a5557d1940dc54b41e77c5e41838f71b440156`，backend为 `sha256:81592720271d470d8524b1770bc7fb6cd1bd61b8fae698dda06d02b9d99a1d42`；gateway仍为 `sha256:91fc9c3924b93f76adc9cd36a0bb93e53885ff8e97df10233caa45bb432789a5`。
+- 临时账号从后端容器通过实际gateway HTTP验证：目录mysql/MySQL/MYSQL均200、count=140；正式mysql检索200、5题、题目分类均为数据库，大小写变体排序和分数一致；Redis检索4题；未知知识点0题；仅按岗位浏览5题且score均0。mysql的5题分数约为0.583/0.511/0.502/0.460/0.459，是检索相关度，不是答题成绩。持原回执创建练习200、5道题目快照保留数据库分类；匿名目录401。账号和关联练习已删除，allowed题数仍943，未调用生成模型。
+- 开发电脑请求公网 `/resume?tab=optimize`、`/career-platform/practice` 及实际懒加载资源均200；简历资源含通用优化/岗位定向优化/无需JD/STAR，练习资源含“检索相关度”。后端只读检查确认JD可选、空JD进入general。这是HTTP、资源和代码检查，不是本轮登录后浏览器交互、App设备或真实模型验收；服务器内部gateway验证也不等同于公网带Token请求。
+- 正式检索当前为字段加权BM25词法排序，未启用Embedding/LanceDB。目录topic按规范分类优先、无分类则内容包含匹配；正式检索采用分词关键词约束，两个接口结果不保证相同。离线评估API的四种已注册策略仍为覆盖率基线，不能代表生产BM25质量。无关误召、语义召回、多worker共享回执和STAR子项写回仍有未完成边界。
+- 脱敏本机证据：`output/mysql-rag-release/`、`output/mysql-rag-live.json`、`output/mysql-rag-live-runtime.json`、`output/resume-and-practice-assets-live.json`（均为忽略目录产物）。App接口约定已同步至[接入文档](app-api.md)，历史失败及此前模型验收记录保留，不以本次成功覆盖。
+
 ## 2026-11-16 后端发布补齐与推送卡顿核验
 
 - PR #52已合并为`b7206e66dc1bfc79a8c6ff5aa63c7129031bfe57`。运行43831847945的双端检查、镜像与网关/持久化联调通过，frontend发布/部署成功；backend发布失败、自动部署跳过，整条Actions结论仍为failure。

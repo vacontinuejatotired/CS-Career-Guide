@@ -1,6 +1,6 @@
 # App 端 API 接入文档
 
-> 2026-11-16 更新：通用简历优化接口已合入本 fork `master` 的 `edb797e`，输入与限制见第10节。接口实现、镜像发布、部署和真实模型验收分别记录于[运维状态](deployment-status.md)。下文2026-11-12基于`208aae8`的curl及目录501为历史快照，不能据此判断当前线上能力；联调前按目标环境重新验证。
+> 2026-11-16 更新：以本 fork `master` 的 `7c429bd` 为代码基线，扫描上次文档提交 `1338a8e` 之后的提交，并将此前散落在文末的题库集成说明归入对应接口。当前包含通用简历优化、BM25 正式题库检索、关键词知识点兜底、自由面试来源尾注和 943 题离线评估；更新范围见第14节。实现、CI、部署与真实模型验收分别记录于[运维状态](deployment-status.md)。下文2026-11-12的目录501仅为历史快照。
 
 本文面向 Android、iOS、Flutter、uni-app 等客户端开发者。App 复用 Django API、DRF Token 和现有流式协议，没有独立的 `/app/` 前缀。需求与分工仍以[当前需求方案](career_platform_plan.md)为准。
 
@@ -19,6 +19,7 @@
 - [11. 管理员接口](#11-管理员接口)
 - [12. 错误、重试与联调检查](#12-错误重试与联调检查)
 - [13. 代码定位与维护](#13-代码定位与维护)
+- [14. 本次提交扫描与兼容变化](#14-本次提交扫描与兼容变化)
 
 ## 1. 接入约定
 
@@ -26,7 +27,22 @@
 
 由后端交付人员提供当前环境的可访问地址。本文不把开发地址、历史服务器地址写成生产入口。
 
-**当前演示入口（2026-11-12 实测）**：`API_BASE_URL = http://123.207.252.243/api`。公网 `GET /api/users/profile/` 不带 Token 返回预期 JSON 401，响应含 `WWW-Authenticate: Token`。只读 SSH 确认 gateway、frontend、backend 容器均 healthy；gateway 映射宿主 80/48080 到容器8080。服务器本机访问48080同样返回预期401，但本次从开发电脑访问公网48080连接超时，App 联调优先用已确认可达的80端口。以上仅验证网关到后端及匿名鉴权，不覆盖登录后的业务、真实模型、当前运行镜像与代码基线的一致性或HTTPS；当前确认入口使用HTTP。
+**演示入口**：`API_BASE_URL = http://123.207.252.243/api`。2026-11-16 的 `7c429bd` 已完成双端发布、部署，运行镜像引用与该次发布记录一致，三容器 healthy。开发电脑访问 `/resume?tab=optimize` 和 `/career-platform/practice` 及其脚本资源为200；这些页面检查不代表登录后交互或模型验收。
+
+2026-11-16 使用临时账号从后端容器请求实际部署的 gateway HTTP，验证以下业务；账号及其练习数据已清理，未调用生成模型。此检查覆盖 gateway 到后端和当前数据库，**不等同于 App 设备经公网访问的完整验收**。
+
+| 请求 | HTTP / 已验证行为 |
+| --- | --- |
+| `GET /api/career-platform/catalog/questions/?topic=mysql&page_size=5`，以及 `MySQL`、`MYSQL` | 均200，当前数据各命中140条；这是本次数据快照，不是固定接口数量 |
+| `POST /api/career-platform/questions/retrieve/`，role=`Java后端`、topic=`mysql`、difficulty=`easy` | 200，返回5题，实际题目分类为`数据库`；大小写变体的顺序与分数一致 |
+| 同检索接口，未知知识点 | 200，count=0 |
+| 同检索接口，仅岗位、不填知识点/JD | 200，返回候选，score均为0，表示条件浏览 |
+| `POST /api/career-platform/practice-sessions/`，携带上述mysql回执 | 200，题目快照保留`数据库`分类 |
+| 匿名 `GET /api/career-platform/catalog/questions/` | 401 |
+
+通用简历优化此前已通过真实网关HTTP与模型的单份合成简历验证，见第10节；本次只核对代码、部署和资源，不重复调用模型。临时数据检查不改变现有用户材料。历史证据和当前限制见[运维状态](deployment-status.md)。
+
+**2026-11-12 历史接入检查**：当时公网 `GET /api/users/profile/` 不带 Token 返回预期 JSON 401，响应含 `WWW-Authenticate: Token`。只读 SSH 确认 gateway、frontend、backend 容器均 healthy；gateway 映射宿主 80/48080 到容器8080。服务器本机访问48080同样返回预期401，但从开发电脑访问公网48080连接超时，App 联调优先使用80端口。该历史检查没有覆盖HTTPS。
 
 **线上带 Token 的 curl 实测（2026-11-12）**：使用单次临时虚构账号，依次执行下列请求；未调用模型或创建练习/回答，账号及其 Token 已清理。结果为本次部署快照，不代替以后重新验证。
 
@@ -102,10 +118,10 @@ App 只保存业务 Token；模型、ASR、TTS、数据库凭据留在后端。�
 | --- | --- | --- |
 | 账号、资料、简历 CRUD | 已实现 | 可先接入基本表单和用户隔离 |
 | 正式企业/岗位/题库目录 | 已实现 | 走 `career-platform/catalog`；数据取决于环境导入 |
-| 正式题库检索 | 已实现 | 当前为数据库题库上的文本检索，无需模型；不宣称已接向量检索 |
+| 正式题库检索 | 已实现，7c429bd已部署 | 数据库题库 + 字段加权BM25；无需生成模型，未启用Embedding/LanceDB；见第6节 |
 | 逐题回答、反馈、结束总结、历史 | 已实现 | 反馈/总结依赖后端模型；失败后按状态恢复 |
 | 独立演示检索 | 已实现，只读虚构材料 | 与正式练习区分；结果不能用来创建正式练习 |
-| 自由模拟面试 | 已实现 legacy 主链路 | `POST /api/ai/llm/chat/` + SSE；客户端组织提示词 |
+| 自由模拟面试 | 已实现 legacy 主链路，技术追问已接题库 | `POST /api/ai/llm/chat/` + SSE；客户端组织提示词，服务端检索最多3题并追加来源尾注 |
 | ASR/TTS | 已有实现，依赖后端配置 | ASR 上传 PCM；TTS 随聊天 SSE 返回，不存在独立 TTS 路由 |
 | 职业路径、招聘列表、建议 | 已实现 | 不同数据源/字段模型，分别接入 |
 | AI 职业推荐/规划 | 已有实现，依赖模型/检索配置 | 存在回退和历史返回差异，见第 9 节 |
@@ -222,9 +238,11 @@ DRF 还挂载了 `/api/resumes/` 的 GET/POST 和 `/api/resumes/{id}/` 的 GET/P
 | --- | --- | --- |
 | `/api/career-platform/catalog/companies/` | `city, q, page, page_size` | q 搜企业名、行业、介绍 |
 | `/api/career-platform/catalog/jobs/` | `city, role, q, page, page_size` | role 搜标题/JD；q 也搜公司名 |
-| `/api/career-platform/catalog/questions/` | `role, topic, difficulty, q, page, page_size` | role/topic/difficulty 为精确条件；q 搜题干/答案等 |
+| `/api/career-platform/catalog/questions/` | `role, topic, difficulty, q, page, page_size` | role/difficulty 不区分大小写精确匹配；topic 优先匹配规范分类，未命中时按内容包含匹配；q 搜题干/答案等 |
 
 q 最大 500，city/role/topic 最大 100；difficulty 为 `easy|medium|hard`。企业不能附带 role/topic/difficulty，岗位不能附带 topic/difficulty，题目不能附带 city，否则 400。省略无筛选条件，不传空字符串占位。仅返回 `permission_status=allowed`；岗位另外排除已过 `valid_until` 的记录。空库正常返回 count=0，不自动导入样例。
+
+题目目录的 topic 在当前角色筛选结果中优先做不区分大小写的分类匹配；没有该分类时，在 topic、题干、参考答案、category、role、tags 中按完整输入字符串做包含匹配。例如 `topic=mysql` 可查出 `topic=数据库` 的题，也可能包含其他分类中提及MySQL的题。q 搜题干、参考答案、topic、category、role，与其他条件取交集。目录按 `created_at,id` 升序分页，**没有BM25排序，也不返回score或retrieval_id**；要按相关度选题并创建练习，使用第6节正式检索。
 
 ```http
 GET /api/career-platform/catalog/questions/?role=Java%E5%90%8E%E7%AB%AF&difficulty=easy&page=1&page_size=20
@@ -246,6 +264,8 @@ GET /api/career-platform/catalog/questions/?role=Java%E5%90%8E%E7%AB%AF&difficul
 
 目录题目查询目前包含 `reference_answer`，客户端若做练习应自行按交互控制展示时机；正式检索和练习快照不返回该独立字段。`is_demo=true` 的数据必须展示演示标识。不要将 `/career-evaluation/computer-careers/` 的整数 ID 当作本目录 `job_id`，它们属于不同表。
 
+当前导入题库的简短来源为 `小林coding · xiaolincoding.com`，已移除括号内的成员授权声明。客户端使用响应中的 source/source_url，不硬编码来源名称、不删除原始链接；本次显示文字调整未改变题目ID、许可状态或原始链接。
+
 ## 6. 正式题库练习与记录
 
 以下接口都在 `/api/career-platform/` 下，成功均为 **200**，包括创建会话、回答和结束；不要只按 201 判断创建成功。检索不调用生成模型，回答反馈与结束总结为同步 JSON 请求，没有 SSE。
@@ -257,7 +277,7 @@ GET /api/career-platform/catalog/questions/?role=Java%E5%90%8E%E7%AB%AF&difficul
 | 字段 | 类型 | 必填/默认 | 约束 |
 | --- | --- | --- | --- |
 | role | string | 必填 | 最大 100，填写目录里的岗位方向 |
-| topic | string | 可省略/空 | 最大 100 |
+| topic | string | 可省略/空 | 最大 100；优先规范分类，无对应分类时作为内容关键词，详见下文 |
 | difficulty | string | 默认 easy | easy/medium/hard |
 | job_id | integer | 可选 | 正式目录岗位正整数 ID |
 | jd_text | string | 可选/空 | 最大 20000，与 job_id 不可同时非空 |
@@ -284,9 +304,23 @@ GET /api/career-platform/catalog/questions/?role=Java%E5%90%8E%E7%AB%AF&difficul
 }
 ```
 
-score 为文本排序分，不是面试成绩。无命中仍为 200，`count=0/results=[]`，message 提示调整条件。本轮候选检索结果的 `collected_at` 来自题库采集时间，缺失时仍为 null；题目实际岗位、知识点与难度不被空筛选条件覆盖。部署状态见带日期的验收记录。
+正式检索当前由 `DjangoQuestionRetriever` 从数据库读取allowed题目，用字段加权BM25排序；题干/标签/参考要点/参考答案权重为4/3/2/1，英文数字按词、中文连续字符按相邻二字切分。没有Embedding向量召回或语义重排，换一种说法且词面不重合时仍可能漏召。演示接口和内置评估策略保持原覆盖率基线，不与正式BM25分数混用。
+
+检索文本优先取岗位 description（空时取requirements）或输入jd_text，再回退topic/role。role和difficulty用于不区分大小写的精确筛选；topic若在allowed题库中存在对应规范分类，同样严格按分类筛选。无对应分类时，将topic追加为查询词并取消分类硬筛选，要求其每个分词都在候选题干、标签、要点或答案中出现。返回题目的topic仍是原分类；例如输入 `mysql` 可返回 `数据库`。与第5节目录的整串包含查询规则不同，两者数量和顺序可以不同。
+
+只有role且未提供有效JD/知识点时，返回条件浏览结果，score=0且按题目ID稳定排序；非空文本有匹配时才计算排序分。score在0到1之间，是BM25原始加权分单调映射后的检索相关度，**不是答题成绩、匹配概率或模型置信度**。同分按题目ID字符串升序，允许合理并列，不要求每道题的分数都不同；不同查询之间不作绝对能力比较。
+
+无命中仍为200，`count=0/results=[]`，message提示调整条件。不要只按HTTP200判断有题，也不要静默替换为无来源的生成题。`collected_at`来自题库采集时间，缺失时为null；role/topic/difficulty保留题目实际值，不被用户输入关键词覆盖。参考答案可参与服务端排序，但不会作为独立字段返回正式检索结果。
+
+按关键词检索后创建练习的请求示例（UUID需由客户端生成）：
+
+```json
+{"role":"Java后端","topic":"mysql","difficulty":"easy","top_k":5,"request_id":"10000000-0000-4000-8000-000000000006"}
+```
 
 返回 `retrieval_id` 为绑定当前用户的缓存回执，默认有效 900 秒，可由后端 `PRACTICE_RETRIEVAL_TTL` 调整。缓存丢失/过期后创建练习可能 409；重新检索后使用新回执和新的创建 request_id。不要把 receipt 当作可长期收藏记录。
+
+当前默认LocMemCache不跨worker共享；多worker部署下回执可能因请求落到不同进程而失效。客户端按409重新检索恢复，不能将重复失败伪装成练习已创建；跨进程缓存属于后端尚待完善的部署能力。
 
 ### 6.2 创建会话
 
@@ -303,7 +337,9 @@ score 为文本排序分，不是面试成绩。无命中仍为 200，`count=0/r
 }
 ```
 
-有回执时，role/topic/difficulty 必须与检索一致，question_ids 必须属于该回执。不带回执也可从正式目录选题，后端重新检查题目存在、allowed、角色/知识点/难度匹配。客户端不上传题目正文、参考答案或快照。岗位和简历快照由后端生成。
+有回执时，role/topic/difficulty 必须与原检索请求逐字一致，不能改成返回题目的分类或改变大小写；question_ids必须属于该回执，并保持检索顺序，可选有序子集，重排为400。已删除或许可撤回的题返回409且不创建会话。例如用topic=`mysql`检索得到topic=`数据库`的题，创建时仍传`mysql`和原retrieval_id，历史题目快照保留`数据库`。
+
+不带回执也可从正式目录选题，后端重新检查题目存在、allowed、角色/知识点/难度；**此路径按题目原字段区分大小写精确匹配，不支持关键词topic兜底**。题目不存在404，许可或筛选不符400，score为null。按mysql关键词检索后的选题应携带回执，不能直接把mysql作为原分类提交。客户端不上传题目正文、参考答案或快照。岗位和简历快照由后端生成。
 
 同一用户、同一创建 request_id、相同输入返回原会话；同键不同输入返回 409。成功返回完整 `<PracticeSession>`：
 
@@ -341,7 +377,7 @@ answer 为非空文本，最大 20000；question_id 和 request_id 为 UUID。�
 | feedback | 成功的反馈对象；未成功通常 `{}` |
 | created_at、updated_at | ISO 时间 |
 
-feedback 字段：`answer_quote` 为实际回答中的原文片段，`key_points_covered[]` 为覆盖点，`missing_points[]` 为待补点，`evidence[]` 为题目来源证据，`follow_up` 为字符串或 null。客户端容忍数组为空，不从空反馈自行生成分数。
+feedback字段：`answer_quote`为实际回答中的非空原文片段，`key_points_covered[]`为覆盖点，`missing_points[]`为待补点，两者引用会话题目快照的参考要点；`evidence[]`为对应要点的逐字证据，`follow_up`为null或最多2000字符的非空生成追问。客户端容忍单个数组为空，不从空反馈自行生成分数。模型内部选择要点序号，服务端据此组装公开文本和证据；App只解析这里的公开字段，不发送或依赖covered_indices/missing_indices内部字段。引用校验不等于模型对回答的语义判断已经正确。
 
 同一回答 request_id 的相同输入只回放，不重复调用模型；同键不同输入为 409。同一道题换新 request_id 再提交也会 409，当前未实现“再答一次”。已结束会话不接受新回答。
 
@@ -409,12 +445,16 @@ feedback 字段：`answer_quote` 为实际回答中的原文片段，`key_points
 
 面试开始、追问、计时、简历文本和复盘对话由客户端组织。后端不提供 `durationMinutes` 字段或自动结束接口，也不会替 App 读取设备上的简历。可先查 `/resumes/my/`，再将需要的摘要加入 message。完整网页兼容提示词见 `frontend/src/features/interview/legacy/implementation.js`。
 
+自由面试已接入同一正式题库BM25检索，但保留legacy交互及旧聊天记录。开场和自我介绍后的项目邀请不检索；已有至少两轮历史后的追问，取本轮实际回答最多2000字符检索Top3题目，将题干、参考要点和来源提供给模型；此入口不传第6节的role/topic/difficulty筛选。复盘不重新检索。它不创建PracticeSession，也不返回retrieval_id；生成追问可能结合回答改写，不能宣称逐字来自题库。
+
 ### 7.2 SSE 帧与完成顺序
 
 ```text
 data: {"type":"chunk","content":"你好，"}
 
 data: {"type":"chunk","content":"请介绍你的项目。"}
+
+data: {"type":"chunk","content":"\n\n本轮题库检索参考（追问由模型结合回答生成）：\n<实际来源与链接>"}
 
 data: {"type":"audio","audio":"<Base64编码的MP3片段>"}
 
@@ -431,6 +471,8 @@ data: {"type":"end","session_id":"<本次会话字符串>"}
 | error | content 为错误描述，保留已收到文字并展示失败 |
 | `[DONE]` | 非 JSON 标记；继续读取后续 end 事件 |
 | end | 保存 session_id；流仍以连接结束作为读取结束 |
+
+示例表示可能收到的帧；audio仅在显式开启且服务端可用时出现，其与正文的到达顺序不作保证。技术追问的模型文本非空时，服务端会在正文后、`[DONE]`前追加题库状态尾注，仍为普通chunk，**没有新增source事件或结构化source字段**。命中时列出实际参考来源；无命中时说明“本轮未命中题库，追问由模型结合回答生成”；异常时说明题库检索暂不可用。App须拼接全部chunk，不能按JSON来源对象解析或丢弃最后一块。尾注一并保存到AIChatPair输出；开场、项目邀请与复盘不追加该尾注。它表示提供给模型的参考，不能证明生成追问与某道原题一一对应。
 
 **当前代码先发 `[DONE]`，后保存对话，再发 end。收到 `[DONE]` 就关闭连接会丢 session_id。** App 使用支持 POST、认证头和字节流的 HTTP 客户端；不要假定标准 EventSource GET 即可调用。按 UTF-8 增量解码，按空行分帧，处理一个网络块含多帧、单帧跨块、中文跨字节块及 CRLF。参考网页 `legacy/stream.js`。
 
@@ -585,6 +627,8 @@ company-info 对象采用另一套字段：`id,title,company,salary,tags[],jobDe
 
 2026-11-16已部署分析、历史和确认应用，通用模式通过真实gateway HTTP与模型的单份合成简历验收；证据及限制见[运维状态](deployment-status.md)。分析只读取当前登录账号已保存简历，未保存草稿不参与；模型使用既有后端配置。岗位模式的技能匹配采用有限技能词典和原文证据，缺项表示未找到文本证据，不是能力评分。主表仅允许改写`skills`、`self_evaluation`，其他字段和子记录不自动修改。
 
+全部成功响应均为200，包括分析和确认应用；这是同步JSON流程，没有SSE。网页入口为 `/resume?tab=optimize`，旧 `/career-platform/resume` 重定向至该入口，API路径不变。App自行提供模式选择，不需要沿用网页路由。
+
 | 方法与路径 | 当前校验输入 |
 | --- | --- |
 | `GET /api/career-platform/resume-analyses/` | 通用 Query |
@@ -594,13 +638,49 @@ company-info 对象采用另一套字段：`id,title,company,salary,tags[],jobDe
 
 分析返回 `{id,status,base_revision,resume_snapshot,jd_text,job_snapshot,result,model_version,prompt_version,created_at}`。`result` 包含 `matches`、`gaps`、`matching`（关键词匹配版本与原文证据）、`suggestions`、`star_reviews`。列表返回 `{count,page,page_size,results}`，详情保持原快照；全部按当前用户隔离。
 
-2026-11-16 新增通用优化：省略或传空 `jd_text` 且无 `job_id` 时，仅根据当前账号已保存简历整理表达和STAR，`matches/gaps/evidence`为空，`matching.version=not-applicable`，不做岗位能力判断。有JD或获允许的岗位时沿用原关键词匹配；岗位内容为空仍400。返回的`jd_text`可区分历史记录的模式，原有非空JD调用方式继续兼容。两种模式的事实校验、人工选择应用、版本与幂等规则相同，尚不支持自动改写项目/工作经历子记录。
+模式由JD和岗位推导，**请求不接受mode、analysis_mode、resume_snapshot或简历全文字段**，附带未知字段会400。输入规则如下：
+
+| 输入 | 行为 |
+| --- | --- |
+| 不传job_id，省略jd_text或传空/纯空白 | 通用优化，仅依据已保存简历 |
+| 不传job_id，jd_text为非空文本 | 岗位定向优化，使用输入JD |
+| 传job_id | 查找allowed岗位，将description与requirements合并为JD；不存在404、来源未allowed或合并后无内容400 |
+| 同时传job_id和jd_text | 本简历接口以岗位内容为准，输入JD不用于生成；客户端应二选一。第6节检索/练习接口同传非空值则400，不要混用规则 |
+
+通用优化的 `result.matches`、`result.gaps`、`result.matching.evidence` 为空数组，`result.matching.version="not-applicable"`，不做岗位能力判断；**不是所有建议的evidence都为空**。每条改写建议仍须提供简历原文证据。岗位模式matching为 `{matches,gaps,evidence,version:"skills-v1"}`，evidence每项包含skill/source_id/field_path/quote。返回的jd_text可区分历史记录模式，原有非空JD调用方式兼容。当前prompt_version为 `resume-star-extractive-v2`，客户端不以版本字符串代替结果状态判断。
+
+建议接入流程：先GET `/api/resumes/my/`读取当前edit_revision，展示实际保存内容；分析时带该版本和独立request_id。省略JD的通用请求示例（这里假设刚读到版本0）：
+
+```json
+{"resume_revision":0,"request_id":"10000000-0000-4000-8000-000000000007"}
+```
+
+岗位定向请求示例：
+
+```json
+{"resume_revision":0,"jd_text":"使用Java和MySQL开发后端接口。","request_id":"10000000-0000-4000-8000-000000000008"}
+```
+
+分析成功后默认不选中任何建议，向用户展示original/suggested/reason/evidence及STAR预览。仅在用户确认后POST对应分析ID的apply入口；accepted_suggestion_ids取该次响应中的建议UUID，suggestion_edits的键只能是本次已选建议UUID，省略编辑项表示采用原建议。示例（UUID和版本均须替换为实际响应值）：
+
+```json
+{
+  "base_revision":0,
+  "accepted_suggestion_ids":["40000000-0000-4000-8000-000000000001"],
+  "suggestion_edits":{"40000000-0000-4000-8000-000000000001":"使用Java开发接口，使用MySQL存储数据。"},
+  "request_id":"10000000-0000-4000-8000-000000000009"
+}
+```
+
+该编辑文本仅为格式示例，实际仍须通过对应简历原文事实校验；任意润色、新技能、新数字可能被拒绝。没有建议时显示分析结果和补充问题，不发送空accepted_suggestion_ids。通用模式不会自动将整份简历改写成新稿，项目/工作STAR仍仅预览，需回编辑区修改保存。
 
 建议保留 `{id,field_path,original,suggested,reason,evidence}`。首版保守规则要求去除有限连接词与标点后的文字保持一致、数字逐项保持一致，理由最多120字符；它限制改写范围，不是通用语义事实验证器。证据必须逐字引用同一简历的目标字段。模型建议不符合规则返回400且不保存分析，格式解析失败502，模型不可用503，超时504。
 
 `star_reviews` 按项目/工作描述提供 `{field_path,source_id,label,sections,missing,questions,text}`，最多20段。`sections` 为 `situation/task/action/result`，每项只允许不超过120字符的原文摘录，缺少依据为空字符串并给出补充问题；`text` 由服务端用已有摘录组成，不补造结果或数字。STAR整理仅供预览，不通过apply写回子记录；模型未提供的槽位显示待补充，不能据此断言原简历没有相关事实。
 
 应用返回 `{id,analysis_id,status,accepted_suggestion_ids,applied_revision}`。事务锁定用户及简历，比较版本与完整快照，重新检查用户编辑，仅写所选主表字段并递增一次版本。`request_id` 相同且输入相同复用回执，输入不同409；旧快照409且零写入。SQLite锁竞争或MySQL死锁/锁等待失败返回409，可显式使用原请求键重试。迁移0004为应用回执新增 `input_payload`，存储用于幂等比对的输入；并非对线上自动执行迁移的授权。普通旧简历CRUD仍是原保存协议，跨页签旧草稿覆盖需另行完善；当前工作台应用后阻止旧编辑区直接保存，须用户明确加载新版本。详见[成员3实施文档](implementation/03-resume-optimization.md)。
+
+分析同request_id且相同输入回放已保存结果，改JD/岗位/版本须换键；模型失败不会保存成功分析，也不修改简历。模型调用期间简历变化仍会409。应用响应丢失时，使用原键与完全相同输入重发以取回回执，不把旧版本冲突直接当作成功。应用成功后重新GET简历，并提示用户确认再替换编辑草稿；不能拿应用前草稿立即覆盖新内容。相同分析请求并发仍可能重复调用模型，但只保存一条成功记录，客户端须阻止并发提交。
 
 ## 11. 管理员接口
 
@@ -629,15 +709,32 @@ company-info 对象采用另一套字段：`id,title,company,salary,tags[],jobDe
 | `GET /api/career-platform/evaluation-runs/{id}/` | UUID详情，仍限制本人记录 |
 | `GET /api/career-platform/evaluation-runs/{id}/export/` | JSON导出，不是CSV/附件流，不重新跑评估 |
 
-创建字段：`dataset_version`（最大100）、`task=job|resume|question`、`strategy`（最大100）、`parameters`（默认{}）、UUID request_id。当前只内置 question 评估集和 `text-baseline/text-balanced` 策略；task 枚举可接受 job/resume 不表示已有对应数据集。parameters 当前只接受 `k`（整数1–20，默认5），不接受 top_k/阈值等任意参数。
+创建字段：`dataset_version`（最大100）、`task=job|resume|question`、`strategy`（最大100）、`parameters`（默认{}）、UUID request_id。当前只内置question任务；task枚举可接受job/resume不表示已有对应数据集。parameters只接受 `k`（整数1–20，默认5），不接受top_k/阈值/scoring等任意参数。
 
-当前内置版本为 `java-eval-dev-v1`（调参）与 `java-eval-test-v1`（冻结测试）。示例：
+数据集和策略须按语料配对，混用或语料指纹不一致为400且不保存运行：
+
+| 数据集版本 | 可配策略 | 说明 |
+| --- | --- | --- |
+| `java-eval-dev-v1` / `java-eval-test-v1` | `text-baseline` / `text-balanced` | 20道自编题的冻结语料；dev调参，test报告结果 |
+| `xiaolin-eval-dev-v1` / `xiaolin-eval-test-v1` | `xiaolin-baseline` / `xiaolin-balanced` | 943题冻结语料；每份8条相关查询和1条无关检测，标签未经成员2独立人工复核 |
+
+以上四种策略仍是字段词覆盖率排序，baseline权重4/3/2/1、balanced为3/3/3/1；**当前API没有注册BM25评估策略**，不能用这些结果冒充正式BM25链路的质量验收。评估不访问正式数据库题库，不调用生成模型，不会修改线上检索参数。冻结test集不能用于反向调参，无关检测结果与相关样本指标需分别查看。
+
+原Java评估请求继续兼容：
 
 ```json
 {"dataset_version":"java-eval-dev-v1","task":"question","strategy":"text-baseline","parameters":{"k":5},"request_id":"10000000-0000-4000-8000-000000000005"}
 ```
 
+943题评估请求示例：
+
+```json
+{"dataset_version":"xiaolin-eval-dev-v1","task":"question","strategy":"xiaolin-baseline","parameters":{"k":5},"request_id":"10000000-0000-4000-8000-000000000010"}
+```
+
 详情包含 `id,task,dataset_version,strategy,parameters,metrics,model_version,status,created_at,sample_count,failure_count,groups,request_id,results,metric_keys`；results 子项含 `query_id,query,group,relevant_ids,predicted_ids,metrics,failure`，可能带 unknown_ids。导出额外含 `contract_version,exported_at`。同 request_id 相同输入回放，不同输入409；未登记版本/策略400，全部样本执行失败503。
+
+响应parameters除了k，还含服务端计算的evaluation_contract、dataset_sha256、corpus_version、corpus_sha256、corpus_size；这些审计字段不属于创建请求白名单，不能整份回传。metrics只聚合有效相关样本；groups含relevant/unrelated数量，results保留无关查询预测以检查误召。按保存记录展示/导出，不在客户端重新计算或伪造评估成功。
 
 ### 11.3 旧企业维护与建议审核
 
@@ -705,6 +802,7 @@ message 可能是框架默认英文或粗粒度信息，字段原因在 details 
 | 新课程入参/错误 | `backend/career_platform/serializers.py`、`api.py`、`views/` |
 | 目录与筛选 | `backend/career_platform/catalog/service.py`、`repository.py` |
 | 正式检索/反馈 | `backend/career_platform/rag/service.py`、`retrieval.py` |
+| 自由面试题库上下文/尾注 | `backend/ai_integration/interview/catalog.py`、`legacy.py`、`service.py` |
 | 会话/幂等/总结 | `backend/career_platform/records/repository.py`、`service.py` |
 | 服务组装/实现状态 | `backend/career_platform/composition.py`、`resume/service.py`、`evaluation/service.py` |
 | 旧聊天/SSE/历史/复盘 | `backend/ai_integration/langgraph_views.py` |
@@ -714,11 +812,25 @@ message 可能是框架默认英文或粗粒度信息，字段原因在 details 
 | legacy提示词与解码 | `frontend/src/features/interview/legacy/implementation.js`、`stream.js` |
 
 接口变更与本文一起更新；需求中的目标能力和实现中的现有行为分别标注。本文不引入接口、迁移、部署或客户端代码。发现的现有字段/权限/幂等局限记录在对应章节，后续修复需要单独实现与验证。
-## 2026-11-16 题库集成候选补充
 
-以下为本轮分支实现与隔离验收结果，不代表部署已更新。
+## 14. 本次提交扫描与兼容变化
 
-- 自由面试仍使用原共享聊天SSE。技术轮检索命中时，非空回答后会多一个普通 `chunk`，以“本轮题库检索参考（追问由模型结合回答生成）”列出实际来源；之后仍为 `[DONE]`、`end/session_id`。调用方应按既有规则拼接全部文字块。开场、复盘不追加尾注；无命中或检索异常追加对应生成追问说明，不伪造题库来源。
-- 正式题库检索结果及练习快照保留题目实际 role/topic/difficulty/collected_at；evidence中可包含这些元数据。开始练习时，已删除或许可撤回的题返回409且不创建会话；question_ids须保持检索顺序，可选有序子集，重排返回400。
-- 回答与反馈公开字段不变。模型内部选择参考要点序号，由服务端组装可信快照原文与引用；非法引用仍返回502并保存原回答，可按原显式重试接口恢复。follow_up为null或至多2000字符的非空生成追问。
-- 管理员评测新增 `xiaolin-eval-dev-v1` / `xiaolin-eval-test-v1` 与 `xiaolin-baseline` / `xiaolin-balanced`。语料不匹配返回400；parameters增加实际 `corpus_sha256` 与 `corpus_size`。评测标签是未经独立人工复核的初步小样本，原Java版本仍可使用。
+本次审阅基线是 `1338a8e..7c429bd`（2026-11-16），包含8个提交，其中4个为merge；非merge提交逐项处理如下。未新增HTTP路由，不要求App切换API前缀。
+
+| 提交 | 变化及文档落点 |
+| --- | --- |
+| `b4ab16c` | 题目目录大小写/关键词topic兜底、正式BM25排序、按岗位浏览score=0、来源显示精简；第5、6节 |
+| `7142a49` | 镜像push恢复180秒连续无CLI输出超时；只影响交付工具，**不是App请求超时**，不改变API；见CI/CD文档 |
+| `0ab3398` / `eacec9f` | 自动后端发布核验、后端补发与ACR推送阻塞记录；运维历史，不新增接口 |
+
+另回看首次App文档提交 `866bddf` 后至 `1338a8e` 的业务提交，核对已有简历更新，并将旧文末“候选补充”并入正式章节，避免读者仍以为功能只在分支中：
+
+| 提交 | 当前说明 |
+| --- | --- |
+| `3837421` | 技术追问题库上下文/SSE尾注、真实要点反馈、回执题序/许可变化、943题评估集；第6、7、11节 |
+| `f379fd6` / `8c36046` | 简历分析/确认应用、可选JD、STAR预览与事实约束；第10节补充完整请求流程、示例及模式差异 |
+| `3928a78` / `dd70f28` | 已保存简历来源预览、优化入口整合、停用助手资源与本地自练题；不新增API；本地自练不写正式练习历史 |
+| `ee5aa6b` | 自由面试阶段提示词、近期上下文和网页内存恢复；不新增时长/跨端恢复字段或后端状态机 |
+| `b22a39a` | 题库CLI及HTTP导入辅助工具；管理员接口路径与JSON批量结构不变，见第11节 |
+
+本次只更新接入和运维文档；核对了上述提交差异、当前urls/serializers/service/repository及既有验收证据。第1节明确区分历史公网curl、当前部署网关HTTP和页面资源检查；新文档不将这些结果扩大为App设备、完整自由面试或模型总体质量验收。
