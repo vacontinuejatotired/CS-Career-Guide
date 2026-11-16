@@ -38,14 +38,57 @@ class DockerTimeoutError(RuntimeError):
     """A Docker command exhausted its bounded execution budget."""
 
 
+class PushDiagnostics:
+    """Emit only a fixed vocabulary, never registry output, URLs or credentials."""
+    def __init__(self):
+        self.layers = {}
+        self.errors = set()
+        self.log_chars = 0
+        self.pending = ''
+
+    def consume(self, chunk):
+        self.log_chars += len(chunk)
+        text = self.pending + chunk
+        lines = re.split(r'[\r\n]', text)
+        self.pending = lines.pop()[-4096:]
+        for line in lines:
+            match = re.fullmatch(r'([a-f0-9]{12,64}): (Preparing|Waiting|Pushing|Pushed|Layer already exists|Retrying in \d+ seconds)(?:\s+.*)?', line)
+            if match:
+                state = match[2]
+                self.layers[match[1]] = 'Retrying' if state.startswith('Retrying') else state
+            lower = line.lower()
+            for category, pattern in (
+                ('network-timeout', r'timeout|timed out|deadline exceeded'),
+                ('connection', r'connection reset|connection refused|unexpected eof|no such host'),
+                ('authorization', r'unauthorized|authentication required|denied:'),
+                ('rate-limit', r'too many requests|\b429\b'),
+                ('registry-server', r'\b50[0-4]\b|internal server error|bad gateway'),
+                ('tls', r'tls handshake|x509:'),
+            ):
+                if re.search(pattern, lower):
+                    self.errors.add(category)
+
+    def summary(self):
+        counts = {state: list(self.layers.values()).count(state) for state in sorted(set(self.layers.values()))}
+        return json.dumps(dict(layers=counts, log_chars=self.log_chars, errors=sorted(self.errors)), sort_keys=True)
+
+
 def docker(*arguments):
     operation = arguments[0]
     timeout = DOCKER_TIMEOUTS.get(operation, 120)
     started = time.monotonic()
-    # Raw Docker output can contain private registry data. Keep it in an
-    # unnamed temporary file, never echo arguments/output, and log safe stages.
+    # A second file handle observes progress without moving the child's output
+    # offset. Raw logs stay in a private temporary directory and are deleted.
     print(f'Docker {operation}: started (timeout {timeout}s).', flush=True)
-    with tempfile.TemporaryFile(mode='w+t', encoding='utf-8') as output:
+    with tempfile.TemporaryDirectory() as folder, \
+            open(Path(folder) / 'docker.log', 'w+t', encoding='utf-8') as output, \
+            open(Path(folder) / 'docker.log', 'rt', encoding='utf-8', errors='replace') as progress:
+        diagnostics = PushDiagnostics()
+        def report_progress():
+            if operation == 'push':
+                output.flush()
+                diagnostics.consume(progress.read())
+                print('Docker push diagnostics: ' + diagnostics.summary(), flush=True)
         try:
             process = subprocess.Popen(['docker', *arguments], stdout=output, stderr=subprocess.STDOUT)
         except OSError:
@@ -60,14 +103,17 @@ def docker(*arguments):
                     break
                 except subprocess.TimeoutExpired:
                     print(f'Docker {operation}: running, elapsed {time.monotonic() - started:.0f}s.', flush=True)
+                    report_progress()
         except (TimeoutError, KeyboardInterrupt) as error:
             process.kill()
             process.wait()
             print(f'Docker {operation}: stopped after {time.monotonic() - started:.1f}s.', flush=True)
+            report_progress()
             if isinstance(error, KeyboardInterrupt):
                 raise
             raise DockerTimeoutError(f'Docker {operation} exceeded its time budget.') from None
         elapsed = time.monotonic() - started
+        report_progress()
         if code:
             print(f'Docker {operation}: failed after {elapsed:.1f}s.', flush=True)
             raise RuntimeError(f'Docker {operation} failed with exit code {code}.')

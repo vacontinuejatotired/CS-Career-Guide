@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 
 import yaml
 
-from release_images import (DockerTimeoutError, coordinates, docker, export_image, load_verified_images,
+from release_images import (DockerTimeoutError, PushDiagnostics, coordinates, docker, export_image, load_verified_images,
                             publish_images, push_digest, push_verified_tag, source_image)
 
 COMMIT = '1' * 40
@@ -19,6 +19,18 @@ MANIFESTS = {'backend': 'sha256:' + 'c' * 64, 'frontend': 'sha256:' + 'd' * 64}
 
 
 class DockerProgressTests(unittest.TestCase):
+    def test_push_diagnostics_reports_layer_states_and_error_classes_without_raw_data(self):
+        progress = PushDiagnostics()
+        progress.consume('abcdef123456: Pushing [==>] 10MB/20MB\nprivate-token https://private-registry/path\n')
+        progress.consume('abcdef123456: Pushed\n123456abcdef: Retry')
+        progress.consume('ing in 5 seconds\nerror: connection reset by peer https://secret\n')
+        report = json.loads(progress.summary())
+        self.assertEqual(report['layers'], {'Pushed':1, 'Retrying':1})
+        self.assertEqual(report['errors'], ['connection'])
+        self.assertNotIn('private', progress.summary())
+        self.assertNotIn('secret', progress.summary())
+        self.assertNotIn('abcdef', progress.summary())
+
     def test_heartbeat_and_completion_are_safe_and_return_digest(self):
         def spawn(command, **kwargs):
             kwargs['stdout'].write('private-token registry.example/user\ndigest: ' + MANIFESTS['frontend'])
