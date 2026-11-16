@@ -11,11 +11,11 @@
 - 公网Chromium使用真实注册、简历、资料及历史API，无API拦截和模型调用：来源预览与实际保存版本一致、空JD分析按钮可用、草稿隔离、岗位模式空JD反馈通过；1440/390px无溢出或pageerror，无GLB请求。独立临时浏览器账号及关联简历已删除。真实分析/写回由上一项HTTP验收覆盖，未将两项合称浏览器模型全链路。
 - 公网`/login`、`/resume`、`/interview`为200；匿名分析接口401；入口资源`index-B17KHjN-.js`及简历资源`Index-BAAvTFnc.js`为200并包含本次功能。
 
-脱敏证据见[通用简历优化交付记录](releases/2026-11-16-resume-general.json)。PR #50修正安静状态判定：180秒无CLI输出改为提示，继续受原900秒总预算约束，不改变镜像身份、业务门禁或有限重试。预合并CI 43825887485/43825923832成功；master `3dac3c3`运行43827174324在本记录时仍进行中，尚不能将自动发布修复记为实测成功。上述手动上线与失败Actions分别记录。
+脱敏证据见[通用简历优化交付记录](releases/2026-11-16-resume-general.json)。PR #50曾将180秒无CLI输出改为提示并继续等待900秒总预算，预合并CI 43825887485/43825923832成功。master `3dac3c3`运行43827174324因frontend发布等待过久，已于2026-11-16按用户要求取消，结论为cancelled；frontend未执行激活，不能记为完整自动交付成功。本次恢复连续180秒无输出终止本次推送，保留900秒单次总预算及一次有限重试。
 
 当前应用边界：可确认写回`skills/self_evaluation`的保守文字整理；项目/工作STAR供预览及补充问题，尚不自动写回子记录，也不提供任意全文自动重写。
 
-后续自动发布核验：43827174324的backend发布和部署成功，当前backend为`sha256:3e0d32ff90ad11c364e65ccb05672280f510c0a3dffe6e1aa5c6357f267be973`，其config摘要与上述runner配置摘要相同；内容未改，但压缩表示不同使manifest digest不同。部署后用同一合成样例再次经真实gateway HTTP完成分析、应用和伪造编辑拒绝，29.5秒通过、账号已清理；这仍是单份样例的重复验证。该运行的frontend publisher在此记录时仍进行中，当前frontend保持上文已验收digest，不宣称整条自动交付已通过。
+后续自动发布核验：43827174324的backend发布和部署成功，当前backend为`sha256:3e0d32ff90ad11c364e65ccb05672280f510c0a3dffe6e1aa5c6357f267be973`，其config摘要与上述runner配置摘要相同；内容未改，但压缩表示不同使manifest digest不同。部署后用同一合成样例再次经真实gateway HTTP完成分析、应用和伪造编辑拒绝，29.5秒通过、账号已清理；这仍是单份样例的重复验证。该运行frontend publisher已取消，frontend部署也为cancelled。取消后再次只读核验，frontend保持上文已验收digest，frontend/backend/gateway均running/healthy，容器ID及环境文件元数据保持，GLB缺席、VAD存在。
 
 ## 2026-11-16 简历分析入口与停用助手资源已上线
 

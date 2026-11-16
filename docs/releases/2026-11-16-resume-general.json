@@ -60,7 +60,11 @@
       43825923832
     ],
     "master_run": 43827174324,
-    "master_status": "in_progress_at_this_snapshot"
+    "master_status": "cancelled",
+    "cancellation_reason": "User requested the original 180-second no-output cutoff after prolonged frontend publication.",
+    "restored_push_idle_timeout_seconds": 180,
+    "push_total_timeout_seconds": 900,
+    "timeout_retry_limit": 1
   },
   "runtime": {
     "frontend": {
@@ -229,6 +233,15 @@
       "temporary_user_removed": true,
       "duration_seconds": 29.5
     },
-    "frontend_publisher": "in_progress_at_this_snapshot"
+    "frontend_publisher": "cancelled",
+    "frontend_deployment": "cancelled",
+    "post_cancellation_runtime": {
+      "frontend_backend_gateway_healthy": true,
+      "frontend_digest_unchanged": true,
+      "container_ids_unchanged": true,
+      "env_file_metadata_unchanged": true,
+      "obsolete_glb_absent": true,
+      "vad_model_present": true
+    }
   }
 }

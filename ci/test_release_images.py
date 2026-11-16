@@ -19,15 +19,18 @@ MANIFESTS = {'backend': 'sha256:' + 'c' * 64, 'frontend': 'sha256:' + 'd' * 64}
 
 
 class DockerProgressTests(unittest.TestCase):
-    def test_quiet_push_past_180_seconds_can_finish_within_total_budget(self):
+    def test_push_without_new_output_stops_at_idle_budget(self):
         process = Mock()
         process.wait.side_effect = [subprocess.TimeoutExpired('docker', 15), 0]
         with patch('release_images.subprocess.Popen', return_value=process), \
                 patch('release_images.time.monotonic', side_effect=[0, 0, 180, 181, 182]), \
                 patch('sys.stdout', new_callable=io.StringIO) as log:
-            docker('push', 'private-reference')
-        process.kill.assert_not_called()
-        self.assertIn('continuing within the 900s total budget', log.getvalue())
+            with self.assertRaises(DockerTimeoutError):
+                docker('push', 'private-reference')
+        process.kill.assert_called_once()
+        self.assertEqual(process.wait.call_args_list, [unittest.mock.call(timeout=15), unittest.mock.call()])
+        self.assertIn('no new CLI output for at least 180s.', log.getvalue())
+        self.assertNotIn('continuing within', log.getvalue())
         self.assertNotIn('private-reference', log.getvalue())
 
     def test_push_diagnostics_reports_layer_states_and_error_classes_without_raw_data(self):
