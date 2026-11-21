@@ -1,10 +1,15 @@
 from django.db import models
 from django.conf import settings
 
-
+# 存储头像
 def avatar_upload_path(instance, filename):
     return f'avatars/user_{instance.user.id}/{filename}'
-
+# 存储简历
+def resume_save_path(instance, filename):
+    return f'resumes/edit/user_{instance.user.id}/{filename}'
+# 上传简历
+def resume_upload_path(instance, filename):
+    return f'resumes/user_{instance.user.id}/{filename}'
 
 class Resume(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='resume', verbose_name='用户')
@@ -19,7 +24,8 @@ class Resume(models.Model):
     skills = models.TextField(null=True, blank=True, verbose_name='专业技能')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
-    
+    file = models.FileField(upload_to=resume_upload_path, null=True, blank=True,verbose_name='文件') 
+    file_name = models.CharField(max_length=255, null=True, blank=True,verbose_name='文件名称')
     def save(self, *args, **kwargs):
         if not self._state.adding:
             self.edit_revision = models.F('edit_revision') + 1

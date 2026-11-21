@@ -97,3 +97,55 @@ class ResumeViewSet(viewsets.ModelViewSet):
             return Response({'error': '没有头像可删除'}, status=status.HTTP_400_BAD_REQUEST)
         except Resume.DoesNotExist:
             return Response({'error': '简历不存在'}, status=status.HTTP_404_NOT_FOUND)
+    @action(detail=False, methods=['post'])
+    def upload_resume(self, request):
+        try:
+            resume = Resume.objects.get(user=request.user)
+        except Resume.DoesNotExist:
+            resume = Resume.objects.create(user=request.user)
+
+        if 'file' not in request.FILES:
+            return Response({'error': '请选择要上传的简历文件'}, status=status.HTTP_400_BAD_REQUEST)
+
+        resume_file = request.FILES['file']
+
+        # 验证文件类型：PDF + 常见图片
+        ext = os.path.splitext(resume_file.name)[1].lower()
+        allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
+        allowed_exts = ['.pdf', '.jpg', '.jpeg', '.png', '.webp']
+        if resume_file.content_type not in allowed_types and ext not in allowed_exts:
+            return Response({'error': '只支持 PDF, JPG, PNG, WEBP 格式的文件'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 验证文件大小 (最大 10MB)
+        if resume_file.size > 10 * 1024 * 1024:
+            return Response({'error': '文件大小不能超过 10MB'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 删除旧文件
+        if resume.file:
+            resume.file.delete(save=False)
+
+        # 保存新文件
+        resume.file = resume_file
+        resume.file_name = resume_file.name
+        resume.save()
+
+        serializer = self.get_serializer(resume, context={'request': request})
+        return Response({
+            'message': '简历上传成功',
+            'file_url': serializer.data.get('file_url'),
+            'file_name': resume.file_name
+        })
+
+    @action(detail=False, methods=['delete'])
+    def delete_resume_file(self, request):
+        try:
+            resume = Resume.objects.get(user=request.user)
+            if resume.file:
+                resume.file.delete()
+                resume.file = None
+                resume.file_name = None
+                resume.save()
+                return Response({'message': '简历文件删除成功'})
+            return Response({'error': '没有简历文件可删除'}, status=status.HTTP_400_BAD_REQUEST)
+        except Resume.DoesNotExist:
+            return Response({'error': '简历不存在'}, status=status.HTTP_404_NOT_FOUND)

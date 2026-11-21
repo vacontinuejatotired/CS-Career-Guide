@@ -48,8 +48,13 @@ export const resumeAPI = {
   uploadAvatar: (formData) => api.post('/resumes/upload_avatar/', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  deleteAvatar: () => api.delete('/resumes/delete_avatar/')
-}
+  deleteAvatar: () => api.delete('/resumes/delete_avatar/'),
+  uploadResume: (formData) => api.post('/resumes/upload_resume/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000
+  }),
+  deleteResumeFile: () => api.delete('/resumes/delete_resume_file/')
+  }
 
 export const interviewAPI = {
   listReviews: () => api.get('/ai/records/interview-reviews/'),
