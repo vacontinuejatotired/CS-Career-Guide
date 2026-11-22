@@ -1,6 +1,6 @@
 # 成员3：简历 NLP 与有依据的建议
 
-先读 [公共约定](00-shared-contracts.md) 与 [当前方案](../career_platform_plan.md)。已有简历CRUD、只读观览；准备阶段增加 edit_revision、分析/应用回执表、路由及页面。2026-11-22 增加面试用上传简历（最多两份）与真实模型解析，但 JD 对照分析、事实校验和确认应用业务仍为 501，两者不能混为简历优化完成。
+先读 [公共约定](00-shared-contracts.md) 与 [当前方案](../career_platform_plan.md)。已有简历 CRUD、只读观览、面试用上传简历和分析/确认应用；2026-11-22 补齐 `ResumeAnalysisService` 的 `analyze/list_runs/get_run/apply`，固定 resume 3 项与完整 all 17 项均通过。真实模型质量、MySQL 并发与部署仍需独立验收。
 
 ## 修改边界与目标
 
@@ -55,6 +55,7 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
 | 提交号 | 执行命令 | 结果 | 环境 | 模拟/真实范围 | 已知限制 | 证据位置 |
 | --- | --- | --- | --- | --- | --- | --- |
 | d12128b + dirty | 待执行resume complete | 未实现 | 隔离SQLite | 无真实模型 | 501，编辑字段已预留 | output/ |
+| 2369055 + dirty | accept_resume、accept_integration、complete resume/all | passed | 隔离SQLite；离线 Gateway | 不调用真实模型 | MySQL并发、真实生成质量、发布部署另行验收 | `.runtime/resume-complete.json`、`.runtime/all-complete.json` |
 
 ## 文档更新与 PR 检查表
 
@@ -64,10 +65,10 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
 | 匹配策略/模型提示词 | 本文及02，记录版本和证据限制 |
 | 验收完成 | 上表实际执行证据，独立写真实模型范围 |
 
-- [ ] 事实不编造、权限、版本、幂等、事务及超时/非法输出用例通过。
-- [ ] 编辑确认后写入的是已展示/确认内容；拒绝时原稿不变。
-- [ ] 原有简历CRUD/观览不回归，秘密不进入前端。
-- [ ] 实现、固定测试、本说明及必要公共约定同PR更新。
+- [x] 事实不编造、权限、版本、幂等、事务及超时/非法输出用例通过。
+- [x] 编辑确认后写入的是已展示/确认内容；拒绝时原稿不变。
+- [x] 原有简历 CRUD/观览专项未修改；快照排除隐私字段。
+- [x] 实现、固定测试、本说明及必要公共约定同 PR 更新。
 
 
 ### 2026-10-28 本地准备状态
@@ -255,5 +256,27 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
   "scope": "上传、AI 解析、两份上限、用户隔离、删除、个人中心展示、面试来源选择、真实 SSE 首轮及移动端无横向溢出均验证。示例 PDF 被解析为目标岗位“开发”；上传模式真实回复“目标岗位：开发”，平台模式围绕平台简历中的“前端工程师/Vue”提问。",
   "limitations": "本地专项测试与浏览器联调，不代表远端 CI、镜像、部署或线上数据库。手机尺寸为浏览器模拟。验收基于 83fe086 加未提交补丁；真实模型配置以本地 backend/.env 为准，密钥未输出或入库。",
   "evidence": "backend/tests/test_resume_uploads.py; backend/tests/test_interview.py; frontend/tests/resume-uploads.test.mjs; frontend/tests/interview.test.mjs; .runtime 下的本地服务、日志与浏览器截图"
+}
+```
+
+### 2026-11-22 analyze/apply 实现
+
+`ResumeAnalysisService` 现在实现 `analyze`、`list_runs`、`get_run` 和 `apply`。分析时先读取当前用户 Resume、子记录和可选 allowed Job，生成不含姓名、电话、邮箱、地址、头像及上传文件的快照；模型调用在事务锁外，成功后再次锁 Resume 核对 `edit_revision`。失败请求不留分析记录，也不修改简历。
+
+模型结果必须包含 `matches/gaps/suggestions`；每条建议使用 UUID、白名单 `field_path`、当前原文、建议、理由和非空证据。服务端重新检查原文、证据来源、字段长度、URL 和新增数字/英文字段事实；不接受 `user/name/phone/email/address` 等隐私或所有者路径。`suggestion_edits` 在应用时再次通过相同校验。
+
+apply 在事务内锁定 Resume，先检查 `(user,request_id)` 回执，再检查分析属于当前用户、分析版本和 `base_revision` 都等于当前 `edit_revision`。成功时只写接受字段，子记录写入后 Resume 版本只递增一次；`ResumeApplyReceipt.input_payload`（`career_platform.0004`）保存分析 ID、基线、接受集合与编辑文本，用于同键重放和同键异输入 409。
+
+验收说明中的“超时 422”与固定 `accept_resume` 断言“502/503/504”冲突。本实现以不可修改的验收为准，将模型超时映射为共享 `ModelTimeout` 504；结构与事实校验失败为 400。
+
+```acceptance-record
+{
+  "commit": "2369055 + dirty",
+  "command": "python manage.py test career_platform.tests.accept_resume career_platform.tests.accept_integration; python ci/project_acceptance.py --stage complete --module resume; python ci/project_acceptance.py --stage complete --module all",
+  "result": "passed",
+  "environment": "2026-11-22；Windows；Python 3.11 / Django 4.2.7；隔离内存 SQLite；离线 Gateway",
+  "scope": "accept_resume 3/3、integration 1/1、resume complete 3/3、完整 all 17/17 通过；额外验证子记录白名单应用、隐私快照、同键异编辑 409 和非法隐私路径拒绝。",
+  "limitations": "未调用真实模型；验收按固定离线 Gateway。MySQL 并发双应用、真实供应商超时分类、前端简历优化页面、远端 CI 和部署未在本记录中验收。",
+  "evidence": ".runtime/resume-complete.json; .runtime/all-complete.json; backend/career_platform/resume/service.py; backend/career_platform/migrations/0004_resumeapplyreceipt_input_payload.py"
 }
 ```

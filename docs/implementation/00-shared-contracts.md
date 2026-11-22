@@ -1,6 +1,6 @@
 # 五人实施公共约定
 
-需求唯一依据是 [当前需求方案](../career_platform_plan.md)。本文固定开发接口与验收方法。catalog 的企业/岗位/题库查询与 JSON 导入已实现并通过本地固定验收；evaluation、records、rag 已有本地实现；resume 仍未完成并继续返回 501。完整 MVP、真实模型、MySQL、远端 CI 与部署仍需独立确认。日期：2026-11-10。集成人：`@vacontinuejatotired`。
+需求唯一依据是 [当前需求方案](../career_platform_plan.md)。本文固定开发接口与验收方法。catalog、evaluation、resume、records、rag 的固定 complete 验收在当前分支已全部通过；resume 已实现分析、版本校验、建议应用与幂等回执。真实模型质量、MySQL 并发、远端 CI 与部署仍需独立确认。日期：2026-11-22。集成人：`@vacontinuejatotired`。
 
 ## 团队开工入口
 
@@ -37,7 +37,7 @@ Vue 页面 → `features/career-platform/api.js` → 视图/序列化器 → 应
 
 ## 生产组装与替身
 
-`contracts.py` 定义端口，`composition.py:build_services()` 是唯一生产组装点。当前显式组装 `JsonModelGateway`、`DjangoPracticeRepository`、`PracticeService`、`DjangoQuestionRetriever` 和 `InterviewRagService`；resume 虽注入同一网关，但分析/应用仍未实现。evaluation 继续使用自身离线文本策略，不依赖 records 历史。catalog 已实现四个公开操作；catalog/resume 中仍未实现的操作继续返回 HTTP 501：
+`contracts.py` 定义端口，`composition.py:build_services()` 是唯一生产组装点。当前显式组装 `JsonModelGateway`、`DjangoPracticeRepository`、`PracticeService`、`DjangoQuestionRetriever`、`InterviewRagService` 和 `ResumeAnalysisService`。evaluation 继续使用自身离线文本策略，不依赖 records 历史。catalog 已实现四个公开操作，resume 已实现 `analyze/list_runs/get_run/apply`；只有未来新增但尚未接线的操作才使用 HTTP 501：
 
 ```json
 {"code":"FEATURE_NOT_IMPLEMENTED","message":"功能待实现","details":{"detail":"功能待实现"}}
@@ -75,6 +75,14 @@ Vue 页面 → `features/career-platform/api.js` → 视图/序列化器 → 应
 - 普通 finish 无论同键或新键都不重复模型；首次同步尝试后返回 succeeded/failed，并发重放可观察 pending。空会话结束为 failed/NO_ANSWERS且不调用模型。显式重试须新键，failed或超过 `LLM_TIMEOUT + PRACTICE_ATTEMPT_GRACE_SECONDS` 的 pending才可认领；上限由 `PRACTICE_MAX_MODEL_ATTEMPTS` 控制，超限409。
 - summary 为 `{status,strengths,gaps,next_steps,failure_code,prompt_version}`。未结束的新会话也可能显示 summary pending，不能据此判断模型已开始；应结合 session.status。
 - 当前默认 LocMemCache 不跨进程共享；多 worker 的回执复用、真实并发锁和模型超时分类仍需专项验证。字段白名单不是对任意嵌套文本的全面脱敏证明；真实隐私与证据验证不能用单个字段测试代替。
+
+### resume 已实现接口细节（2026-11-22）
+
+- analyze 只读当前用户简历与子记录并保存隐私最小化快照；快照不包含姓名、电话、邮箱、地址、头像和上传文件。模型调用前先检查 `resume_revision`，调用后再次锁简历核对版本，期间版本变化返回409。
+- `(user,request_id)` 复用原分析，不重复调用模型；同键输入不同返回409。模型超时返回504，模型 JSON 无法解析返回502，结果结构、字段路径、原文、证据或新增事实校验失败返回400。
+- 建议 `field_path` 仅允许 `target_position/skills/self_evaluation` 及当前简历子记录路径；证据必须来自本次简历快照、岗位快照或输入 JD。JD 只支持匹配/缺口说明，不能单独支持新增候选人技能或数字。
+- apply 在事务内锁定 Resume，检查分析版本和请求 `base_revision`；分析过期返回409，记录不存在或非本人返回404。只应用已接受建议，`suggestion_edits` 只能修改本次接受的建议，最终文本重新执行字段和事实校验。
+- 应用成功只递增一次 `edit_revision`，并用 `(user,request_id)` 保存 `ResumeApplyReceipt.input_payload`；同键同输入返回原回执，同键不同分析、建议或编辑返回409。
 
 ## 快照和交接结构
 

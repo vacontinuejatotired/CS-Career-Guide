@@ -109,7 +109,7 @@ App 只保存业务 Token；模型、ASR、TTS、数据库凭据留在后端。�
 | ASR/TTS | 已有实现，依赖后端配置 | ASR 上传 PCM；TTS 随聊天 SSE 返回，不存在独立 TTS 路由 |
 | 职业路径、招聘列表、建议 | 已实现 | 不同数据源/字段模型，分别接入 |
 | AI 职业推荐/规划 | 已有实现，依赖模型/检索配置 | 存在回退和历史返回差异，见第 9 节 |
-| 简历 AI 分析/确认应用 | 业务未实现 | 有路由和校验，有效业务调用返回 501；不能以此交付优化闭环 |
+| 简历 AI 分析/确认应用 | 已实现 | 走 `career-platform/resume-analyses`；结果需用户确认后才写回 |
 | 评估运行 | 已实现，管理员专用 | 当前内置 question 数据集与离线文本策略，见第 11 节 |
 | 独立 `/company-api` 服务 | 非 Django API，默认网关未提供 | 网页中的独立企业客户端不能视为可用 App 后端 |
 
@@ -537,7 +537,7 @@ company-info 对象采用另一套字段：`id,title,company,salary,tags[],jobDe
 
 职业报告 user_profile 可包含 `name,major,education,skills[],personality,graduation_year,school,grade,career_goal,self_introduction`；省略或空对象时从当前用户资料构造。data 的内容来自报告工作流，客户端按实际结构渲染并容忍部分生成失败；本接口没有另行冻结完整 App DTO。
 
-语音简历输入的是**识别后的文本**，不是音频文件。生成结果先预览和编辑，再通过 `/api/resumes/my/` 保存；它与仍未实现的正式 JD 简历分析不同。
+语音简历输入的是**识别后的文本**，不是音频文件。生成结果先预览和编辑，再通过 `/api/resumes/my/` 保存；正式 JD 简历分析使用独立的 `resume-analyses` 链路，两者不要混用。
 
 ### 9.2 历史保存接口
 
@@ -581,18 +581,20 @@ company-info 对象采用另一套字段：`id,title,company,salary,tags[],jobDe
 
 这些历史接口不作为新练习链路必需依赖；不能从 URL 存在推断数据源、模型或记忆适配器在目标环境可用。
 
-## 10. 简历 AI 优化预留接口
+## 10. 简历 AI 分析与确认应用
 
-当前 `ResumeAnalysisService` 继承占位服务，无实际分析/应用实现。下列接口仅有路由、权限、输入校验和预留操作，**有效业务请求返回501 `FEATURE_NOT_IMPLEMENTED`**；详情可能先因记录不存在返回404。App 暂不显示可完成优化的承诺，不编造成功响应。
+当前 `ResumeAnalysisService` 已实现 `analyze/list_runs/get_run/apply`。分析结果保存简历与岗位快照、版本和结构化建议；只有用户显式接受并调用 apply 后才写回简历。
 
-| 方法与路径 | 当前校验输入 |
+| 方法与路径 | 请求/响应 |
 | --- | --- |
-| `GET /api/career-platform/resume-analyses/` | 通用 Query |
-| `POST /api/career-platform/resume-analyses/` | 必填 `jd_text`（最大20000）、`resume_revision>=0`、UUID request_id；可选正整数 job_id |
-| `GET /api/career-platform/resume-analyses/{id}/` | UUID id；通用 Query |
-| `POST /api/career-platform/resume-analyses/{id}/apply/` | `base_revision>=0`、非空 UUID 数组 accepted_suggestion_ids、UUID request_id；可选 suggestion_edits 对象，值为最大20000字符文本 |
+| `GET /api/career-platform/resume-analyses/` | 通用 Query；返回当前用户分页分析列表 |
+| `POST /api/career-platform/resume-analyses/` | 必填 `jd_text`（最大 20000）、`resume_revision>=0`、UUID `request_id`；可选正整数 `job_id`。返回分析详情 |
+| `GET /api/career-platform/resume-analyses/{id}/` | UUID id；返回原快照、匹配、缺口和建议；他人记录 404 |
+| `POST /api/career-platform/resume-analyses/{id}/apply/` | `base_revision>=0`、非空 UUID 数组 `accepted_suggestion_ids`、UUID `request_id`；可选 `suggestion_edits` 对象 |
 
-预留版本冲突/建议确认目标见[成员3实施文档](implementation/03-resume-optimization.md)，不能将这些输入字段当作并发确认业务已实现。
+同 `(user,request_id)` 分析复用原记录且不重复调用模型；同键不同输入 409。简历版本与请求或分析基线不一致返回 409。模型超时、不可用或非 JSON 分别返回 504/503/502；结构、字段白名单、原文、证据或新增事实校验失败返回 400；分析失败不写成功记录且不改简历。
+
+apply 在事务内锁定简历，只应用已接受白名单字段，成功后版本只递增一次；同 request_id 同输入返回原回执，同键不同分析、建议或编辑返回 409。字段路径、证据与编辑确认细节见[成员3实施文档](implementation/03-resume-optimization.md)。
 
 ## 11. 管理员接口
 
