@@ -339,3 +339,17 @@ Actions 42771897363已确认：Platform documentation与Backend checks失败，F
   "evidence": "output/docs-sync-83fe086/platform-selection.json; output/docs-sync-83fe086/all.json; ci/check_project_changes.py; ci/test_project_changes.py"
 }
 ```
+
+### 2026-11-22 resume analyze/apply 实现共享契约同步（7afabe0）
+
+本轮实现 resume 的 analyze/list_runs/get_run/apply 业务（含隐私最小化快照、事实校验闸门、超时/无效输出兜底、版本冲突 409、跨用户 404、幂等回执），涉及 composition 注入与迁移等共享路径；六份实施文档均已同步。03 文档已记录 resume 固定 3 项与完整 all 17 项在隔离 SQLite 离线 Gateway 下通过（commit 2369055）；本记录同步当前 HEAD 的文档门禁状态。完整业务门禁在远端 CI 以 MySQL 环境复核为准。
+
+```acceptance-record
+{ 
+  "commit": "7afabe0719e79c6a759af16da1da8ea2fbc2fb28",
+   "command": "python ci/check_project_changes.py --base <base> --head HEAD --output output/platform-selection.json; python ci/project_acceptance.py --stage complete --module all", 
+   "result": "failed", 
+   "environment": "2026-11-22；Windows；隔离内存 SQLite；离线 Gateway；不调用真实模型", 
+   "scope": "resume analyze/apply 已实现，03 文档记录其固定验收通过（2369055）。本轮仅同步 00 文档验收记录以修复文档门禁；文档门禁 11 项自测通过。完整 all 业务验收状态以远端 CI 本次实际运行输出为准，本地因解释器缺少 Django 未能复跑，不据此宣称业务门禁通过。", 
+   "limitations": "result=failed 表示完整业务门禁尚未在当前 HEAD 复核，不否定 resume 实现与文档同步本身；MySQL 并发、真实模型、远端 CI、发布与部署仍未验收。", "evidence": "docs/implementation/03-resume-optimization.md; backend/career_platform/resume/service.py; backend/career_platform/migrations/0004_resumeapplyreceipt_input_payload.py" } 
+```
