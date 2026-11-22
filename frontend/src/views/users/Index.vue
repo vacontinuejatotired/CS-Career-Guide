@@ -32,7 +32,41 @@
               <div v-else class="account-empty"><WorkspaceIcon name="message" /><h3>第一场练习，从这里开始</h3><p>完成模拟面试后，可在这里回顾复盘内容。</p><button type="button" class="account-button" @click="goToInterview">开始模拟面试<WorkspaceIcon name="arrow" /></button></div>
             </section>
           </div>
-          <aside class="account-sidebar" aria-label="简历与快捷入口"><section class="account-panel resume-summary"><div class="account-panel-heading"><div><span class="account-kicker">求职准备</span><h2>我的简历</h2></div><WorkspaceIcon name="file" /></div><p v-if="resumeLoading" class="account-help" role="status">正在加载简历…</p><div v-else-if="resumeError" class="account-state error" role="alert"><p>{{ resumeError }}</p><button type="button" class="account-button" @click="loadResume">重新加载</button></div><template v-else-if="resume"><div class="resume-identity"><h3>{{ resume.name || '我的简历' }}</h3><p>{{ resume.target_position || '意向岗位待补充' }}</p></div><div v-if="resume.education?.length" class="resume-summary-section"><h4><WorkspaceIcon name="school" />教育背景</h4><div v-for="(edu,index) in resume.education.slice(0,2)" :key="index"><strong>{{ edu.school }}</strong><p>{{ [edu.major,edu.degree].filter(Boolean).join(' · ') }}</p></div></div><div v-if="resume.experience?.length" class="resume-summary-section"><h4><WorkspaceIcon name="briefcase" />实习经历</h4><div v-for="(exp,index) in resume.experience.slice(0,2)" :key="index"><strong>{{ exp.company }}</strong><p>{{ exp.position }}</p></div></div><div v-if="resume.skills" class="resume-summary-section"><h4><WorkspaceIcon name="code" />专业技能</h4><p class="skill-excerpt">{{ resume.skills }}</p></div><button type="button" class="account-button full" @click="goToResume"><WorkspaceIcon name="edit" />编辑简历<WorkspaceIcon name="arrow" /></button></template><div v-else class="account-empty compact"><WorkspaceIcon name="file" /><h3>整理你的第一份简历</h3><p>把教育、项目和实习经历汇集在一起。</p><button type="button" class="account-button full" @click="goToResume">创建简历<WorkspaceIcon name="arrow" /></button></div></section><section class="account-next-step"><WorkspaceIcon name="compass" /><h3>准备好，向下一步出发</h3><p>完善简历后，继续了解企业与职位，找到值得深入了解的机会。</p><router-link to="/company-reviews" class="account-text-link">浏览企业与职位<WorkspaceIcon name="arrow" /></router-link></section></aside>
+          <aside class="account-sidebar" aria-label="简历与快捷入口">
+            <section class="account-panel resume-summary">
+              <div class="account-panel-heading"><div><span class="account-kicker">求职准备</span><h2>我的简历</h2></div><WorkspaceIcon name="file" /></div>
+              <p v-if="resumeLoading" class="account-help" role="status">正在加载简历…</p>
+              <div v-else-if="resumeError" class="account-state error" role="alert"><p>{{ resumeError }}</p><button type="button" class="account-button" @click="loadResume">重新加载</button></div>
+              <template v-else-if="resume">
+                <div class="resume-identity"><h3>{{ resume.name || '我的简历' }}</h3><p>{{ resume.target_position || '意向岗位待补充' }}</p></div>
+                <div v-if="resume.education?.length" class="resume-summary-section"><h4><WorkspaceIcon name="school" />教育背景</h4><div v-for="(edu,index) in resume.education.slice(0,2)" :key="index"><strong>{{ edu.school }}</strong><p>{{ [edu.major,edu.degree].filter(Boolean).join(' · ') }}</p></div></div>
+                <div v-if="resume.experience?.length" class="resume-summary-section"><h4><WorkspaceIcon name="briefcase" />实习经历</h4><div v-for="(exp,index) in resume.experience.slice(0,2)" :key="index"><strong>{{ exp.company }}</strong><p>{{ exp.position }}</p></div></div>
+                <div v-if="resume.skills" class="resume-summary-section"><h4><WorkspaceIcon name="code" />专业技能</h4><p class="skill-excerpt">{{ resume.skills }}</p></div>
+                <button type="button" class="account-button full" @click="goToResume"><WorkspaceIcon name="edit" />编辑简历<WorkspaceIcon name="arrow" /></button>
+              </template>
+              <div v-else class="account-empty compact"><WorkspaceIcon name="file" /><h3>整理你的第一份简历</h3><p>把教育、项目和实习经历汇集在一起。</p><button type="button" class="account-button full" @click="goToResume">创建简历<WorkspaceIcon name="arrow" /></button></div>
+            </section>
+            <section id="uploaded-resumes" class="account-panel uploaded-resumes" aria-labelledby="uploaded-resumes-title">
+              <div class="account-panel-heading"><div><span class="account-kicker">文件简历</span><h2 id="uploaded-resumes-title">上传的简历</h2></div><span class="account-count">{{ uploadedResumes.length }}/2</span></div>
+              <p class="account-help">最多保存两份文件简历，面试时可选择其中一份作为 AI 背景。</p>
+              <div class="upload-resume-actions">
+                <input ref="resumeUploadInput" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" class="sr-only" tabindex="-1" @change="handleResumeUpload" />
+                <button type="button" class="account-button full" :disabled="uploadingResume" @click="triggerResumeUpload"><WorkspaceIcon name="upload" />{{ uploadingResume ? '正在解析…' : '上传简历' }}</button>
+              </div>
+              <p v-if="resumeUploadNotice" class="account-notice" :class="{ error: resumeUploadFailed }" :role="resumeUploadFailed ? 'alert' : 'status'">{{ resumeUploadNotice }}</p>
+              <p v-if="uploadsLoading" class="account-help" role="status">正在读取上传简历…</p>
+              <div v-else-if="uploadsError" class="account-state error" role="alert"><p>{{ uploadsError }}</p><button type="button" class="account-button" @click="loadUploadedResumes">重新加载</button></div>
+              <div v-else-if="uploadedResumes.length" class="uploaded-resume-list">
+                <article v-for="upload in uploadedResumes" :key="upload.id" class="uploaded-resume-item">
+                  <span class="uploaded-file-icon"><WorkspaceIcon name="file" /></span>
+                  <div class="uploaded-file-copy"><strong>{{ upload.file_name }}</strong><p><time :datetime="upload.created_at">{{ displayDate(upload.created_at) }}</time><span>{{ upload.parsed_degraded ? '解析失败，请重新上传' : 'AI 已解析' }}</span></p></div>
+                  <div class="uploaded-file-actions"><a :href="upload.file_url" target="_blank" rel="noopener">查看</a><button type="button" :disabled="deletingResumeId === upload.id" @click="deleteUploadedResume(upload)">{{ deletingResumeId === upload.id ? '删除中…' : '删除' }}</button></div>
+                </article>
+              </div>
+              <div v-else class="account-empty compact"><WorkspaceIcon name="file" /><p>还没有上传文件简历，可在面试时继续使用平台编辑的简历。</p></div>
+            </section>
+            <section class="account-next-step"><WorkspaceIcon name="compass" /><h3>准备好，向下一步出发</h3><p>完善简历后，继续了解企业与职位，找到值得深入了解的机会。</p><router-link to="/company-reviews" class="account-text-link">浏览企业与职位<WorkspaceIcon name="arrow" /></router-link></section>
+          </aside>
         </div>
       </template>
     </main>
@@ -50,11 +84,15 @@ import WorkspaceAvatar from '@/components/WorkspaceAvatar.vue'
 import WorkspaceDialog from '@/components/WorkspaceDialog.vue'
 import { normalizeRecommendations } from '@/features/career-paths/evaluation.js'
 import { normalizeIntroduction } from '@/features/career-paths/self-introduction.js'
+import { UPLOAD_LIMIT_MESSAGE, canUploadResume, normalizeUploadedResumes } from '@/features/resume/uploads.js'
 const router = useRouter()
 const user = ref(null), avatarInput = ref(null), avatarPreview = ref(null), uploadingAvatar = ref(false)
 const profileLoading = ref(true), profileError = ref(''), profileSaveError = ref(''), savingProfile = ref(false)
 const showEditModal = ref(false), editForm = ref({}), message = ref(''), messageType = ref('')
 const recommendations = ref([]), selfIntroduction = ref(''), resume = ref(null), resumeLoading = ref(false), resumeError = ref('')
+const uploadedResumes = ref([]), uploadsLoading = ref(false), uploadsError = ref('')
+const resumeUploadInput = ref(null), uploadingResume = ref(false), deletingResumeId = ref(null)
+const resumeUploadNotice = ref(''), resumeUploadFailed = ref(false)
 const interviewReviews = ref([]), loadingReviews = ref(false), reviewsError = ref(''), reviewPage = ref(1)
 const showReviewModal = ref(false), currentReview = ref(null), loadingReviewDetail = ref(false), reviewDetailError = ref(''), reviewSession = ref('')
 const newPassword = ref(''), savingPassword = ref(false), passwordMessage = ref(''), passwordFailed = ref(false)
@@ -82,7 +120,7 @@ function requestError(error, action) { const status = error?.response?.status; i
 function showMessage(text,type='info') { clearTimeout(messageTimer); message.value=text; messageType.value=type; messageTimer=setTimeout(()=>{message.value=''},5000) }
 async function loadProfile() {
   profileLoading.value=true; profileError.value=''
-  try { user.value=await userAPI.getProfile(); loadRecommendations(); loadSelfIntroduction(); loadResume(); loadInterviewReviews() }
+  try { user.value=await userAPI.getProfile(); loadRecommendations(); loadSelfIntroduction(); loadResume(); loadUploadedResumes(); loadInterviewReviews() }
   catch(error) { profileError.value=requestError(error,'读取个人资料') }
   finally { profileLoading.value=false }
 }
@@ -91,6 +129,64 @@ async function loadResume() {
   try { resume.value=await resumeAPI.get() }
   catch(error) { resume.value=null; if(error?.response?.status!==404)resumeError.value=requestError(error,'读取简历') }
   finally { resumeLoading.value=false }
+}
+async function loadUploadedResumes() {
+  uploadsLoading.value=true; uploadsError.value=''
+  try {
+    const response=await resumeAPI.listUploads()
+    uploadedResumes.value=normalizeUploadedResumes(response)
+  } catch(error) {
+    uploadedResumes.value=[]
+    uploadsError.value=requestError(error,'读取上传简历')
+  } finally { uploadsLoading.value=false }
+}
+function triggerResumeUpload() {
+  if (uploadingResume.value) return
+  resumeUploadNotice.value=''; resumeUploadFailed.value=false
+  if (!canUploadResume(uploadedResumes.value.length)) {
+    resumeUploadFailed.value=true
+    resumeUploadNotice.value=UPLOAD_LIMIT_MESSAGE
+    return
+  }
+  resumeUploadInput.value?.click()
+}
+async function handleResumeUpload(event) {
+  const file=event.target.files?.[0]
+  if(!file)return
+  resumeUploadNotice.value=''; resumeUploadFailed.value=false
+  const ext=file.name.split('.').pop()?.toLowerCase()
+  if(!['pdf','jpg','jpeg','png','webp'].includes(ext)) {
+    resumeUploadFailed.value=true; resumeUploadNotice.value='仅支持 PDF、JPG、PNG、WebP 格式。'; event.target.value=''; return
+  }
+  if(file.size>10*1024*1024) {
+    resumeUploadFailed.value=true; resumeUploadNotice.value='文件大小不能超过 10MB。'; event.target.value=''; return
+  }
+  uploadingResume.value=true
+  try {
+    const formData=new FormData(); formData.append('file',file,file.name)
+    await resumeAPI.uploadResume(formData)
+    await loadUploadedResumes()
+    resumeUploadNotice.value=uploadedResumes.value[0]?.parsed_degraded
+      ? '文件已保存，但 AI 未能解析，请删除后重新上传清晰简历。'
+      : '简历已上传并由 AI 解析完成，可在面试开始时选择。'
+    resumeUploadFailed.value=Boolean(uploadedResumes.value[0]?.parsed_degraded)
+  } catch(error) {
+    resumeUploadFailed.value=true
+    const reason=error?.response?.data?.error
+    resumeUploadNotice.value=reason || requestError(error,'上传简历')
+  } finally { uploadingResume.value=false; event.target.value='' }
+}
+async function deleteUploadedResume(upload) {
+  if(deletingResumeId.value)return
+  if(!confirm(`确定删除“${upload.file_name}”吗？`))return
+  deletingResumeId.value=upload.id; resumeUploadNotice.value=''; resumeUploadFailed.value=false
+  try {
+    await resumeAPI.deleteUpload(upload.id)
+    await loadUploadedResumes()
+    resumeUploadNotice.value='旧简历已删除，可以继续上传。'
+  } catch(error) {
+    resumeUploadFailed.value=true; resumeUploadNotice.value=requestError(error,'删除上传简历')
+  } finally { deletingResumeId.value=null }
 }
 function loadRecommendations() {
   try { const existing=localStorage.getItem('careerRecommendations'); recommendations.value=normalizeRecommendations(existing ? JSON.parse(existing) : JSON.parse(localStorage.getItem('aiResponse') || '{}').recommendations) }
@@ -205,6 +301,21 @@ onBeforeUnmount(()=>{clearTimeout(messageTimer);detailSequence++})
 .account-sidebar .account-panel h2 { font-size: 20px; }
 .resume-identity { background: #f3f6ed; border-radius: 12px; padding: 18px; }
 .resume-identity p { margin-top: 5px; color: #66765a; font-size: 12px; }
+.uploaded-resumes { scroll-margin-top: calc(var(--career-nav-height) + 24px); }
+.upload-resume-actions { margin-top: 15px; }
+.upload-resume-actions .account-button { width: 100%; }
+.uploaded-resume-list { display: grid; gap: 10px; margin-top: 16px; }
+.uploaded-resume-item { display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 10px; padding: 13px; border: 1px solid #e1e7da; border-radius: 11px; background: #fbfcf8; }
+.uploaded-file-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #edf2e5; color: #647a51; }
+.uploaded-file-icon svg { width: 17px; height: 17px; }
+.uploaded-file-copy { min-width: 0; }
+.uploaded-file-copy strong { display: block; overflow: hidden; color: #3c4934; font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.uploaded-file-copy p { display: flex; flex-wrap: wrap; gap: 4px 9px; margin-top: 5px; color: #78836d; font-size: 10px; }
+.uploaded-file-copy p span { color: #5f754f; }
+.uploaded-file-actions { grid-column: 2; display: flex; gap: 14px; align-items: center; }
+.uploaded-file-actions a, .uploaded-file-actions button { min-height: 30px; padding: 0; border: 0; background: transparent; color: #526947; font-size: 11px; cursor: pointer; }
+.uploaded-file-actions button { color: #9a5c4f; }
+.uploaded-file-actions button:disabled { cursor: wait; opacity: .6; }
 .resume-summary-section { margin-top: 22px; }
 .resume-summary-section h4 { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 12px; }
 .resume-summary-section h4 svg { width: 16px; height: 16px; color: #758966; }

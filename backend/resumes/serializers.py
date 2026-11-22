@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import transaction
-from .models import Resume, Education, Experience, Project, Certificate, Award
+from .models import Resume, ResumeUpload, Education, Experience, Project, Certificate, Award
 
 
 class EducationSerializer(serializers.ModelSerializer):
@@ -71,6 +71,21 @@ class AwardSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         validated_data.pop('sort', None)
         return super().update(instance, validated_data)
+
+
+class ResumeUploadSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ResumeUpload
+        fields = ['id', 'file_name', 'file_url', 'parsed_degraded', 'created_at']
+        read_only_fields = fields
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return obj.file.url if obj.file else None
 
 
 class ResumeSerializer(serializers.ModelSerializer):

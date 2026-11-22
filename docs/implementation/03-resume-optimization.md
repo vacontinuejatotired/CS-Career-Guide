@@ -1,10 +1,10 @@
 # 成员3：简历 NLP 与有依据的建议
 
-先读 [公共约定](00-shared-contracts.md) 与 [当前方案](../career_platform_plan.md)。已有简历CRUD、只读观览；准备阶段增加 edit_revision、分析/应用回执表、路由及页面。当前分析/确认应用业务501，尚无事实校验或乐观并发应用实现。
+先读 [公共约定](00-shared-contracts.md) 与 [当前方案](../career_platform_plan.md)。已有简历CRUD、只读观览；准备阶段增加 edit_revision、分析/应用回执表、路由及页面。2026-11-22 增加面试用上传简历（最多两份）与真实模型解析，但 JD 对照分析、事实校验和确认应用业务仍为 501，两者不能混为简历优化完成。
 
 ## 修改边界与目标
 
-负责 `backend/career_platform/resume/`、`views/resume.py`、`models/resume.py`、`backend/resumes/`、Resume.vue；公共契约/序列化器/组装/迁移集成人审核。不得改自由面试主链路、另建简历表、客户端指定owner、自动将建议覆盖原稿。首版不做文件OCR、自动补经历、自动投递。
+负责 `backend/career_platform/resume/`、`views/resume.py`、`models/resume.py`、`backend/resumes/`、Resume.vue；公共契约/序列化器/组装/迁移集成人审核。不得改自由面试主链路、另建简历表、客户端指定owner、自动将建议覆盖原稿。文件简历仅供面试选择，不自动补写经历、不自动覆盖平台编辑稿，也不执行自动投递。
 
 ## Facade、Strategy 和 Adapter
 
@@ -235,5 +235,25 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
   "scope": "完整all固定17项中的resume3项仍因501失败；原简历建议与应用流程未实现。records/rag组合专项18项通过仅证明练习相关链路，不能替代resume验收。",
   "limitations": "网关注入不等于NLP分析、事实校验或版本应用完成；自由文本仍可含私人数据，不宣称全量脱敏。未修改用户资料或简历数据库，未执行MySQL、真实模型、浏览器或部署。",
   "evidence": "ci/check_project_changes.py; ci/test_project_changes.py; backend/career_platform/tests/test_records_runtime.py; backend/tests/test_retrieval_demo.py; .runtime/docs-sync-20261110/all.json（本机忽略产物，可按命令复现）; GitHub Actions 42771897363 job状态查询"
+}
+```
+
+### 2026-11-22 面试用上传简历
+
+`ResumeUpload` 保存当前登录用户最多两份文件简历，字段为原始文件名、文件 URL、AI 结构化结果、解析降级标记和上传时间。`GET/POST /api/resumes/uploads/` 读取或上传，`DELETE /api/resumes/uploads/<id>/` 删除；超过两份时服务端返回 HTTP 409 和 `RESUME_UPLOAD_LIMIT`，前端在打开文件选择器前也会提示先删除旧文件。个人中心展示文件名、时间、解析状态、查看与删除操作；本地上传文件位于 `backend/media/resumes/` 并已加入 Git 忽略，不进入提交。
+
+上传支持 PDF、JPG、PNG、WebP、最大 10MB。PDF 使用 PyMuPDF 在进程内渲染，不再依赖系统 Poppler；图片和 PDF 页面交给已配置的多模态模型提取目标岗位、年限、技能、教育、经历和项目。解析失败会保存降级状态但不生成假简历。运行时依赖新增 `PyMuPDF==1.26.7`；`resumes.0005` 同时把旧单文件迁移为一条 `ResumeUpload` 并补齐此前遗漏的 `Resume.parsed*` 字段。
+
+面试开始页新增“无（则按照在平台编辑的简历）/选择上传的简历”。平台模式继续使用原有 `localStorage.resume` 渠道；上传模式只传 `uploaded_resume_id`，后端按当前用户校验文件、读取结构化结果并加入面试提示词，不能由客户端直接提交任意解析文本。`ai_integration.0016` 补齐会话摘要字段，使真实流式接口可以启动。
+
+```acceptance-record
+{
+  "commit": "current migration branch + dirty",
+  "command": "django test tests.test_resume_uploads; unittest test_interview.py; node --test resume/interview/api contract tests; vite build; local MySQL migrate; real model + browser integration",
+  "result": "passed",
+  "environment": "2026-11-22；Windows；MySQL 本地数据库；Chrome 142 CDP；真实模型 deepseek-flash；示例 PDF",
+  "scope": "上传、AI 解析、两份上限、用户隔离、删除、个人中心展示、面试来源选择、真实 SSE 首轮及移动端无横向溢出均验证。示例 PDF 被解析为目标岗位“开发”；上传模式真实回复“目标岗位：开发”，平台模式围绕平台简历中的“前端工程师/Vue”提问。",
+  "limitations": "本地专项测试与浏览器联调，不代表远端 CI、镜像、部署或线上数据库。手机尺寸为浏览器模拟。未提交；真实模型配置以本地 backend/.env 为准，密钥未输出或入库。",
+  "evidence": "backend/tests/test_resume_uploads.py; backend/tests/test_interview.py; frontend/tests/resume-uploads.test.mjs; frontend/tests/interview.test.mjs; .runtime 下的本地服务、日志与浏览器截图"
 }
 ```

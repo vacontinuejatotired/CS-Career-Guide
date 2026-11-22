@@ -17,7 +17,12 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Optional, Sequence
 
-from .service import InterviewPrompt
+from .service import (
+    InterviewPrompt,
+    RESUME_MODE_ATTACHED,
+    RESUME_MODE_AUTO,
+    RESUME_MODE_NONE,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -42,11 +47,6 @@ COMPACT_SUMMARY_CHARS = 1200    # 压缩产物自身的字数上限
 # ---------------------------------------------------------------------------
 # 2. 简历三态
 # ---------------------------------------------------------------------------
-RESUME_MODE_AUTO = "auto"          # 有就用，没有走默认
-RESUME_MODE_ATTACHED = "attached"  # 用户明确选择带简历
-RESUME_MODE_NONE = "none"          # 用户明确选择不带简历
-
-
 # ---------------------------------------------------------------------------
 # 3. 固定文本
 # ---------------------------------------------------------------------------
@@ -76,6 +76,8 @@ RESUME_TEMPLATE = (
     "目标岗位：{target_role}\n"
     "工作年限：{years}\n"
     "核心技能：{skills}\n"
+    "教育背景：\n{education}\n"
+    "工作与实习经历：\n{experience}\n"
     "项目亮点：\n{projects}\n\n"
     "使用规则：简历用于理解候选人背景。当简历描述与候选人当前回答不一致时，"
     "以当前回答为准；不要用简历内容替候选人作答，也不要把简历细节当作已确认的事实来提问。"
@@ -113,6 +115,8 @@ class ResumeContext:
     target_role: str = ""
     years: str = ""
     skills: str = ""
+    education: list = field(default_factory=list)
+    experience: list = field(default_factory=list)
     projects: list = field(default_factory=list)
     degraded: bool = False
 
@@ -120,14 +124,19 @@ class ResumeContext:
     def from_record(cls, record: dict) -> "ResumeContext":
         """从解析器返回的 dict 构造，字段名按现状改这一处即可。"""
         record = record or {}
-        projects = record.get("projects") or []
-        if isinstance(projects, str):
-            projects = [line for line in projects.split("\n") if line.strip()]
+        def items(key):
+            value = record.get(key) or []
+            if isinstance(value, str):
+                return [line.strip() for line in value.split("\n") if line.strip()]
+            return list(value) if isinstance(value, (list, tuple)) else []
+
         return cls(
             target_role=(record.get("target_role") or record.get("job") or "").strip(),
             years=(record.get("years") or record.get("experience") or "").strip(),
             skills=(record.get("skills") or "").strip(),
-            projects=list(projects),
+            education=items("education"),
+            experience=items("experience"),
+            projects=items("projects"),
             degraded=bool(record.get("degraded", False)),
         )
 
@@ -202,26 +211,38 @@ def _cut_text(text: str, allowed_tokens: int) -> str:
 
 def render_resume_block(resume: ResumeContext, max_tokens: int = RESUME_BLOCK_TOKENS) -> str:
     """把结构化简历渲染成 system 里的一段。"""
-    projects = [str(p).strip() for p in (resume.projects or []) if str(p).strip()]
-    kept: list = []
     used = 0
     truncated = False
-    for project in projects:
-        if len(kept) >= RESUME_MAX_PROJECTS:
-            truncated = True
-            break
-        cost = estimate_tokens(project)
-        if kept and used + cost > max_tokens:
-            truncated = True
-            break
-        kept.append(project)
-        used += cost
+
+    def keep_items(items):
+        nonlocal used, truncated
+        kept = []
+        for item in items or []:
+            text = str(item).strip()
+            if not text:
+                continue
+            if len(kept) >= RESUME_MAX_PROJECTS:
+                truncated = True
+                break
+            cost = estimate_tokens(text)
+            if kept and used + cost > max_tokens:
+                truncated = True
+                break
+            kept.append(text)
+            used += cost
+        return kept
+
+    education = keep_items(resume.education)
+    experience = keep_items(resume.experience)
+    projects = keep_items(resume.projects)
 
     block = RESUME_TEMPLATE.format(
         target_role=resume.target_role or "未提供",
         years=resume.years or "未提供",
         skills=resume.skills or "未提供",
-        projects="\n".join("- " + p for p in kept) or "- 未提供",
+        education="\n".join("- " + item for item in education) or "- 未提供",
+        experience="\n".join("- " + item for item in experience) or "- 未提供",
+        projects="\n".join("- " + item for item in projects) or "- 未提供",
     )
     if truncated:
         block += "\n（简历项目部分已截断）"
@@ -428,8 +449,10 @@ class LegacyPromptInterview:
             parts.append("此前对话摘要：\n" + summary)
         if history:
             parts.append(self._format_history(history))
-        parts.append(message)
-        return "\n\n".join(part for part in parts if part)
+        prefix = "\n\n".join(part for part in parts if part)
+        if not prefix:
+            return message
+        return prefix + ("\n" if history else "\n\n") + message
 
     @staticmethod
     def _format_history(history) -> str:

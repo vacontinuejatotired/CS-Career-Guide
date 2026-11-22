@@ -49,11 +49,13 @@ export const resumeAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   deleteAvatar: () => api.delete('/resumes/delete_avatar/'),
-  uploadResume: (formData) => api.post('/resumes/upload_resume/', formData, {
+  listUploads: (config) => api.get('/resumes/uploads/', config),
+  uploadResume: (formData, config = {}) => api.post('/resumes/uploads/', formData, {
+    ...config,
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 60000
+    timeout: 180000
   }),
-  deleteResumeFile: () => api.delete('/resumes/delete_resume_file/')
+  deleteUpload: (id) => api.delete(`/resumes/uploads/${encodeURIComponent(id)}/`)
   }
 
 export const interviewAPI = {
@@ -74,7 +76,15 @@ export const aiAPI = {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ message, mode, interview_style, session_id, enable_tts: options.enableTts === true })
+      body: JSON.stringify({
+        message,
+        mode,
+        interview_style,
+        session_id,
+        enable_tts: options.enableTts === true,
+        resume_mode: options.resumeMode === 'uploaded' ? 'uploaded' : 'platform',
+        uploaded_resume_id: options.uploadedResumeId || null
+      })
     })
   },
   getHistory: (sessionId) => api.get(`/ai/llm/chat/history/?session_id=${sessionId}`),

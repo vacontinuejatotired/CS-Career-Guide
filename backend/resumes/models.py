@@ -1,5 +1,7 @@
-from django.db import models
+import uuid
+
 from django.conf import settings
+from django.db import models
 
 # 存储头像
 def avatar_upload_path(instance, filename):
@@ -9,7 +11,8 @@ def resume_save_path(instance, filename):
     return f'resumes/edit/user_{instance.user.id}/{filename}'
 # 上传简历
 def resume_upload_path(instance, filename):
-    return f'resumes/user_{instance.user.id}/{filename}'
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'bin'
+    return f'resumes/user_{instance.user_id}/{uuid.uuid4().hex}.{ext}'
 
 class Resume(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='resume', verbose_name='用户')
@@ -44,6 +47,29 @@ class Resume(models.Model):
     
     def __str__(self):
         return f'{self.user.username}的简历'
+
+
+class ResumeUpload(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='resume_uploads',
+        verbose_name='用户',
+    )
+    file = models.FileField(upload_to=resume_upload_path, verbose_name='文件')
+    file_name = models.CharField(max_length=255, verbose_name='文件名称')
+    parsed = models.JSONField(null=True, blank=True, verbose_name='AI 解析的结构化结果')
+    parsed_degraded = models.BooleanField(default=False, verbose_name='解析降级标记')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='上传时间')
+
+    class Meta:
+        db_table = 'resume_uploads'
+        ordering = ('-created_at', '-id')
+        verbose_name = '上传简历'
+        verbose_name_plural = '上传简历'
+
+    def __str__(self):
+        return f'{self.user.username} - {self.file_name}'
 
 
 class Education(models.Model):

@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 from typing import Protocol
 
-# RESUME_MODE 常量定义在实现模块（legacy.py）中，这里从那里导入，
-# 避免 legacy → service → legacy 循环（legacy 已 import InterviewPrompt）
-from .legacy import RESUME_MODE_AUTO
+RESUME_MODE_AUTO = "auto"
+RESUME_MODE_ATTACHED = "attached"
+RESUME_MODE_NONE = "none"
 
 
 @dataclass(frozen=True)
@@ -37,9 +37,11 @@ class InterviewService:
                      review=False, resume=None, resume_mode=RESUME_MODE_AUTO,
                      summary="", summary_upto=0):
         """向后兼容：旧调用方不传新参数仍可运行。"""
-        return self.plan_turn(message, history, style, review=review,
-                              resume=resume, resume_mode=resume_mode,
-                              summary=summary, summary_upto=summary_upto).prompt
+        return self.implementation.prepare_turn(
+            message, history, style, review=review,
+            resume=resume, resume_mode=resume_mode,
+            summary=summary, summary_upto=summary_upto,
+        )
 
     def parse_review(self, content):
         return self.implementation.parse_review(content)

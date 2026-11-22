@@ -15,8 +15,13 @@ from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ai_integration.interview.legacy import LegacyPromptInterview
-from ai_integration.interview.service import InterviewPrompt, InterviewService
+from ai_integration.interview.legacy import LegacyPromptInterview, ResumeContext
+from ai_integration.interview.service import (
+    InterviewPrompt,
+    InterviewService,
+    RESUME_MODE_ATTACHED,
+    RESUME_MODE_NONE,
+)
 
 
 class InterviewBehaviorTests(unittest.TestCase):
@@ -30,7 +35,9 @@ class InterviewBehaviorTests(unittest.TestCase):
         self.assertEqual(turn.user, '对话历史：\n用户：问题一\n面试官：回答一\n面试官：回答二\n本轮回答')
         self.assertTrue(turn.system.startswith('面试系统\n\n风格：极致理性的硬核技术深挖，针对底层原理进行连环追问。'))
         self.assertIn('只输出纯文本，不使用 Markdown', turn.system)
-        self.assertEqual(self.service.prepare_turn('字' * 3001, [], 'gentle').user, '字' * 3000 + '...')
+        long_turn = self.service.plan_turn('字' * 12000, [], 'gentle')
+        self.assertTrue(long_turn.meta['message_truncated'])
+        self.assertIn('后续内容因长度限制被截断', long_turn.prompt.user)
         self.assertIn('对面试人员使用及其压迫的提问方式，要求候选人在短时间内给出回答。', self.service.prepare_turn('回答', [], 'pressure').system)
         self.assertIn('关注过往经历中的决策、冲突处理及团队协作等软技能。', self.service.prepare_turn('回答', [], 'behavioral').system)
         self.assertEqual(self.service.prepare_turn('回答', [], 'unknown'), self.service.prepare_turn('回答', [], 'gentle'))
@@ -56,9 +63,31 @@ class InterviewBehaviorTests(unittest.TestCase):
         replacement.prepare_turn.return_value = InterviewPrompt('new system', 'new question')
         service = InterviewService(replacement)
         self.assertEqual(service.prepare_turn('answer', [], 'gentle').user, 'new question')
-        replacement.prepare_turn.assert_called_once_with('answer', [], 'gentle', review=False)
+        replacement.prepare_turn.assert_called_once_with(
+            'answer', [], 'gentle', review=False,
+            resume=None, resume_mode='auto', summary='', summary_upto=0,
+        )
         service.parse_review('new report')
         replacement.parse_review.assert_called_once_with('new report')
+
+    def test_selected_resume_is_rendered_only_when_attached(self):
+        resume = ResumeContext(
+            target_role='开发',
+            years='未提供',
+            skills='Python、Django',
+            experience=['示例公司、后端开发、负责接口'],
+            projects=['职业平台、后端、提供简历解析'],
+        )
+        attached = self.service.prepare_turn(
+            '回答', [], 'technical', resume=resume, resume_mode=RESUME_MODE_ATTACHED,
+        )
+        self.assertIn('目标岗位：开发', attached.system)
+        self.assertIn('Python、Django', attached.system)
+        self.assertIn('职业平台、后端、提供简历解析', attached.system)
+        disabled = self.service.prepare_turn(
+            '回答', [], 'technical', resume=resume, resume_mode=RESUME_MODE_NONE,
+        )
+        self.assertNotIn('目标岗位：开发', disabled.system)
 
 
 class ChatRouteIntegrationTests(unittest.TestCase):
@@ -160,7 +189,10 @@ class ChatRouteIntegrationTests(unittest.TestCase):
                     model_factory.return_value.stream.assert_called_with([
                         {'content': '策略系统提示'}, {'content': '策略输入'},
                     ])
-                    service.prepare_turn.assert_called_with(message, [], 'technical', review=mode == 'interview_review')
+                    service.prepare_turn.assert_called_with(
+                        message, [], 'technical', review=mode == 'interview_review',
+                        resume=None, resume_mode='none',
+                    )
                 self.assertEqual(pairs.create.call_args.kwargs['user_input'], message)
                 self.assertEqual(pairs.create.call_args.kwargs['ai_output'], '下一题')
 

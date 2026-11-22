@@ -259,6 +259,7 @@ def build_user_profile_prompt(request):
     
     return prompt
 
+
 @csrf_exempt
 def llm_chat(request):
     # 记录开始时间
@@ -275,6 +276,8 @@ def llm_chat(request):
             mode = request.POST.get('mode', '')
             interview_style = request.POST.get('interview_style', '')
             session_id = request.POST.get('session_id', '')
+            resume_mode = request.POST.get('resume_mode', 'platform')
+            uploaded_resume_id = request.POST.get('uploaded_resume_id', '')
             if 'audio' in request.FILES:
                 audio_file = request.FILES['audio']
                 logger.info(f"Received audio file: {audio_file.name}, size: {audio_file.size}")
@@ -284,6 +287,8 @@ def llm_chat(request):
             mode = data.get('mode', '')
             interview_style = data.get('interview_style', '')
             session_id = data.get('session_id', '')
+            resume_mode = data.get('resume_mode', 'platform')
+            uploaded_resume_id = data.get('uploaded_resume_id', '')
             requested_tts = data.get('enable_tts') is True
         
         logger.info(f"Received message: {user_message}, mode: {mode}, session_id: {session_id}")
@@ -341,9 +346,20 @@ def llm_chat(request):
         # HTTP/SSE, conversation storage and TTS remain shared infrastructure.
         interview_prompt = None
         if is_interview_mode or is_review_mode:
+            from ai_integration.interview.resume_selection import resolve_interview_resume
+            resume_context, selected_resume_mode, resume_error = resolve_interview_resume(
+                request, resume_mode, uploaded_resume_id,
+            )
+            if resume_error:
+                return resume_error
             from ai_integration.interview import get_interview_service
             interview_prompt = get_interview_service().prepare_turn(
-                user_message, chat_history, interview_style, review=is_review_mode,
+                user_message,
+                chat_history,
+                interview_style,
+                review=is_review_mode,
+                resume=resume_context,
+                resume_mode=selected_resume_mode,
             )
             enhanced_prompt = interview_prompt.user
         else:

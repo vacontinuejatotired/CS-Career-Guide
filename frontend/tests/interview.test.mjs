@@ -146,6 +146,23 @@ test('selected duration reaches the interviewer and review uses elapsed selected
   assert.equal(saved.interview_duration,2)
 })
 
+test('uploaded resume selection bypasses local resume text and reaches every interview turn', async () => {
+  const calls=[]
+  const implementation=new LegacyInterviewImplementation({readResume:()=>JSON.stringify({name:'平台姓名',target_position:'平台岗位'}),
+    chatStream:async (...args)=>{calls.push(args);return response([{type:'chunk',content:'问题'}])},
+    saveReview(){},transcribe(){}})
+  const context={style:'technical',sessionId:'uploaded-s1',resumeMode:'uploaded',uploadedResumeId:'12'}
+  await implementation.start(context)
+  await implementation.answer({...context,answer:'回答'})
+  await implementation.generateReview({...context,messages:[{type:'user',content:'经历'.repeat(50)}]})
+  assert.ok(!calls[0][0].includes('平台姓名'))
+  assert.ok(calls.every(args=>args[4].resumeMode==='uploaded'&&args[4].uploadedResumeId==='12'))
+  await assert.rejects(
+    implementation.start({style:'technical',resumeMode:'uploaded',uploadedResumeId:null}),
+    /请选择要使用的上传简历/
+  )
+})
+
 test('clock catches up after background throttling and excludes paused wall time', () => {
   let now = 0
   const clock = createSessionClock(2700, () => now)

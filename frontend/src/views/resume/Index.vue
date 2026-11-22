@@ -1277,10 +1277,10 @@ const uploadResume = async (file) => {
     })
 
     console.log('上传响应:', response)
-    resume.value.file_url = response?.file_url || null
-    // 保存成功后，重新加载数据验证
-    await loadResume()
-    uploadNotice.value = '简历已上传成功。'
+    uploadFailed.value = Boolean(response?.upload?.parsed_degraded)
+    uploadNotice.value = uploadFailed.value
+      ? '文件已保存，但 AI 未能解析，请到个人中心删除后重新上传清晰简历。'
+      : '简历已上传并由 AI 解析完成，可在模拟面试开始时选择。'
   } catch (error) {
     console.error('上传简历失败:', error)
     uploadFailed.value = true

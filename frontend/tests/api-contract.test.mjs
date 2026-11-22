@@ -38,9 +38,14 @@ test('streaming chat requires explicit voice opt-in and forwards cancellation', 
   try {
     await aiAPI.chatStream('文字', 'interview', 'gentle', 's1')
     const controller = new AbortController()
-    await aiAPI.chatStream('语音', 'interview', 'gentle', 's1', {enableTts: true, signal: controller.signal})
+    await aiAPI.chatStream('语音', 'interview', 'gentle', 's1', {
+      enableTts: true, signal: controller.signal, resumeMode: 'uploaded', uploadedResumeId: 7
+    })
     assert.equal(JSON.parse(calls[0].body).enable_tts, false)
     assert.equal(JSON.parse(calls[1].body).enable_tts, true)
+    assert.equal(JSON.parse(calls[0].body).resume_mode, 'platform')
+    assert.equal(JSON.parse(calls[1].body).resume_mode, 'uploaded')
+    assert.equal(JSON.parse(calls[1].body).uploaded_resume_id, 7)
     assert.equal(calls[1].signal, controller.signal)
   } finally { globalThis.fetch = oldFetch }
 })
@@ -62,12 +67,18 @@ test('existing resume routes preserve request bodies and multipart uploads', asy
   upload.append('avatar', new Blob(['test'], { type: 'image/png' }), 'avatar.png')
   await resumeAPI.uploadAvatar(upload)
   await resumeAPI.deleteAvatar()
+  await resumeAPI.listUploads()
+  await resumeAPI.uploadResume(upload)
+  await resumeAPI.deleteUpload(7)
   assert.deepEqual(requests.map(r => [r.method, r.url]), [
     ['post', '/resumes/my/'], ['get', '/resumes/my/'],
     ['post', '/resumes/upload_avatar/'], ['delete', '/resumes/delete_avatar/'],
+    ['get', '/resumes/uploads/'], ['post', '/resumes/uploads/'],
+    ['delete', '/resumes/uploads/7/'],
   ])
   assert.deepEqual(JSON.parse(requests[0].data), body)
   assert.equal(requests[2].data, upload)
+  assert.equal(requests[5].data, upload)
   assert.ok(requests.every(r => r.headers.get('Authorization') === 'Token contract-test-token'))
 })
 

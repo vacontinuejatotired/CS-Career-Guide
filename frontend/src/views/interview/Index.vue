@@ -23,7 +23,18 @@
             <div class="interview-section-heading"><span class="section-node" aria-hidden="true"></span><div><h2>选择面试风格</h2><p>根据这次想练习的内容选择，开始前可以更改。</p></div></div>
             <div class="interview-style-grid"><button v-for="style in interviewStyleOptions" :key="style.id" type="button" class="interview-style" :class="{ 'is-selected': selectedStyle === style.id }" :aria-pressed="selectedStyle === style.id" @click="selectedStyle = style.id"><WorkspaceIcon class="style-icon" :name="{ gentle: 'message', technical: 'code', pressure: 'compass', behavioral: 'user' }[style.id]" /><div><strong>{{ style.title }}</strong><p>{{ style.description }}</p></div><span class="selected-caption" :class="{ active: selectedStyle === style.id }"><WorkspaceIcon v-if="selectedStyle === style.id" name="check" /><span class="sr-only">{{ selectedStyle === style.id ? '已选择' : '未选择' }}</span></span></button></div>
             <div class="interview-duration-choice"><label for="interview-duration">面试时长</label><select id="interview-duration" v-model.number="selectedDuration"><option v-for="minutes in INTERVIEW_DURATIONS" :key="minutes" :value="minutes">{{ minutes }} 分钟</option></select><span>按自己的节奏选择，随时可以提前结束。</span></div>
-            <div class="interview-start"><p>建议先保存简历，面试会结合已有的简历内容展开。</p><button type="button" class="career-button career-button-primary" @click="startInterview">开始面试<WorkspaceIcon name="arrow" /></button></div>
+            <div class="interview-resume-source" aria-labelledby="interview-resume-source-title">
+              <div class="resume-source-heading"><div><h3 id="interview-resume-source-title">这次使用哪份简历</h3><p>上传简历会先由 AI 解析，再作为本轮面试背景加入提示词。</p></div><router-link to="/users" class="resume-source-manage">管理上传简历<WorkspaceIcon name="arrow" /></router-link></div>
+              <div class="resume-source-options">
+                <label :class="{ 'is-selected': resumeSource === 'platform' }"><input v-model="resumeSource" type="radio" value="platform" name="resume-source" /><span><strong>无</strong><small>则按照在平台编辑的简历</small></span></label>
+                <label :class="{ 'is-selected': resumeSource === 'uploaded', 'is-disabled': !uploadedResumes.length || uploadsLoading }"><input v-model="resumeSource" type="radio" value="uploaded" name="resume-source" :disabled="uploadsLoading || !uploadedResumes.length" /><span><strong>选择上传的简历</strong><small>{{ uploadsLoading ? '正在读取…' : uploadedResumes.length ? `已上传 ${uploadedResumes.length} 份` : '还没有上传简历' }}</small></span></label>
+              </div>
+              <label v-if="resumeSource === 'uploaded' && uploadedResumes.length" for="interview-uploaded-resume" class="resume-source-select"><span>选择文件</span><select id="interview-uploaded-resume" v-model="selectedUploadedResumeId"><option v-for="upload in uploadedResumes" :key="upload.id" :value="String(upload.id)">{{ upload.file_name }}{{ upload.parsed_degraded ? '（解析失败）' : '' }}</option></select></label>
+              <p v-if="uploadsError" class="resume-source-error" role="alert">{{ uploadsError }}</p>
+              <p v-else-if="!uploadsLoading && !uploadedResumes.length" class="resume-source-empty">可前往个人中心上传至多两份简历。</p>
+              <p v-if="resumeChoiceError" class="resume-source-error" role="alert">{{ resumeChoiceError }}</p>
+            </div>
+            <div class="interview-start"><p>{{ resumeSource === 'uploaded' ? '本轮将使用所选上传简历。' : '本轮将使用平台中已编辑的简历。' }}</p><button type="button" class="career-button career-button-primary" @click="startInterview">开始面试<WorkspaceIcon name="arrow" /></button></div>
           </div>
           <div v-if="isInterviewing || messages.length" ref="chatRef" class="interview-chat" aria-label="面试对话" aria-live="polite" aria-relevant="additions text" @scroll="trackConversationScroll">
             <div v-for="(msg,index) in messages" :key="index" class="interview-message" :class="{ 'is-user': msg.type !== 'ai' }">
@@ -61,13 +72,14 @@ import WorkspaceDialog from '@/components/WorkspaceDialog.vue'
 import { VAD_ASSET_BASE_URL, ENABLE_TTS } from '@/config'
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { userAPI } from '@/api'
+import { resumeAPI, userAPI } from '@/api'
 import { interviewService } from '@/features/interview'
 import { createInterviewAudio } from '@/features/interview/audio.js'
 import { interviewPlainText } from '@/features/interview/plain-text.js'
 import StreamingText from '@/features/interview/StreamingText.vue'
 import ResumePreview from '@/features/interview/ResumePreview.vue'
 import { INTERVIEW_DURATIONS, DEFAULT_DURATION, createSessionClock } from '@/features/interview/session-clock.js'
+import { normalizeUploadedResumes, resumeRequestOptions } from '@/features/resume/uploads.js'
 
 const router = useRouter()
 
@@ -111,6 +123,12 @@ const messages = ref([])
 const chatRef = ref(null)
 const inputRef = ref(null)
 const selectedDuration = ref(DEFAULT_DURATION)
+const uploadedResumes = ref([])
+const uploadsLoading = ref(false)
+const uploadsError = ref('')
+const resumeSource = ref('platform')
+const selectedUploadedResumeId = ref('')
+const resumeChoiceError = ref('')
 const totalDurationSeconds = ref(DEFAULT_DURATION * 60)
 const remainingTime = ref(totalDurationSeconds.value)
 let sessionClock = null
@@ -202,6 +220,32 @@ function handleWorkspaceKeydown(event) {
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
 }
 
+async function loadUploadedResumes() {
+  uploadsLoading.value = true
+  uploadsError.value = ''
+  try {
+    const response = await resumeAPI.listUploads()
+    uploadedResumes.value = normalizeUploadedResumes(response)
+    if (!uploadedResumes.value.some(upload => String(upload.id) === selectedUploadedResumeId.value)) {
+      selectedUploadedResumeId.value = uploadedResumes.value[0] ? String(uploadedResumes.value[0].id) : ''
+    }
+    if (!uploadedResumes.value.length) resumeSource.value = 'platform'
+  } catch (error) {
+    uploadsError.value = error?.response?.status === 401
+      ? '登录已失效，请重新登录后选择上传简历。'
+      : '上传简历读取失败，本轮仍可使用平台编辑的简历。'
+    uploadedResumes.value = []
+    selectedUploadedResumeId.value = ''
+    resumeSource.value = 'platform'
+  } finally {
+    uploadsLoading.value = false
+  }
+}
+
+function selectedResumeContext() {
+  return resumeRequestOptions(resumeSource.value, selectedUploadedResumeId.value)
+}
+
 
 // 语音合成由 VITE_ENABLE_TTS 控制；后端需同时设置 ENABLE_TTS。
 
@@ -246,6 +290,11 @@ async function presentInterviewEvent(index, event) {
 
 async function startInterview() {
   if (isInterviewing.value) return
+  resumeChoiceError.value = ''
+  if (resumeSource.value === 'uploaded' && !selectedUploadedResumeId.value) {
+    resumeChoiceError.value = '请选择一份已上传的简历，或切换为平台编辑的简历。'
+    return
+  }
   activeController?.abort()
   const controller = new AbortController()
   activeController = controller
@@ -266,7 +315,8 @@ async function startInterview() {
     preparePlayback()
     await interviewService.start({
       style: selectedStyle.value, sessionId: sessionId.value, durationMinutes: selectedDuration.value,
-      enableTts: voiceOutputEnabled.value && ENABLE_TTS, signal: controller.signal
+      enableTts: voiceOutputEnabled.value && ENABLE_TTS, signal: controller.signal,
+      ...selectedResumeContext()
     }, event => controller.signal.aborted ? undefined : presentInterviewEvent(index, event))
     playback.finish()
   } catch (error) {
@@ -319,7 +369,8 @@ async function sendMessage(event, audioMsg = null) {
     preparePlayback()
     await interviewService.answer({
       answer: content, style: selectedStyle.value, sessionId: sessionId.value,
-      enableTts: voiceOutputEnabled.value && ENABLE_TTS, signal: controller.signal
+      enableTts: voiceOutputEnabled.value && ENABLE_TTS, signal: controller.signal,
+      ...selectedResumeContext()
     }, event => controller.signal.aborted ? undefined : presentInterviewEvent(index, event))
     playback.finish()
   } catch (error) {
@@ -378,7 +429,8 @@ async function generateReview() {
   isReviewLoading.value = true
   try {
     const review = await interviewService.generateReview({
-      messages: messages.value, style: selectedStyle.value, sessionId: sessionId.value, signal: controller.signal
+      messages: messages.value, style: selectedStyle.value, sessionId: sessionId.value, signal: controller.signal,
+      ...selectedResumeContext()
     }, event => {
       if (event.type === 'chunk' && event.content) reviewContent.value += event.content
     })
@@ -612,6 +664,7 @@ function followConversation() {
 onMounted(() => {
   updateUserFromLocalStorage()
   syncUserProfile()
+  loadUploadedResumes()
   window.addEventListener('keydown', handleEscape)
 })
 
@@ -1157,6 +1210,23 @@ const interviewStyleOptions = [
 .interview-duration-choice { margin-top: 20px; padding: 14px; background: #f8f9f4; border: 1px solid #e6eadf; border-radius: 12px; }
 .interview-duration-choice > label { color: #35432e; font-weight: 500; }
 .interview-duration-choice select { min-height: 44px; border-radius: 8px; border-color: #d2dbca; }
+.interview-resume-source { margin-top: 14px; padding: 16px; background: #fbfcf8; border: 1px solid #e6eadf; border-radius: 12px; }
+.resume-source-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.resume-source-heading h3 { color: #35432e; font-size: 14px; font-weight: 500; }
+.resume-source-heading p, .resume-source-empty, .resume-source-error { margin-top: 6px; color: #727d67; font-size: 12px; line-height: 1.7; }
+.resume-source-manage { display: inline-flex; align-items: center; gap: 4px; flex: none; min-height: 36px; color: #526947; font-size: 12px; }
+.resume-source-manage svg { width: 14px; height: 14px; }
+.resume-source-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 13px; }
+.resume-source-options label { display: flex; align-items: flex-start; gap: 10px; min-height: 74px; padding: 13px; border: 1px solid #dfe5d8; border-radius: 10px; background: #fff; cursor: pointer; }
+.resume-source-options label.is-selected { border-color: #748963; background: #f0f5e9; box-shadow: inset 0 0 0 1px #748963; }
+.resume-source-options label.is-disabled { cursor: not-allowed; opacity: .62; }
+.resume-source-options input { width: 16px; height: 16px; margin-top: 2px; accent-color: #536746; }
+.resume-source-options span { display: grid; gap: 4px; }
+.resume-source-options strong { color: #35432e; font-size: 13px; font-weight: 500; }
+.resume-source-options small { color: #727d67; font-size: 11px; line-height: 1.55; }
+.resume-source-select { display: flex; align-items: center; gap: 12px; margin-top: 12px; color: #526149; font-size: 12px; }
+.resume-source-select select { flex: 1; min-width: 0; min-height: 42px; padding: 8px 10px; border: 1px solid #d2dbca; border-radius: 8px; background: #fff; }
+.resume-source-error { color: #a33a2b; }
 .interview-start { margin-top: 22px; padding-top: 22px; }
 .interview-start p { max-width: 330px; }
 .interview-start .career-button { min-width: 144px; }
@@ -1212,6 +1282,9 @@ const interviewStyleOptions = [
  .selected-caption { top: 18px; right: 14px; width: 16px; height: 16px; }
  .interview-duration-choice { padding: 14px; gap: 10px; }
  .interview-duration-choice > span { width: 100%; }
+  .resume-source-heading { flex-direction: column; gap: 4px; }
+  .resume-source-options { grid-template-columns: 1fr; }
+  .resume-source-options label { min-height: 68px; }
  .interview-start { align-items: stretch; gap: 14px; }
  .interview-start .career-button { width: 100%; }
  .interview-aside { grid-template-columns: 1fr; }

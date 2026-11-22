@@ -11,14 +11,18 @@ export class LegacyInterviewImplementation {
     this.readResume = readResume
   }
 
-  async start({ style, sessionId, durationMinutes, enableTts = false, signal }, onEvent) {
+  async start({ style, sessionId, durationMinutes, enableTts = false, signal, resumeMode = 'platform', uploadedResumeId = null }, onEvent) {
     let resumePrompt = null
-    try {
-      resumePrompt = formatLegacyResume(this.readResume())
-    } catch (error) {
-      // Storage can be unavailable in browser privacy modes. The original page
-      // treated that exactly like an absent resume and still started the turn.
-      console.error('[RESUME] 解析简历数据失败:', error)
+    if (resumeMode === 'platform') {
+      try {
+        resumePrompt = formatLegacyResume(this.readResume())
+      } catch (error) {
+        // Storage can be unavailable in browser privacy modes. The original page
+        // treated that exactly like an absent resume and still started the turn.
+        console.error('[RESUME] 解析简历数据失败:', error)
+      }
+    } else if (resumeMode === 'uploaded' && !uploadedResumeId) {
+      throw new Error('请选择要使用的上传简历')
     }
     const promptType = style === 'pressure' ? 'pressure_interview' : 'interview'
     let interviewPrompt = `【面试模式】你是一位${getStyleDescription(style)}面试官。请开始一场${interviewDuration(durationMinutes)}分钟的面试。`
@@ -45,7 +49,9 @@ ${resumePrompt}
     let timeout
     try {
       const response = await Promise.race([
-        this.chatStream(interviewPrompt, promptType, style, sessionId, { enableTts, signal }),
+        this.chatStream(interviewPrompt, promptType, style, sessionId, {
+          enableTts, signal, resumeMode, uploadedResumeId
+        }),
         new Promise((_, reject) => {
           timeout = setTimeout(() => reject(new Error('请求超时')), 15000)
         })
@@ -56,7 +62,7 @@ ${resumePrompt}
     }
   }
 
-  async answer({ answer, style, sessionId, enableTts = false, signal }, onEvent) {
+  async answer({ answer, style, sessionId, enableTts = false, signal, resumeMode = 'platform', uploadedResumeId = null }, onEvent) {
     const userMessage = answer
     const promptType = style === 'pressure' ? 'pressure_interview' : 'interview'
     const response = await this.chatStream(
@@ -66,12 +72,14 @@ ${resumePrompt}
 1. 简要评价用户的回答（可选）
 2. 提出下一个面试问题
 
-注意：你只需扮演面试官角色，不要查询任何数据库信息。`, promptType, style, sessionId, { enableTts, signal }
+注意：你只需扮演面试官角色，不要查询任何数据库信息。`, promptType, style, sessionId, {
+        enableTts, signal, resumeMode, uploadedResumeId
+      }
     )
     await readLegacyStream(response, onEvent)
   }
 
-  async generateReview({ messages, style, sessionId, signal }, onEvent = () => {}) {
+  async generateReview({ messages, style, sessionId, signal, resumeMode = 'platform', uploadedResumeId = null }, onEvent = () => {}) {
     const conversation = reviewMessages(messages)
       .map(msg => `${msg.type === 'ai' ? '面试官' : '面试者'}：${msg.content}`)
       .join('\n')
@@ -91,7 +99,9 @@ ${conversation}
 2. 回答的优点
 3. 需要改进的地方
 4. 具体改进建议
-5. 下次面试的准备建议`, 'interview_review', style, sessionId || 'default_session', { enableTts: false, signal }
+5. 下次面试的准备建议`, 'interview_review', style, sessionId || 'default_session', {
+        enableTts: false, signal, resumeMode, uploadedResumeId
+      }
     )
     let content = ''
     await readLegacyStream(response, async event => {
