@@ -356,3 +356,19 @@ Actions 42776569360 的文档、SQLite/MySQL业务验收及前端镜像成功，
   "evidence": "ci/check_project_changes.py; ci/test_project_changes.py; backend/career_platform/tests/test_records_runtime.py; backend/tests/test_retrieval_demo.py; .runtime/docs-sync-20261110/all.json（本机忽略产物，可按命令复现）; GitHub Actions 42771897363 job状态查询"
 }
 ```
+
+### 2026-11-22 共享变更文档同步（83fe086）
+
+本轮因共享路径变更同步本文档。本分支 `backend/career_platform/rag/feedback.py` 有变更，反馈证据校验说明以既有记录为准，未重新验收 rag 业务；检索、回执、重试与来源透传边界不变。
+
+```acceptance-record
+{
+  "commit": "83fe086e98debd9ec233a8ac69495d8dab065471 + dirty",
+  "command": "python -m unittest discover -s ci -p 'test_project*.py' -v; python ci/check_project_changes.py --base 562ea1abe35f69f989e533d890a44f71c07c069d --head HEAD --output output/docs-sync-83fe086/platform-selection.json; python ci/project_acceptance.py --stage complete --module all --output output/docs-sync-83fe086/all.json",
+  "result": "failed",
+  "environment": "2026-11-22；Windows；隔离内存 SQLite；文档门禁与验收脚本不调用真实模型",
+  "scope": "仅文档同步：确认 rag/feedback.py 变更后证据校验说明与实现一致，未重跑 rag 专项或修改固定验收。完整 all 固定验收结果以 output/docs-sync-83fe086/all.json 实际内容为准。",
+  "limitations": "result=failed 表示完整业务门禁仍未通过；LanceDB、真实Embedding、真实模型、MySQL、浏览器与部署仍未验收，本轮未改变这些边界。",
+  "evidence": "output/docs-sync-83fe086/platform-selection.json; output/docs-sync-83fe086/all.json; backend/career_platform/rag/feedback.py"
+}
+```

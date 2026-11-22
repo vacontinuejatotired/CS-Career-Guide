@@ -248,12 +248,12 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
 
 ```acceptance-record
 {
-  "commit": "current migration branch + dirty",
+  "commit": "83fe086e98debd9ec233a8ac69495d8dab065471 + dirty",
   "command": "django test tests.test_resume_uploads; unittest test_interview.py; node --test resume/interview/api contract tests; vite build; local MySQL migrate; real model + browser integration",
   "result": "passed",
   "environment": "2026-11-22；Windows；MySQL 本地数据库；Chrome 142 CDP；真实模型 deepseek-flash；示例 PDF",
   "scope": "上传、AI 解析、两份上限、用户隔离、删除、个人中心展示、面试来源选择、真实 SSE 首轮及移动端无横向溢出均验证。示例 PDF 被解析为目标岗位“开发”；上传模式真实回复“目标岗位：开发”，平台模式围绕平台简历中的“前端工程师/Vue”提问。",
-  "limitations": "本地专项测试与浏览器联调，不代表远端 CI、镜像、部署或线上数据库。手机尺寸为浏览器模拟。未提交；真实模型配置以本地 backend/.env 为准，密钥未输出或入库。",
+  "limitations": "本地专项测试与浏览器联调，不代表远端 CI、镜像、部署或线上数据库。手机尺寸为浏览器模拟。验收基于 83fe086 加未提交补丁；真实模型配置以本地 backend/.env 为准，密钥未输出或入库。",
   "evidence": "backend/tests/test_resume_uploads.py; backend/tests/test_interview.py; frontend/tests/resume-uploads.test.mjs; frontend/tests/interview.test.mjs; .runtime 下的本地服务、日志与浏览器截图"
 }
 ```

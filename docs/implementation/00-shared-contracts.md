@@ -315,3 +315,19 @@ Actions 42771897363已确认：Platform documentation与Backend checks失败，F
   "evidence": "ci/check_project_changes.py; ci/test_project_changes.py; backend/career_platform/tests/test_records_runtime.py; backend/tests/test_retrieval_demo.py; .runtime/docs-sync-20261110/all.json（本机忽略产物，可按命令复现）; GitHub Actions 42771897363 job状态查询"
 }
 ```
+
+### 2026-11-22 共享路径变更文档同步（83fe086）
+
+本轮同步 `.github/workflows/ci-cd.yml`、career_platform 迁移/模型/gateway、rag/feedback、evaluation 数据集及 resume 上传等共享与跨模块路径变更涉及的六份实施文档；不修改门禁规则、固定测试或业务代码。完整业务验收状态以本次实际运行输出为准，不因文档同步宣称业务完成。
+
+```acceptance-record
+{
+  "commit": "83fe086e98debd9ec233a8ac69495d8dab065471 + dirty",
+  "command": "python -m unittest discover -s ci -p 'test_project*.py' -v; python ci/check_project_changes.py --base 562ea1abe35f69f989e533d890a44f71c07c069d --head HEAD --output output/docs-sync-83fe086/platform-selection.json; python ci/project_acceptance.py --stage complete --module all --output output/docs-sync-83fe086/all.json",
+  "result": "failed",
+  "environment": "2026-11-22；Windows；隔离内存 SQLite；文档门禁与验收脚本不调用真实模型",
+  "scope": "仅同步共享路径变更对应的六份实施文档与验收记录；文档门禁11项自测通过，check_project_changes 对 base 562ea1a 输出无缺失文档与文档错误。完整 all 固定验收结果以 output/docs-sync-83fe086/all.json 实际内容为准。",
+  "limitations": "result=failed 表示完整业务门禁仍未通过，不否定文档门禁本身；resume 的 JD 对照分析、事实校验与确认应用等固定用例状态未改变。未运行 MySQL、真实模型、浏览器、发布或部署验收。",
+  "evidence": "output/docs-sync-83fe086/platform-selection.json; output/docs-sync-83fe086/all.json; ci/check_project_changes.py; ci/test_project_changes.py"
+}
+```

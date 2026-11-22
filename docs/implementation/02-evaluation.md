@@ -281,3 +281,19 @@ Top-K 单变量扫描（text-baseline，其余参数不变）：dev 在 K=3/5/10
   "evidence": "ci/check_project_changes.py; ci/test_project_changes.py; backend/career_platform/tests/test_records_runtime.py; backend/tests/test_retrieval_demo.py; .runtime/docs-sync-20261110/all.json（本机忽略产物，可按命令复现）; GitHub Actions 42771897363 job状态查询"
 }
 ```
+
+### 2026-11-22 共享变更文档同步（83fe086）
+
+本轮因共享路径变更同步本文档。本分支新增 `evaluation/build_xiaolin.py`、`xiaolin-corpus-v1` 等数据集与实验文件及 `benchmark.py`，属成员2模块内变更；指标函数、冻结数据边界与默认策略未改变，2026-11-09 实验结论不被重写或重新包装。
+
+```acceptance-record
+{
+  "commit": "83fe086e98debd9ec233a8ac69495d8dab065471 + dirty",
+  "command": "python -m unittest discover -s ci -p 'test_project*.py' -v; python ci/check_project_changes.py --base 562ea1abe35f69f989e533d890a44f71c07c069d --head HEAD --output output/docs-sync-83fe086/platform-selection.json; python ci/project_acceptance.py --stage complete --module all --output output/docs-sync-83fe086/all.json",
+  "result": "failed",
+  "environment": "2026-11-22；Windows；隔离内存 SQLite；文档门禁与验收脚本不调用真实模型",
+  "scope": "仅文档同步：确认新增 xiaolin 数据集/基准文件后，评估集冻结、指标与策略说明仍与本分支实现一致；未重跑参数实验。完整 all 固定验收结果以 output/docs-sync-83fe086/all.json 实际内容为准。",
+  "limitations": "result=failed 表示完整业务门禁仍未通过；job/resume 任务策略、真实模型、Embedding、MySQL、浏览器与部署仍未验收，本轮未改变这些边界。",
+  "evidence": "output/docs-sync-83fe086/platform-selection.json; output/docs-sync-83fe086/all.json; backend/career_platform/evaluation/datasets/; backend/career_platform/evaluation/benchmark.py"
+}
+```

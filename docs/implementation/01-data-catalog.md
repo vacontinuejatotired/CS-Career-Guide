@@ -285,3 +285,19 @@
   "evidence": "backend/career_platform/catalog/source.py; backend/career_platform/catalog/repository.py; backend/career_platform/catalog/service.py; backend/tests/test_catalog_import.py; data/career-platform/java-backend.json; frontend/src/views/career-platform/Catalog.vue"
 }
 ```
+
+### 2026-11-22 共享变更文档同步（83fe086）
+
+本轮因共享路径变更（ci-cd.yml、迁移、模型、gateway、rag/feedback 等）同步本文档，不修改 catalog 业务代码、数据文件或固定验收；`backend/career_platform/catalog/repository.py` 在本分支有变更，相关查询/导入行为说明以既有 a4dc576 记录为准，未重新验收 catalog 业务。
+
+```acceptance-record
+{
+  "commit": "83fe086e98debd9ec233a8ac69495d8dab065471 + dirty",
+  "command": "python -m unittest discover -s ci -p 'test_project*.py' -v; python ci/check_project_changes.py --base 562ea1abe35f69f989e533d890a44f71c07c069d --head HEAD --output output/docs-sync-83fe086/platform-selection.json; python ci/project_acceptance.py --stage complete --module all --output output/docs-sync-83fe086/all.json",
+  "result": "failed",
+  "environment": "2026-11-22；Windows；隔离内存 SQLite；文档门禁与验收脚本不调用真实模型",
+  "scope": "仅文档同步：确认 catalog 查询/导入/许可过滤说明与本分支 repository.py 变更一致，不重跑 catalog 专项。完整 all 固定验收结果以 output/docs-sync-83fe086/all.json 实际内容为准。",
+  "limitations": "result=failed 表示完整业务门禁仍未通过；30道题人审、真实来源、真实Embedding、MySQL、浏览器与部署仍未验收，本轮未改变这些边界。",
+  "evidence": "output/docs-sync-83fe086/platform-selection.json; output/docs-sync-83fe086/all.json; backend/career_platform/catalog/repository.py"
+}
+```
