@@ -26,6 +26,9 @@ class Resume(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
     file = models.FileField(upload_to=resume_upload_path, null=True, blank=True,verbose_name='文件') 
     file_name = models.CharField(max_length=255, null=True, blank=True,verbose_name='文件名称')
+    parsed = models.JSONField(null=True, blank=True,verbose_name="AI 解析的结构化结果")
+    parsed_degraded = models.BooleanField(default=False,verbose_name="解析降级标记")
+
     def save(self, *args, **kwargs):
         if not self._state.adding:
             self.edit_revision = models.F('edit_revision') + 1

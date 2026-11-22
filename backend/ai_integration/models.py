@@ -32,6 +32,9 @@ class AIConversation(models.Model):
     short_term_memory_size = models.IntegerField(default=10, verbose_name='短期记忆大小')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+    summary = models.TextField(blank=True, default='',verbose_name='旧历史的压缩摘要')
+    summary_upto = models.IntegerField(default=0,verbose_name='摘要覆盖到的历史轮数')        
+
     
     class Meta:
         verbose_name = 'AI对话会话'

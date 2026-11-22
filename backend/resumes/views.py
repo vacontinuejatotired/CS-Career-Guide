@@ -10,6 +10,8 @@ import uuid
 from .models import Resume, Education, Experience
 from .serializers import ResumeSerializer
 
+from .parse import parse_resume_file
+
 
 class ResumeViewSet(viewsets.ModelViewSet):
     serializer_class = ResumeSerializer
@@ -127,6 +129,10 @@ class ResumeViewSet(viewsets.ModelViewSet):
         # 保存新文件
         resume.file = resume_file
         resume.file_name = resume_file.name
+        ext = os.path.splitext(resume_file.name)[1].lower()
+        record = parse_resume_file(resume_file, ext)
+        resume.parsed = record
+        resume.parsed_degraded = bool(record.get('degraded'))
         resume.save()
 
         serializer = self.get_serializer(resume, context={'request': request})
