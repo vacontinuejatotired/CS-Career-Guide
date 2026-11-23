@@ -1,10 +1,33 @@
 # 成员1：岗位、企业和题库数据
 
+## 2026-11-15 内置自练与正式目录边界
+
+练习页新增9道项目自编入门题，仅在浏览器本地自练；不复制测试fixture、不写InterviewQuestion、不修改现有30道pending题的审核状态。正式目录查询、导入、许可要求不变。课程导航不再重复显示简历优化，统一在简历工作台使用。
+
 先读 [公共约定](00-shared-contracts.md)。需求依据为 [当前方案](../career_platform_plan.md)。成员1的 `catalog/companies/`、`catalog/jobs/`、`catalog/questions/` 查询和 `catalog/imports/` JSON 导入已在本地隔离环境实现；企业/岗位查询读取现有 Company/Job，题库查询读取托管 InterviewQuestion。示例数据中的 30 道题为团队自编且保持 `pending`，尚需集成人逐题复核后才能进入正式检索。
+
+## 2026-11-15 小林coding 授权题库采集
+
+新增 `data/career-platform/xiaolincoding-questions.json`，包含 943 道 Java 后端相关面试题，来源为 xiaolincoding.com/interview/ 的 16 个公开主题页。成员1声明已获原作者授权，记录标记 `permission_status=allowed`、`is_demo=false`；书面凭证由成员1保存，未随公开仓库提交，集成人合并前须核对授权范围与凭证。`source_url` 只是定位信息，不单独构成许可证明。
+
+- 范围：Java、集合、JVM、并发、Spring、数据库、Redis、计算机网络、操作系统、消息队列、分布式、数据结构与算法、Docker、Git、Linux、系统设计。排除 C++/Go/Python、测试开发、性能测试、广告页和学习路径页；java2top.cn 因本机 80/443 不可达且其源仓库无许可证未采集。
+- 采集：离线读取公开页面，遵守 robots.txt，使用项目标识 UA 和 2 秒/页限速；不登录、不处理验证码、不绕过访问控制。原始 HTML 不进入仓库，交付物是清洗后的 JSON。
+- 清洗与字段：移除导航、图片、广告和公众号推广，保留代码块、列表和表格文本；字段遵循现有 `catalog/imports/` 契约。`topic` 使用 16 个规范主题，`difficulty` 为 `rule-based-v1` 规则分类，需人工复核；`key_points` 从原文要点、列表和首句提取，`reference_answer` 保留清洗后的参考答案。
+- 去重：规范化题干 SHA-256 生成 `dedupe_key`；跨页面重复保留答案更长者，并在 `tags` 写 `另见:<url>`。943 条记录无重复 key、无重复题干。逐页数量、跳过项和跨页重复见 `xiaolincoding-questions-report.json`。
+- 验证：运行 `python data/career-platform/validate_xiaolincoding.py data/career-platform/xiaolincoding-questions.json`，943/943 通过项目 `catalog/source.py` 的字段校验原语（必填、长度、枚举、URL、时间、数组、未知字段）；未导入实际数据库，未运行 MySQL、浏览器、真实 Embedding 或模型。导入时先 `dry_run=true`，再 `dry_run=false`；`records` 取文件中的 `questions` 数组。
+- 影响：943 条 `allowed` 题会进入成员4的正式检索候选，成员2的评估与成员4的 Top-K/分数基线需在导入后重跑，不能沿用旧结果。难度、主题和答案是自动整理，仍需人工抽检，不能把规则分类当作人审证据。
+
+### 导入运行入口
+
+- 管理命令：`python backend/manage.py import_catalog data/career-platform/xiaolincoding-questions.json --dry-run`，确认后 `--commit`。命令复用 `CatalogService`，整批校验、事务写入、按 `dedupe_key` 幂等，单批最多 1000 条；默认 dry-run。
+- 线上 API：`data/career-platform/import_catalog_via_api.py` 从 `CATALOG_IMPORT_TOKEN` 读取 staff Token，默认 dry-run，`--commit` 才写；不打印 Token、不跟随重定向。
+- 未配置 `index_notifier` 时返回 `index_notification=not_configured`；正式检索由 `DjangoQuestionRetriever` 读取数据库 `allowed` 记录，不依赖 LanceDB。
+- 导入后由 `catalog/questions/`、练习页正式检索、成员4逐题反馈和成员2评估共同消费；成员2/4基线需重跑。
+- 上线执行、验收、回滚和签收步骤见 [授权题库导入交接](01-data-catalog-import-handover.md)。
 
 ## 目标、目录和边界
 
-负责 `backend/career_platform/catalog/`、`views/catalog.py`、`models/catalog.py`、`backend/company_reviews/`、`frontend/src/views/career-platform/Catalog.vue`、`data/career-platform/`。公共序列化器、端口、组装、迁移须由集成人审核。不能新建平行岗位表、接 unmanaged company_info_backup、改成员4检索协议或绕过管理员权限。首版支持 JSON/人工整理，不做爬虫、外部实时招聘同步。
+负责 `backend/career_platform/catalog/`、`views/catalog.py`、`models/catalog.py`、`backend/company_reviews/`、`frontend/src/views/career-platform/Catalog.vue`、`data/career-platform/`。公共序列化器、端口、组装、迁移须由集成人审核。不能新建平行岗位表、接 unmanaged company_info_backup、改成员4检索协议或绕过管理员权限。首版支持 JSON/人工整理，不做运行时爬虫、外部实时招聘同步；2026-11-15 的授权题库为离线采集后清洗成 JSON 交付，不改变服务端运行时边界。
 
 ## 设计与逐项实现
 
@@ -37,7 +60,7 @@
 {"kind":"questions","dry_run":true,"records":[{"role":"Java后端","category":"Java","topic":"集合","difficulty":"easy","question":"ArrayList适用什么场景","key_points":["随机访问"],"reference_answer":"基于数组，适合随机访问","source":"团队创作：成员1；审核记录见数据说明","permission_status":"pending","is_demo":true,"dedupe_key":"team-java-001"}]}
 ```
 
-测试注入 source_adapter/index_notifier，通知替身记录调用次数，失败替身抛异常；生产默认不得指向它们。成员4只读取 allowed 题库并使用 `career_platform_questions_v1`；成员2消费同一目录接口，不复制清洗逻辑。`data/career-platform/java-backend.json` 现提供2家虚构企业、3个虚构岗位和30道团队自编Java题，覆盖Java基础、集合、JVM、Spring、数据库和并发。企业/岗位标记 `is_demo=true` 且为 allowed；30道题保持 `pending`，须由集成人复核来源、参考要点和授权状态后改为 `allowed`。6道契约 fixture 仍只用于测试，不能算正式题库。
+测试注入 source_adapter/index_notifier，通知替身记录调用次数，失败替身抛异常；生产默认不得指向它们。成员4只读取 allowed 题库并使用 `career_platform_questions_v1`；成员2消费同一目录接口，不复制清洗逻辑。`data/career-platform/java-backend.json` 现提供2家虚构企业、3个虚构岗位和30道团队自编Java题，覆盖Java基础、集合、JVM、Spring、数据库和并发。企业/岗位标记 `is_demo=true` 且为 allowed；30道题保持 `pending`，须由集成人复核来源、参考要点和授权状态后改为 `allowed`。6道契约 fixture 仍只用于测试，不能算正式题库。`data/career-platform/xiaolincoding-questions.json` 另提供 943 道经成员1声明授权的公开面试题，标记 `allowed`，用于扩充正式检索候选；其来源、清洗、去重和复核要求见本文 2026-11-15 小节。
 
 ## 开发步骤与固定验收
 
@@ -66,7 +89,7 @@
 | 验收完成 | 上表填写实际提交、命令、范围、证据，列出未通过项 |
 
 - [ ] 固定catalog用例、旧企业读写回归、页面及构建通过。
-- [ ] 无秘密/真实私人材料；数据许可与30道人审题证据完整。
+- [ ] 无秘密/真实私人材料；30 道团队题的审核证据与 943 道授权题的授权凭证完整。
 - [ ] 未修改固定期望/skip掩盖失败，公共变更有CODEOWNER审核。
 - [ ] 提交实现、专项测试、本文和验收证据索引后提PR。
 
@@ -286,18 +309,120 @@
 }
 ```
 
-### 2026-11-22 共享变更文档同步（83fe086）
-
-本轮因共享路径变更（ci-cd.yml、迁移、模型、gateway、rag/feedback 等）同步本文档，不修改 catalog 业务代码、数据文件或固定验收；`backend/career_platform/catalog/repository.py` 在本分支有变更，相关查询/导入行为说明以既有 a4dc576 记录为准，未重新验收 catalog 业务。
+```acceptance-record
+{"commit":"1782fec + dirty","command":"node --test frontend/tests/*.test.mjs; npm run build --prefix frontend; python ci/project_acceptance.py --stage complete --module all","result":"failed","environment":"2026-11-15；Windows；隔离SQLite；模拟浏览器API","scope":"前端99项与构建通过；浏览器12视图无溢出、无pageerror。完整17项13通过4失败，catalog4项通过，resume3与integration1因501失败。","limitations":"result为共享改动整体结果，不否定catalog专项通过；未审核或导入正式题库，无真实模型、MySQL、CI或部署验收。","evidence":"frontend/tests/default-questions.test.mjs; output/resume-default-complete.log; output/playwright/resume-default-check.js（output为本机产物）"}
+```
 
 ```acceptance-record
 {
-  "commit": "83fe086e98debd9ec233a8ac69495d8dab065471 + dirty",
-  "command": "python -m unittest discover -s ci -p 'test_project*.py' -v; python ci/check_project_changes.py --base 562ea1abe35f69f989e533d890a44f71c07c069d --head HEAD --output output/docs-sync-83fe086/platform-selection.json; python ci/project_acceptance.py --stage complete --module all --output output/docs-sync-83fe086/all.json",
-  "result": "failed",
-  "environment": "2026-11-22；Windows；隔离内存 SQLite；文档门禁与验收脚本不调用真实模型",
-  "scope": "仅文档同步：确认 catalog 查询/导入/许可过滤说明与本分支 repository.py 变更一致，不重跑 catalog 专项。完整 all 固定验收结果以 output/docs-sync-83fe086/all.json 实际内容为准。",
-  "limitations": "result=failed 表示完整业务门禁仍未通过；30道题人审、真实来源、真实Embedding、MySQL、浏览器与部署仍未验收，本轮未改变这些边界。",
-  "evidence": "output/docs-sync-83fe086/platform-selection.json; output/docs-sync-83fe086/all.json; backend/career_platform/catalog/repository.py"
+  "commit": "0061aa1",
+  "command": "python data/career-platform/validate_xiaolincoding.py data/career-platform/xiaolincoding-questions.json; python -m json.tool data/career-platform/xiaolincoding-questions.json >/dev/null; git diff --check",
+  "result": "passed",
+  "environment": "2026-11-15；Windows 11；Python 3.11.9；临时隔离 venv Django 4.2.7；离线解析，无数据库和真实模型",
+  "scope": "离线解析 xiaolincoding.com/interview/ 的 16 个公开主题页并生成 943 条题目记录；943/943 通过 catalog/source.py 字段校验原语；无重复 dedupe_key 或题干；JSON 解析、敏感信息扫描和 git diff --check 通过。",
+  "limitations": "难度和主题为 rule-based-v1 自动分类，需人工抽检；授权由成员1声明，书面凭证未入库，待集成人核对；未导入实际数据库，未运行 MySQL、浏览器、真实 Embedding/模型、成员2评估或成员4检索基线；java2top.cn 未采集。",
+  "evidence": "data/career-platform/xiaolincoding-questions.json; data/career-platform/xiaolincoding-questions-report.json; data/career-platform/validate_xiaolincoding.py; PR #37"
+}
+```
+
+```acceptance-record
+{
+  "commit": "b22a39a",
+  "command": "python -m django test tests.test_catalog_import --settings=career_platform.test_settings (cwd=backend); python -m py_compile data/career-platform/import_catalog_via_api.py backend/company_reviews/management/commands/import_catalog.py; git diff --check",
+  "result": "passed",
+  "environment": "2026-11-15；Windows 11；临时隔离 venv Django 4.2.7 / DRF 3.14.0；内存 SQLite；无真实数据库或模型",
+  "scope": "新增 import_catalog 管理命令与 HTTP 导入脚本；7 项 catalog 导入测试通过。在隔离 SQLite 导入 943 条 allowed 题目，第二次导入 created=0/unchanged=943；catalog/questions/ 查询和 DjangoQuestionRetriever 检索均命中。",
+  "limitations": "未使用线上 staff Token 或服务器；未运行 MySQL、真实模型、浏览器、发布或部署；授权凭证仍待集成人核对；未实际导入真实数据库。",
+  "evidence": "backend/company_reviews/management/commands/import_catalog.py; backend/tests/test_catalog_import.py; data/career-platform/import_catalog_via_api.py; data/career-platform/README.md"
+}
+```
+
+
+## 2026-11-16 943题跨模块消费
+
+数据文件data/career-platform/xiaolincoding-questions.json（943条）的使用范围由用户在本会话明确核实并确认按allowed导入；这不等于集成助手自行审核了原始授权凭证。已有线上导入验收详见单独导入交接记录/PR41，本轮不重复迁移数据库。
+
+成员4读取当前allowed ORM题目，继续沿用文本检索；创建新练习前重新核对题目仍存在且allowed，许可撤回或删除返回409，不创建会话；历史快照继续用于还原已发生的练习。成员2使用同数据文件生成943题冻结语料，评测ID使用dedupe_key，不能当成线上UUID提交到练习接口。
+
+```acceptance-record
+{
+  "commit": "3837421035e310ec77aeb2fa3c017391f605621a",
+  "command": "python -m django test career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_evaluation --settings=career_platform.test_settings; python -m unittest discover -s backend/tests -p test_interview*.py; python -m unittest discover -s backend/tests -p test_rag_feedback.py; python -m unittest discover -s backend/tests -p test_json_gateway.py; node --test frontend/tests/*.test.mjs; python ci/project_acceptance.py --stage complete --module all",
+  "result": "passed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；本地浏览器使用真实候选API和943题、离线模型替身；服务器独立候选进程使用真实已配置模型和临时账号",
+  "scope": "943题冻结语料可复现、引用ID全部存在；检索快照保留采集时间与分类；授权撤回、删除、用户隔离与过期回执测试通过。",
+  "limitations": "完整业务17项13通过4失败（resume3和integration1因简历接口501）；未通过完整门禁、未部署候选；MySQL/容器由Actions验证。检索为词面基线，评测标签未独立人工复核，且无关检测仍误召；真实模型样本不证明总体质量。 真实模型为独立候选进程快照验证，末次提示词及无命中尾注文字调整仅离线回归。",
+  "evidence": "backend/career_platform/evaluation/datasets/xiaolin-experiment-v1.json; backend/career_platform/evaluation/tests_xiaolin.py; backend/career_platform/rag/tests_feedback.py; backend/career_platform/records/tests_catalog.py; backend/tests/test_interview_catalog.py; frontend/tests/evaluation-page.test.mjs; output/question-bank-live-result.json; output/playwright/question-bank-api-check.js; output/question-bank-all.json（output为本机验收产物）"
+}
+```
+
+
+## 2026-11-16 简历STAR与确认应用首版
+
+简历可引用allowed岗位，保留目标岗位文本和来源快照；不更改目录导入或943题数据。
+
+首版仅写主表skills/self_evaluation；STAR最多20段，逐项最多120字符的原文摘录，缺项保持空并提问，供预览不自动写子记录。有限词典与保守文字规则不等于语义事实或能力评估，人工仍需核对STAR归类。普通简历CRUD跨页签版本协议及所有子表写入口版本维护未在本轮重构；应用时会重验完整快照，当前页会阻止旧草稿直接保存。模型调用在事务外，相同分析键并发可能重复调用模型，但仅保存一条成功记录。SQLite竞争可返回409，显式原键重试恢复。本轮未调用真实模型、未执行线上迁移/发布/部署；MySQL及容器由Actions单独验证。
+
+```acceptance-record
+{
+  "commit": "3e1d550b9b5d6a12113c2c3cb555756c16de9c3a + dirty",
+  "command": "python -m django test career_platform.resume career_platform.evaluation career_platform.records career_platform.rag career_platform.tests.test_records_runtime career_platform.tests.accept_catalog career_platform.tests.accept_evaluation career_platform.tests.accept_resume career_platform.tests.accept_rag career_platform.tests.accept_records career_platform.tests.accept_integration --settings=career_platform.test_settings; python ci/project_acceptance.py --stage complete --module all; python ci/project_acceptance.py --stage scaffold; python -m django makemigrations --check --dry-run --settings=career_platform.test_settings; node --test frontend/tests/*.test.mjs; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows/Python3.11；隔离SQLite；浏览器真实候选API与临时数据库、合成账号和离线模型替身",
+  "scope": "简历可引用allowed岗位，保留目标岗位文本和来源快照；不更改目录导入或943题数据。 本地组合59项通过，固定complete17项及scaffold7项通过；前端113项与生产构建通过；迁移无漂移。浏览器1440/390px无横向溢出、无pageerror，验证STAR缺结果、拦截伪造编辑、确认写回、版本递增、历史重载及旧草稿保护。",
+  "limitations": "首版仅写主表skills/self_evaluation；STAR最多20段，逐项最多120字符的原文摘录，缺项保持空并提问，供预览不自动写子记录。有限词典与保守文字规则不等于语义事实或能力评估，人工仍需核对STAR归类。普通简历CRUD跨页签版本协议及所有子表写入口版本维护未在本轮重构；应用时会重验完整快照，当前页会阻止旧草稿直接保存。模型调用在事务外，相同分析键并发可能重复调用模型，但仅保存一条成功记录。SQLite竞争可返回409，显式原键重试恢复。本轮未调用真实模型、未执行线上迁移/发布/部署；MySQL及容器由Actions单独验证。",
+  "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; backend/career_platform/tests/accept_resume.py; backend/career_platform/tests/accept_integration.py; output/resume-complete.json; output/playwright/resume-optimization-check.js（output为本机验收产物）"
+}
+```
+
+## 2026-11-16 简历入口与停用助手资源回归
+
+共享前端控制器补充服务器简历来源和缺少JD的反馈，完整业务回归保持原有五模块契约。前端镜像仅保留面试VAD资源；历史3D人物文件不再交付。
+
+```acceptance-record
+{
+  "commit": "45d65088acee455d20deccf3acb2e65be376ccc5 + dirty",
+  "command": "node --test frontend/tests/*.test.mjs; python -m unittest ci.test_build_layout -q; python ci/project_acceptance.py --stage complete --module all --output output/resume-source-complete.json; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；离线隔离SQLite；Chromium使用临时账号、真实候选API和离线模型替身",
+  "scope": "简历分析入口提示与已保存来源预览；移除停用悬浮助手组件、公开配置、页脚链接和镜像GLB资源。共享前端控制器变更触发五模块完整回归，17项通过；115项前端测试、5项构建布局测试及生产构建通过。浏览器1440/390px验证空JD提示与聚焦、服务器来源、未保存草稿隔离、确认应用和历史，无运行时错误或横向溢出。",
+  "limitations": "本轮仅修改前端及构建布局回归；未修改后端接口、模型提示词、题库数据或迁移。浏览器模型为离线替身，不代表真实模型质量；MySQL、Docker构建及部署由Actions验证，发布结果另记deployment-status.md。",
+  "evidence": "frontend/tests/resume-optimization.test.mjs; ci/test_build_layout.py; output/resume-source-complete.json; output/playwright/resume-source-check.js（output为本机验收产物）"
+}
+```
+
+
+### 2026-11-16 通用简历优化共享回归
+
+简历分析允许省略JD；通用模式无岗位匹配，岗位模式保留原行为。共享序列化器/前端控制器变更按原规则完成五模块回归；未改变题库、检索、练习或评估算法。
+
+```acceptance-record
+{
+  "commit": "434a7d9293e3ceff99a31b61ed0bdd9a981a58ac + dirty",
+  "command": "node --test frontend/tests/*.test.mjs; python -m django test career_platform.resume --settings=career_platform.test_settings; python ci/project_acceptance.py --stage complete --module all --output output/resume-general-complete.json; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；离线隔离SQLite；Chromium使用临时账号、真实候选API和离线模型替身",
+  "scope": "简历分析共享输入允许省略JD；前端默认通用优化，可选岗位定向。前端116项、简历专项18项、固定五模块complete17项及生产构建通过；浏览器验证空JD分析、模式切换与历史、草稿隔离、伪造编辑拒绝和确认写回，1440/390px无溢出或运行时异常。",
+  "limitations": "本地模型为替身，不代表真实模型质量；尚未在本轮运行Actions、发布或部署，后续证据另记deployment-status.md。保守改写仍限技能/自评；STAR仅原文预览，不自动写回子项。无新增迁移。",
+  "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; output/resume-general-complete.json; output/playwright/resume-general-check.js（output为本机产物）"
+}
+```
+
+## 2026-11-16 来源展示与知识点查询修复
+
+题库页面展示的 `source` 已去掉成员授权声明，仅保留“小林coding · xiaolincoding.com”；授权状态仍由题目记录的 `permission_status` 和数据文件顶层授权元数据维护。线上 943 条 allowed 记录已在备份后事务更新并通过目录接口抽样核验，历史练习快照不回写。
+
+知识点筛选对规范分类采用大小写不敏感匹配；输入 `mysql` 这类没有独立分类的关键词时，会在允许题目的分类、题干、参考答案、角色和标签中兜底搜索，因此可命中 `topic=数据库` 下包含 MySQL 的题目。未知关键词仍返回空结果。
+
+
+```acceptance-record
+{
+  "commit": "0003ecc + dirty",
+  "command": "python -m django test career_platform.evaluation career_platform.rag career_platform.records tests.test_catalog_import --settings=career_platform.test_settings; python -m unittest backend.tests.test_text_retrieval; python -m unittest discover -s backend/tests -p test_rag*.py; python ci/project_acceptance.py --stage complete --module all; node --test frontend/tests/*.test.mjs; npm run build --prefix frontend",
+  "result": "passed",
+  "environment": "2026-11-16；Windows；隔离SQLite；离线模型替身",
+  "scope": "943条展示来源缩写；规范分类大小写不敏感、mysql关键词兜底；本地真实导入943题后检索与回执创建练习通过。 文本检索20项、RAG纯函数24项、目录/评估/反馈/记录组合31项、固定五模块17项、前端116项及构建通过。",
+  "limitations": "本轮尚未发布新代码；仍为词法检索，未启用Embedding/LanceDB；真实模型、MySQL、镜像和线上验收分别记录。冻结v1评估语料未修改。",
+  "evidence": "backend/tests/test_text_retrieval.py; backend/tests/test_catalog_import.py; output/mysql-rag-complete.json; output/mysql-bm25-comparison.json"
 }
 ```
