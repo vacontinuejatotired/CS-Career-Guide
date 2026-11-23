@@ -10,7 +10,7 @@
             <button type="button" @click="triggerResumeUpload" class="career-button"
               :disabled="isUploading || optimizationApplied">
               <WorkspaceIcon name="upload" />{{ isUploading ? `上传中 ${uploadProgress}%` : '上传简历' }}
-            </button> 
+            </button>
             <button type="button" @click="goToInterview" class="career-button" :disabled="isOpeningInterview||optimizationApplied">{{ isOpeningInterview ? '正在进入…' : '模拟面试' }}<WorkspaceIcon name="arrow" /></button>
           </div>
         </div>
@@ -33,6 +33,9 @@
         </div>
       </div>
 
+      <nav class="resume-mode-nav" aria-label="简历工作区"><button type="button" :aria-pressed="!showOptimization" @click="setResumeMode(false)">编辑与预览</button><button type="button" :aria-pressed="showOptimization" @click="setResumeMode(true)">AI 简历优化</button></nav>
+      <OptimizationPanel v-show="showOptimization" :active="showOptimization" :saving="isSaving" @busy="resumeOptimizing=$event" @applied="optimizationApplied=true" />
+      <div v-show="!showOptimization">
       <div class="resume-workspace-bar">
         <div><WorkspaceIcon name="file" /><span>整理简历</span><small>内容以你的真实经历为准</small></div>
         <div class="resume-mobile-switch" role="group" aria-label="简历视图"><button type="button" :aria-pressed="mobilePane === 'edit'" @click="mobilePane = 'edit'"><WorkspaceIcon name="edit" />编辑</button><button type="button" :aria-pressed="mobilePane === 'preview'" @click="mobilePane = 'preview'"><WorkspaceIcon name="eye" />预览</button></div>
@@ -473,6 +476,7 @@
           </div>
         </div>
       </div>
+      </div>
     </main>
   </div>
 </template>
@@ -480,7 +484,8 @@
 <script setup>
 import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import WorkspaceIcon from '@/components/WorkspaceIcon.vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import OptimizationPanel from './OptimizationPanel.vue'
 import { marked } from 'marked'
 
 // 设置为同步解析
@@ -491,6 +496,32 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 
 const router = useRouter()
+const route = useRoute()
+const showOptimization = computed(() => route.query.tab === 'optimize')
+const optimizationApplied = ref(false)
+const resumeOptimizing = ref(false)
+const reloadingApplied = ref(false)
+async function reloadAppliedResume() {
+  reloadingApplied.value = true
+  try {
+    const saved = await resumeAPI.get()
+    if (!Number.isInteger(saved?.edit_revision)) throw new Error('missing saved revision')
+    Object.assign(resume.value, saved)
+    localStorage.setItem('resume', JSON.stringify(resume.value))
+    optimizationApplied.value = false
+    saveNotice.value = '已加载服务器简历，可继续编辑、预览和导出。'
+    saveFailed.value = false
+  } catch {
+    saveNotice.value = '加载未完成，编辑区草稿仍保留，请稍后重试。'
+    saveFailed.value = true
+  } finally { reloadingApplied.value = false }
+}
+function setResumeMode(optimize) {
+  const query = { ...route.query }
+  if (optimize) query.tab = 'optimize'
+  else delete query.tab
+  router.replace({ query })
+}
 
 const mobilePane = ref('edit')
 const previewRef = ref(null)
@@ -811,7 +842,7 @@ const removeCertificate = (index) => {
 }
 
 const saveResume = async () => {
-  if (isSaving.value) return
+  if (isSaving.value || optimizationApplied.value || resumeOptimizing.value) return
   isSaving.value = true
   saveFailed.value = false
   saveNotice.value = ''
@@ -1439,6 +1470,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.resume-mode-nav{display:flex;gap:8px;border-bottom:1px solid var(--career-border);padding-bottom:16px;margin:24px 0}.resume-mode-nav button{padding:10px 16px;border:1px solid transparent;border-radius:6px;font-size:14px;color:var(--career-muted)}.resume-mode-nav button[aria-pressed="true"]{background:#edf3ed;border-color:#ccd8ce;color:#365e45}.resume-mode-nav button:focus-visible{outline:2px solid #527c60;outline-offset:3px}
 .resume-save-notice { padding: 12px 14px; border: 1px solid #b8dbd4; border-radius: 6px; background: #f0faf7; color: #247360; font-size: 13px; line-height: 1.8; }
 .resume-save-notice.is-error { border-color: #edc7c1; background: #fff4f2; color: #b42318; }
 .resume-page {
