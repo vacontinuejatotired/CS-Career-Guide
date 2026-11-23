@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import transaction
-from .models import Resume, Education, Experience, Project, Certificate, Award
+from .models import Resume, ResumeUpload, Education, Experience, Project, Certificate, Award
 
 
 class EducationSerializer(serializers.ModelSerializer):
@@ -73,6 +73,21 @@ class AwardSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
+class ResumeUploadSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ResumeUpload
+        fields = ['id', 'file_name', 'file_url', 'parsed_degraded', 'created_at']
+        read_only_fields = fields
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return obj.file.url if obj.file else None
+
+
 class ResumeSerializer(serializers.ModelSerializer):
     education = EducationSerializer(many=True, required=False)
     experience = ExperienceSerializer(many=True, required=False)
@@ -80,13 +95,14 @@ class ResumeSerializer(serializers.ModelSerializer):
     certificates = CertificateSerializer(many=True, required=False)
     awards = AwardSerializer(many=True, required=False)
     avatar_url = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Resume
         fields = [
             'id', 'edit_revision', 'avatar', 'avatar_url', 'name', 'target_position', 'phone', 'email', 'address',
             'self_evaluation', 'skills', 'education', 'experience', 'projects', 'certificates', 'awards',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'file_url', 'file_name'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'avatar_url']
     
@@ -97,7 +113,11 @@ class ResumeSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.avatar.url)
             return obj.avatar.url
         return None
-    
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return None
     def create(self, validated_data):
         # 移除前端发送的avatar_url字段，因为它是由后端生成的
         validated_data.pop('avatar_url', None)

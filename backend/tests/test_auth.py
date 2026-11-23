@@ -31,6 +31,7 @@ class ExistingFrontendContractTests(TestCase):
             ('/api/resumes/my/', 'ResumeViewSet', 'my'),
             ('/api/resumes/upload_avatar/', 'ResumeViewSet', 'upload_avatar'),
             ('/api/resumes/delete_avatar/', 'ResumeViewSet', 'delete_avatar'),
+            ('/api/resumes/uploads/', 'ResumeUploadViewSet', 'list'),
             ('/api/company-reviews/company-info/', 'CompanyInfoViewSet', 'list'),
         ]:
             with self.subTest(path=path):
@@ -75,6 +76,7 @@ class ApiAuthenticationTests(TestCase):
             '/api/company-reviews/companies/1/', '/api/company-reviews/companies/submit/',
             '/api/company-reviews/company-info/', '/api/company-reviews/job-fairs/',
             '/api/career-evaluation/computer-careers/', '/api/resumes/my/',
+            '/api/resumes/uploads/',
             '/api/ai/llm/chat/', '/api/career-report/', '/api/users/profile/',
             '/api/users/auth/logout/', '/api/future-probe/', '/api/unknown-new-endpoint/',
             '/api/users/auth/login/extra/', '/api/users/auth/register/extra/',

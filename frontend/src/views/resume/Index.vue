@@ -7,10 +7,17 @@
           <div class="resume-actions">
             <button type="button" @click="saveResume" class="career-button" :disabled="isSaving||optimizationApplied||resumeOptimizing"><WorkspaceIcon name="save" />{{ isSaving ? '同步中…' : '保存简历' }}</button>
             <button type="button" @click="exportPDF" class="career-button career-button-primary" :disabled="optimizationApplied"><WorkspaceIcon name="download" />导出 PDF</button>
+            <button type="button" @click="triggerResumeUpload" class="career-button"
+              :disabled="isUploading || optimizationApplied">
+              <WorkspaceIcon name="upload" />{{ isUploading ? `上传中 ${uploadProgress}%` : '上传简历' }}
+            </button>
             <button type="button" @click="goToInterview" class="career-button" :disabled="isOpeningInterview||optimizationApplied">{{ isOpeningInterview ? '正在进入…' : '模拟面试' }}<WorkspaceIcon name="arrow" /></button>
           </div>
         </div>
         <p v-if="saveNotice" role="status" class="resume-save-notice" :class="{ 'is-error': saveFailed }">{{ saveNotice }}</p>
+        <p v-if="uploadNotice" role="status" class="resume-save-notice" :class="{ 'is-error': uploadFailed }">{{ uploadNotice }}</p>
+        <input ref="resumeInput" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" hidden @change="handleResumeChange" />
+
         <div v-if="optimizationApplied" class="resume-save-notice" role="status"><p>所选建议已保存到服务器。编辑区仍保留旧草稿，请先复制需要保留的内容，再加载新版本。</p><button type="button" class="career-button" :disabled="reloadingApplied" @click="reloadAppliedResume">{{ reloadingApplied?'正在加载…':'加载已应用简历，替换编辑区草稿' }}</button></div>
         <!-- 语音输入状态 -->
         <div v-if="voiceInputStatus" class="p-4 rounded-md bg-gray-100 border border-gray-200">
@@ -553,6 +560,12 @@ const isProcessing = ref(false)
 const isSaving = ref(false)
 const saveNotice = ref('')
 const saveFailed = ref(false)
+
+// 上传相关
+const isUploading = ref(false)
+const uploadFailed = ref(false)
+const uploadNotice = ref('')
+const uploadProgress = ref(0)
 
 const resume = ref({
   avatar_url: null,
@@ -1230,6 +1243,99 @@ const exportPDF = async () => {
       document.body.removeChild(loadingEl)
     }
     alert('导出PDF失败: ' + (error.message || '请重试'))
+  }
+}
+
+// 上传简历
+const resumeInput = ref(null)
+
+const triggerResumeUpload = () => {
+  resumeInput.value?.click()
+}
+
+const handleResumeChange = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  await uploadResume(file)
+  event.target.value = ''   // 重置 input，否则重复选同一文件不触发 change
+}
+
+const uploadResume = async (file) => {
+  // ---- 前置守卫：防重复提交 ----
+  if (isUploading.value) return
+  if (!file) {
+    uploadNotice.value = '请先选择文件。'
+    return
+  }
+
+  // ---- 文件校验：仅支持常见图片和 PDF ----
+  const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+  const ALLOWED_TYPES = [
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/webp'
+  ]
+  const ALLOWED_EXTS = ['pdf', 'jpg', 'jpeg', 'png', 'webp']
+
+  // 类型校验（兼容部分浏览器 MIME 识别不准的情况，用扩展名兜底）
+  const ext = file.name.split('.').pop().toLowerCase()
+  if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_EXTS.includes(ext)) {
+    uploadNotice.value = '仅支持 PDF、JPG、PNG、WebP 格式的简历文件。'
+    return
+  }
+  if (file.size > MAX_SIZE) {
+    uploadNotice.value = '文件过大，请上传 10MB 以内的文件。'
+    return
+  }
+
+  isUploading.value = true
+  uploadFailed.value = false
+  uploadNotice.value = ''
+  uploadProgress.value = 0
+
+  try {
+    // ---- 构建 FormData ----
+    const formData = new FormData()
+    formData.append('file', file, file.name)
+
+    const response = await resumeAPI.uploadResume(formData, {
+      onUploadProgress: (e) => {
+        if (e.total) {
+          uploadProgress.value = Math.round((e.loaded / e.total) * 100)
+        }
+      }
+    })
+
+    console.log('上传响应:', response)
+    uploadFailed.value = Boolean(response?.upload?.parsed_degraded)
+    uploadNotice.value = uploadFailed.value
+      ? '文件已保存，但 AI 未能解析，请到个人中心删除后重新上传清晰简历。'
+      : '简历已上传并由 AI 解析完成，可在模拟面试开始时选择。'
+  } catch (error) {
+    console.error('上传简历失败:', error)
+    uploadFailed.value = true
+
+    if (error.response?.status === 401) {
+      uploadNotice.value = '登录已失效，请重新登录后再上传。'
+      return
+    }
+    if (error.response?.status === 413) {
+      uploadNotice.value = '文件超出服务器大小限制，请压缩后重试。'
+      return
+    }
+    if (error.response?.status === 415) {
+      uploadNotice.value = '文件格式不支持，请上传 PDF 或图片格式。'
+      return
+    }
+
+    const reason = error.response?.data?.detail || error.response?.data?.error
+    uploadNotice.value = reason
+      ? `上传失败：${reason}`
+      : '上传失败，请检查网络后重试。'
+  } finally {
+    isUploading.value = false
+    uploadProgress.value = 0
   }
 }
 

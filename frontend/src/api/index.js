@@ -48,8 +48,15 @@ export const resumeAPI = {
   uploadAvatar: (formData) => api.post('/resumes/upload_avatar/', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  deleteAvatar: () => api.delete('/resumes/delete_avatar/')
-}
+  deleteAvatar: () => api.delete('/resumes/delete_avatar/'),
+  listUploads: (config) => api.get('/resumes/uploads/', config),
+  uploadResume: (formData, config = {}) => api.post('/resumes/uploads/', formData, {
+    ...config,
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 180000
+  }),
+  deleteUpload: (id) => api.delete(`/resumes/uploads/${encodeURIComponent(id)}/`)
+  }
 
 export const interviewAPI = {
   listReviews: () => api.get('/ai/records/interview-reviews/'),
@@ -69,7 +76,15 @@ export const aiAPI = {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ message, mode, interview_style, session_id, enable_tts: options.enableTts === true })
+      body: JSON.stringify({
+        message,
+        mode,
+        interview_style,
+        session_id,
+        enable_tts: options.enableTts === true,
+        resume_mode: options.resumeMode === 'uploaded' ? 'uploaded' : 'platform',
+        uploaded_resume_id: options.uploadedResumeId || null
+      })
     })
   },
   getHistory: (sessionId) => api.get(`/ai/llm/chat/history/?session_id=${sessionId}`),

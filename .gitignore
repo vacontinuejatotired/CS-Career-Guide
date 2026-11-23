@@ -49,6 +49,7 @@ dist/
 
 # Local tooling artifacts
 .acl-recovery/
+/backend/media/resumes/
 
 # Environment variables
 .env*

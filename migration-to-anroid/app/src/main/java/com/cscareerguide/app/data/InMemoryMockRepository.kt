@@ -1,5 +1,9 @@
 package com.cscareerguide.app.data
 
+import com.cscareerguide.app.data.bridge.PracticeRetrieveRequest
+import com.cscareerguide.app.data.bridge.InterviewChatRequest
+import com.cscareerguide.app.data.bridge.InterviewStreamEvent
+import com.cscareerguide.app.data.bridge.InterviewStreamResult
 import com.cscareerguide.app.data.model.CareerPathSummary
 import com.cscareerguide.app.data.model.CareerCategory
 import com.cscareerguide.app.data.model.CareerPlanReport
@@ -14,6 +18,7 @@ import com.cscareerguide.app.data.model.InterviewReview
 import com.cscareerguide.app.data.model.JobSummary
 import com.cscareerguide.app.data.model.LearningStage
 import com.cscareerguide.app.data.model.PracticeQuestion
+import com.cscareerguide.app.data.model.PracticeRetrieval
 import com.cscareerguide.app.data.model.PracticeRecordDetail
 import com.cscareerguide.app.data.model.Recommendation
 import com.cscareerguide.app.data.model.ResumeAnalysis
@@ -271,6 +276,53 @@ class InMemoryMockRepository : AppRepository {
 
     override fun practiceQuestions(): List<PracticeQuestion> = MockWorkspaceData.practiceQuestions
 
+    override suspend fun retrievePracticeQuestions(
+        request: PracticeRetrieveRequest,
+    ): AppResult<PracticeRetrieval> {
+        val results = MockWorkspaceData.practiceQuestions
+            .filter { it.role == request.role }
+            .filter { request.topic.isBlank() || it.topic.contains(request.topic, ignoreCase = true) }
+            .filter { request.difficulty.isBlank() || it.difficulty == request.difficulty }
+            .filter {
+                request.jdText.isBlank() ||
+                    it.question.contains(request.jdText, ignoreCase = true) ||
+                    it.topic.contains(request.jdText, ignoreCase = true)
+            }
+            .take(request.topK.coerceIn(1, 20))
+        return AppResult.Success(
+            PracticeRetrieval(
+                count = results.size,
+                retrievalId = "mock-retrieval-${request.requestId}",
+                message = if (results.isEmpty()) "没有符合条件的题目，请调整条件。" else "",
+                results = results,
+            ),
+        )
+    }
+
+    override suspend fun streamInterviewChat(
+        request: InterviewChatRequest,
+        onEvent: (InterviewStreamEvent) -> Unit,
+    ): AppResult<InterviewStreamResult> {
+        val content = when {
+            request.mode == "interview_review" ->
+                "面试表现总体清晰。后续应补充技术取舍、验证结果和失败后的恢复方式。"
+            request.message.contains("用户的回答是") ->
+                "你提到了项目经历。请继续说明当时比较过哪些方案，以及为什么最终选择现在的实现。"
+            else -> "请先介绍你的技术栈，并选一个最熟悉的项目说明职责和结果。"
+        }
+        onEvent(InterviewStreamEvent.Chunk(content))
+        onEvent(InterviewStreamEvent.Done)
+        onEvent(InterviewStreamEvent.Session("mock-interview-session"))
+        return AppResult.Success(
+            InterviewStreamResult(
+                content = content,
+                sessionId = "mock-interview-session",
+                done = true,
+                ended = true,
+            ),
+        )
+    }
+
     override fun practiceRecords(): List<PracticeRecordDetail> = MockWorkspaceData.records
 
     override fun evaluationRuns(): List<EvaluationRun> = MockWorkspaceData.evaluations
@@ -290,10 +342,78 @@ class InMemoryMockRepository : AppRepository {
         )
     }
 
-    override fun updateProfile(user: UserProfile): UserProfile {
-        sessionUser = user
-        return user
+    override suspend fun loadResume(): AppResult<ResumeDraft?> =
+        AppResult.Success(savedResume)
+
+    override suspend fun saveResumeRemote(draft: ResumeDraft): AppResult<ResumeDraft> {
+        savedResume = draft
+        return AppResult.Success(draft)
     }
+
+    override suspend fun loadCatalog(query: CatalogQuery): AppResult<PagedData<CatalogItem>> {
+        val filtered = catalogItems().filter { item ->
+            item.kind == query.kind &&
+                matches(query.query, item.title, item.subtitle, item.description, item.source) &&
+                matches(query.city, item.city) &&
+                matches(query.role, item.role, item.subtitle, item.tags.joinToString()) &&
+                matches(query.topic, item.topic, item.title) &&
+                (query.difficulty.isBlank() || item.difficulty == query.difficulty)
+        }
+        return AppResult.Success(
+            PagedData(
+                items = filtered,
+                total = filtered.size,
+                page = query.page,
+                pageSize = query.pageSize,
+            ),
+        )
+    }
+
+    override suspend fun loadJobs(
+        search: String,
+        page: Int,
+        pageSize: Int,
+    ): AppResult<PagedData<JobSummary>> {
+        val filtered = jobs().filter { job ->
+            matches(search, job.title, job.company, job.city, job.industry, job.description)
+        }
+        return AppResult.Success(PagedData(filtered, filtered.size, page, pageSize))
+    }
+
+    override suspend fun loadSeniorAdvice(
+        search: String,
+        ordering: String,
+        page: Int,
+        pageSize: Int,
+    ): AppResult<PagedData<SeniorAdvice>> {
+        val filtered = seniorAdvice()
+            .filter { matches(search, it.company, it.position, it.content) }
+            .let { items ->
+                if (ordering == "rating") items.sortedByDescending(SeniorAdvice::rating) else items
+            }
+        return AppResult.Success(PagedData(filtered, filtered.size, page, pageSize))
+    }
+
+    override suspend fun analyzeResumeRemote(
+        jdText: String,
+        revision: Int,
+        requestId: String,
+    ): AppResult<Unit> = AppResult.Success(Unit)
+
+    override suspend fun applyResumeAnalysisRemote(
+        analysisId: String,
+        baseRevision: Int,
+        suggestionIds: List<String>,
+        requestId: String,
+    ): AppResult<Unit> = AppResult.Success(Unit)
+
+    override suspend fun updateProfile(user: UserProfile): AuthOutcome {
+        sessionUser = user
+        return AuthOutcome.Success(user)
+    }
+
+    override suspend fun restoreSession(): AuthOutcome? =
+        sessionUser?.let(AuthOutcome::Success)
 
     override suspend fun login(username: String, password: String): AuthOutcome {
         val normalizedUsername = username.trim()
@@ -327,12 +447,26 @@ class InMemoryMockRepository : AppRepository {
         }
     }
 
-    override fun logout() {
+    override suspend fun logout() {
         sessionUser = null
+    }
+
+    fun clearUserState() {
+        sessionUser = null
+        savedIntroduction = IntroductionDraft()
+        savedResume = ResumeDraft()
+        savedAdvice.clear()
+    }
+
+    fun resetSessionUser(user: UserProfile) {
+        sessionUser = user
     }
 
     private fun splitPoints(value: String): List<String> = value
         .split(',', '，')
         .map(String::trim)
         .filter(String::isNotBlank)
+
+    private fun matches(query: String, vararg values: String): Boolean =
+        query.isBlank() || values.any { it.contains(query.trim(), ignoreCase = true) }
 }

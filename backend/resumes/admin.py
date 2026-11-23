@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Resume, Education, Experience, Project, Certificate, Award
+from .models import Resume, ResumeUpload, Education, Experience, Project, Certificate, Award
 
 
 class EducationInline(admin.TabularInline):
@@ -64,3 +64,11 @@ class ResumeAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related('user').prefetch_related('education', 'experience', 'projects', 'certificates')
+
+
+@admin.register(ResumeUpload)
+class ResumeUploadAdmin(admin.ModelAdmin):
+    list_display = ('user', 'file_name', 'parsed_degraded', 'created_at')
+    list_filter = ('parsed_degraded', 'created_at')
+    search_fields = ('user__username', 'file_name')
+    readonly_fields = ('created_at',)

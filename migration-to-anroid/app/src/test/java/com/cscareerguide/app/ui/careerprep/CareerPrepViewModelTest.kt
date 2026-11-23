@@ -77,7 +77,7 @@ class CareerPrepViewModelTest {
         advanceUntilIdle()
 
         assertFalse(viewModel.resumeState.value.saving)
-        assertEquals("简历已保存到本地 Mock 会话。", viewModel.resumeState.value.notice)
+        assertEquals("简历已保存到服务端。", viewModel.resumeState.value.notice)
     }
 
     @Test
@@ -103,6 +103,7 @@ class CareerPrepViewModelTest {
 
         assertFalse(viewModel.interviewState.value.isRunning)
         assertNotNull(viewModel.interviewState.value.review)
-        assertEquals(78, viewModel.interviewState.value.review?.score)
+        assertEquals(0, viewModel.interviewState.value.review?.score)
+        assertTrue(viewModel.interviewState.value.review?.summary.orEmpty().contains("面试表现"))
     }
 }

@@ -10,11 +10,11 @@
 - 后端仍501，页面明确“开发中”，不生成固定建议或虚假成功。原保存/导出/预览不改。旧Resume.vue骨架保留但不再由路由加载。
 
 
-先读 [公共约定](00-shared-contracts.md) 与 [当前方案](../career_platform_plan.md)。已有简历CRUD、只读观览；准备阶段增加 edit_revision、分析/应用回执表、路由及页面。当前分析/确认应用业务501，尚无事实校验或乐观并发应用实现。
+先读 [公共约定](00-shared-contracts.md) 与 [当前方案](../career_platform_plan.md)。已有简历 CRUD、只读观览、面试用文件简历，以及分析、历史和确认应用。2026-11-22 的 `migration` 合入保留文件简历上传与解析；分析/应用继续使用主分支的版本、证据、事务和幂等实现。真实模型质量、MySQL 并发与部署仍需独立验收。
 
 ## 修改边界与目标
 
-负责 `backend/career_platform/resume/`、`views/resume.py`、`models/resume.py`、`backend/resumes/`、Resume.vue；公共契约/序列化器/组装/迁移集成人审核。不得改自由面试主链路、另建简历表、客户端指定owner、自动将建议覆盖原稿。首版不做文件OCR、自动补经历、自动投递。
+负责 `backend/career_platform/resume/`、`views/resume.py`、`models/resume.py`、`backend/resumes/`、Resume.vue；公共契约/序列化器/组装/迁移集成人审核。不得改自由面试主链路、另建简历表、客户端指定owner、自动将建议覆盖原稿。文件简历可由多模态模型解析，但结果仅供面试选择，不自动补写经历或修改平台编辑稿，也不执行自动投递。
 
 ## Facade、Strategy 和 Adapter
 
@@ -28,13 +28,21 @@
 | list/get | 当前用户过滤→分页或UUID详情→返回原快照/匹配/缺项/建议 | 其他账号/不存在404；不得回查新简历替代历史 |
 | apply | analysis ID、base_revision、accepted_suggestion_ids、request_id→权限/建议归属→锁Resume→版本检查→仅已接受字段写回→版本递增→回执 | 未接受项不变；旧版本409且零写入；同键复用首次结果 |
 
-建议结构按00，字段位置可用 `skills` 或 `projects.<当前归属子记录ID>.description`，必须使用字段白名单、归属检查和原文比对，禁止任意 setattr 或用户/主键路径。证据必须来自本次resume_snapshot或jd_text，quote须确实存在；JD只能支持“岗位要求/缺项”，不能据此写成用户已有技能。无用户事实依据的技能、职责、成果数字必须拒绝或改为待补充问题，不允许以LLM自检取代规则验证。
+建议结构按00，可写字段仅限 `skills`、`self_evaluation`；项目/经历只生成 STAR 原文摘录和缺项问题，不直接写回。字段必须使用白名单、归属检查和原文比对，禁止任意 setattr 或用户/主键路径。证据必须逐字存在于对应目标字段；JD 只能支持“岗位要求/缺项”，不能据此写成用户已有技能。无用户事实依据的技能、职责、成果数字必须拒绝或改为待补充问题，不允许以 LLM 自检取代规则验证。
 
 示例：原文“使用Java完成课程项目”，JD要求Redis；可以建议清晰说明已有Java项目职责，并将Redis列入 gaps，不能改成“使用Redis将性能提升50%”。分析输出包含该原文片段和字段位置，拒绝建议后数据库完全不变。
 
 用户编辑建议通过 apply.suggestion_edits 提交，格式为建议UUID到编辑文本字典，默认空。只允许编辑本次已接受建议，服务端必须重新校验字段、原文及事实依据，再原子应用。不能只在界面编辑却保存旧建议。
 
 版本方案：模型调用在锁外，对成功分析保留base_revision；应用时事务select_for_update读取当前简历。Resume.save已经维护主表更新版本，成员须覆盖所有子表修改入口及禁止绕过版本的bulk写。并发两次应用只有一个成功；另一个409；相同request_id返回同回执，不重复递增。模型失败与重试保留前端输入，重试必须由用户明确触发。
+
+### 面试用文件简历（2026-11-22）
+
+`ResumeUpload` 保存当前登录用户最多两份文件简历，字段为原始文件名、文件 URL、模型结构化结果、解析降级标记和上传时间。`GET/POST /api/resumes/uploads/` 负责列表和上传，`DELETE /api/resumes/uploads/<id>/` 删除；超过两份返回 HTTP 409 和 `RESUME_UPLOAD_LIMIT`。文件简历与平台编辑的 Resume 分离，不参与分析建议的自动应用。
+
+上传支持 PDF、JPG、PNG、WebP，最大 10MB；PDF 最多读取前5页。PDF 使用 PyMuPDF 在进程内渲染，图片和 PDF 页面交给已配置的多模态模型提取目标岗位、年限、技能、教育、经历和项目；解析失败只保存降级状态，不生成假简历。`resumes.0005` 把历史单文件迁移为一条 `ResumeUpload`，并补齐 `Resume.parsed`、`Resume.parsed_degraded`；运行时依赖新增 `PyMuPDF==1.26.7`。
+
+面试开始页提供“平台编辑的简历 / 已上传的简历”选择。上传模式只向聊天接口提交 `uploaded_resume_id`，后端按当前用户读取解析结果并加入系统提示词；客户端不能直接提交任意解析文本。选择上传文件后不再同时注入 `localStorage.resume`。
 
 ## 接入与分步验收
 
@@ -65,6 +73,8 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
 | 提交号 | 执行命令 | 结果 | 环境 | 模拟/真实范围 | 已知限制 | 证据位置 |
 | --- | --- | --- | --- | --- | --- | --- |
 | d12128b + dirty | 待执行resume complete | 未实现 | 隔离SQLite | 无真实模型 | 501，编辑字段已预留 | output/ |
+| 83fe086 + dirty | 上传解析、用户隔离、两份上限、面试来源选择与真实流式联调 | passed | 本地 MySQL；Chrome；真实模型 | 示例 PDF 解析和两种简历来源 | 非远端 CI/部署；手机为模拟视口 | `backend/tests/test_resume_uploads.py`; `frontend/tests/resume-uploads.test.mjs` |
+| 2369055 + dirty | resume complete、all、现有 API 回归 | passed | 隔离 SQLite；离线 Gateway | 不调用真实模型 | MySQL并发、真实生成质量另验 | `.runtime/resume-complete.json` |
 
 ## 文档更新与 PR 检查表
 
@@ -74,10 +84,10 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
 | 匹配策略/模型提示词 | 本文及02，记录版本和证据限制 |
 | 验收完成 | 上表实际执行证据，独立写真实模型范围 |
 
-- [ ] 事实不编造、权限、版本、幂等、事务及超时/非法输出用例通过。
-- [ ] 编辑确认后写入的是已展示/确认内容；拒绝时原稿不变。
-- [ ] 原有简历CRUD/观览不回归，秘密不进入前端。
-- [ ] 实现、固定测试、本说明及必要公共约定同PR更新。
+- [x] 事实不编造、权限、版本、幂等、事务及超时/非法输出用例通过。
+- [x] 编辑确认后写入的是已展示/确认内容；拒绝时原稿不变。
+- [x] 原有简历 CRUD/观览与文件简历选择不回归，秘密不进入前端。
+- [x] 实现、固定测试、本说明及必要公共约定同 PR 更新。
 
 
 ### 2026-10-28 本地准备状态
@@ -353,5 +363,21 @@ Resume 子项统一输出名为 educations/experiences/projects/certificates/awa
   "scope": "省略JD分析、STAR留空成果、分析/应用回放、历史、伪造编辑拒绝及确认写回；浏览器来源、按钮、草稿隔离、岗位必填和双尺寸；两个临时账号已清理",
   "limitations": "真实模型仅一份线上合成简历，22.2秒，不代表总体质量。浏览器未调用模型。写回仅主表技能/自评，STAR子项仅预览。手动备用发布成功，不代表失败Actions成功；PR50的自动发布复验另记运维状态。output脚本和浏览器产物为本机忽略文件。",
   "evidence": "docs/releases/2026-11-16-resume-general.json; docs/deployment-status.md"
+}
+```
+
+### 2026-11-23 实施文档冲突合并门禁
+
+逐文件比较 `docs/implementation/` 后，六份冲突文档均恢复 `master` 章节骨架；`migration` 独有的文件简历接口、上传字段、解析限制和自由面试上下文已合入00/03/04/05，01/02未发现 `master` 之外的实质功能描述。未修改测试、固定门禁或业务代码。
+
+```acceptance-record
+{
+  "commit": "2793067 + dirty",
+  "command": "python -m unittest discover -s ci -p 'test_project*.py' -v; python ci/project_acceptance.py --stage scaffold --output .runtime/docs-implementation-merge/scaffold.json; python ci/project_acceptance.py --stage complete --module all --output .runtime/docs-implementation-merge/all.json; git diff --check",
+  "result": "passed",
+  "environment": "2026-11-23；Windows；隔离内存 SQLite；离线 Gateway；不调用真实模型",
+  "scope": "9份实施文档逐一比较，master门禁章节全部保留；文档门禁单测11/11、骨架7/7、完整业务17/17及全部文档结构对比通过。",
+  "limitations": "仅本地离线门禁；未运行MySQL、真实模型、浏览器、远端CI或部署。文档改动尚未提交，不代表发布或线上验收。",
+  "evidence": ".runtime/docs-implementation-merge/scaffold.json; .runtime/docs-implementation-merge/all.json; ci/test_project_changes.py; docs/implementation/"
 }
 ```

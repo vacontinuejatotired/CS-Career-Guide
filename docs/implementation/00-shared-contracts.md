@@ -43,7 +43,7 @@ Vue 页面 → `features/career-platform/api.js` → 视图/序列化器 → 应
 
 ## 生产组装与替身
 
-`contracts.py` 定义端口，`composition.py:build_services()` 是唯一生产组装点。当前显式组装 `JsonModelGateway`、`DjangoPracticeRepository`、`PracticeService`、`DjangoQuestionRetriever` 和 `InterviewRagService`；resume 虽注入同一网关，但分析/应用仍未实现。evaluation 继续使用自身离线文本策略，不依赖 records 历史。catalog 已实现四个公开操作；catalog/resume 中仍未实现的操作继续返回 HTTP 501：
+`contracts.py` 定义端口，`composition.py:build_services()` 是唯一生产组装点。当前显式组装 `JsonModelGateway`、`DjangoPracticeRepository`、`PracticeService`、`DjangoQuestionRetriever`、`InterviewRagService` 和 `ResumeAnalysisService`。evaluation 继续使用自身离线文本策略，不依赖 records 历史。catalog 已实现四个公开操作；resume 已实现分析、历史、详情和确认应用；只有未来新增但尚未接线的操作才继续返回 HTTP 501：
 
 ```json
 {"code":"FEATURE_NOT_IMPLEMENTED","message":"功能待实现","details":{"detail":"功能待实现"}}
@@ -70,6 +70,10 @@ Vue 页面 → `features/career-platform/api.js` → 视图/序列化器 → 应
 
 文本 JD/回答上限20000字符，role/topic上限100。未知字段400，客户端传 user/owner 一律拒绝。记录所有者由登录身份指定，服务端再次按 user 过滤；管理员也不因身份自动读取其他用户私有记录，越权与不存在均404。
 
+文件简历复用既有 `/api/resumes/` 命名空间：`GET/POST /api/resumes/uploads/` 列表或上传，`DELETE /api/resumes/uploads/<id>/` 删除。列表项为 `id,file_name,file_url,parsed_degraded,created_at`，不返回原始解析 JSON。上传字段为 multipart `file`，仅接受 PDF/JPG/PNG/WebP，上限10MB；每个用户最多两份，超限返回409及 `RESUME_UPLOAD_LIMIT`。上传、列表和删除均按当前登录用户隔离。
+
+自由面试的 `POST /api/ai/llm/chat/` 增加可选 `resume_mode=platform|uploaded` 与 `uploaded_resume_id`。`platform` 继续使用页面提供的平台编辑简历；`uploaded` 由服务端按当前用户校验上传记录、解析状态和内容后注入面试提示词，不能同时混用两份来源。缺少 ID 返回400，记录不存在或越权404，解析降级或无可用内容422；该参数不改变已有 SSE 事件类型。
+
 错误恒为 `{code,message,details}`。400 VALIDATION_ERROR、401 UNAUTHENTICATED、403 FORBIDDEN、404 NOT_FOUND、409 CONFLICT、502 INVALID_MODEL_OUTPUT、503 MODEL_UNAVAILABLE、504 MODEL_TIMEOUT、501 FEATURE_NOT_IMPLEMENTED。`api.py` 按 HTTP 状态进行共享映射，因此这些 code 也影响 evaluation 等调用方的同状态异常；不是仅对反馈接口生效。finish 将模型失败保存到 summary 并返回 HTTP 200 的会话结果。任何错误均不得泄露原始供应商异常、提示词中的私人数据或凭据。
 
 ### records/rag 已实现接口细节（2026-11-10）
@@ -81,6 +85,14 @@ Vue 页面 → `features/career-platform/api.js` → 视图/序列化器 → 应
 - 普通 finish 无论同键或新键都不重复模型；首次同步尝试后返回 succeeded/failed，并发重放可观察 pending。空会话结束为 failed/NO_ANSWERS且不调用模型。显式重试须新键，failed或超过 `LLM_TIMEOUT + PRACTICE_ATTEMPT_GRACE_SECONDS` 的 pending才可认领；上限由 `PRACTICE_MAX_MODEL_ATTEMPTS` 控制，超限409。
 - summary 为 `{status,strengths,gaps,next_steps,failure_code,prompt_version}`。未结束的新会话也可能显示 summary pending，不能据此判断模型已开始；应结合 session.status。
 - 当前默认 LocMemCache 不跨进程共享；多 worker 的回执复用、真实并发锁和模型超时分类仍需专项验证。字段白名单不是对任意嵌套文本的全面脱敏证明；真实隐私与证据验证不能用单个字段测试代替。
+
+### resume 已实现接口细节（2026-11-22）
+
+- analyze 读取当前用户 Resume 及子记录，生成不含姓名、电话、邮箱、地址、头像、文件内容和文件 URL 的快照；模型调用前检查 `resume_revision`，调用后再次锁 Resume 并核对版本。岗位不存在404、版本变化409；模型超时504、供应商不可用503、无效 JSON 502、结果校验失败400。
+- `(user,request_id)` 复用原分析；同键输入不同返回409。无 JD/岗位时 `matches/gaps` 为空且 `matching.version=not-applicable`，有 `job_id` 时使用 allowed 岗位快照；岗位无可用内容返回400。
+- 模型结果必须提供 `matches/gaps/suggestions/star_reviews`。建议只允许写入 `skills`、`self_evaluation`，字段不得重复；证据必须指向该字段原文。STAR 最多20段，四段内容只能逐字摘录对应项目/经历描述，缺项保留问题，不自动写回子记录。
+- apply 在事务内锁定 Resume，检查分析归属、分析版本、`base_revision` 和当前 `edit_revision`；只应用本次已接受建议，`suggestion_edits` 仅能修改已接受项并重新执行字段与事实校验。成功时版本只递增一次，其他账号或不存在返回404。
+- `ResumeApplyReceipt.input_payload` 保存分析 ID、基线、接受集合和编辑文本；同键同输入返回原回执，同键不同输入返回409。
 
 ## 快照和交接结构
 
@@ -98,7 +110,7 @@ Vue 页面 → `features/career-platform/api.js` → 视图/序列化器 → 应
 
 简历建议目标结构：`{id,field_path,original,suggested,reason,evidence:[Evidence]}`；分析结果 `{matches,gaps,suggestions}`。field_path 仅允许既有简历字段/当前归属子记录，不能借路径修改 user、ID、版本或其他账号记录。反馈结构 `{answer_quote,key_points_covered,missing_points,evidence,follow_up}`，总结 `{strengths,gaps,next_steps}`；字符串均纯文本，模型内容用文本渲染。
 
-新模型 ResumeAnalysisRun/ResumeApplyReceipt/PracticeSession/AnswerRecord/EvaluationRun 及 InterviewQuestion 均为 Django 托管。Company/Job 兼容补字段，不读取 unmanaged `company_info_backup`。Job 的 `requirements` 兼容旧文本，`description` 保存完整 JD，技能规范化到 `skills`；成员1需明确旧字段回退规则，不能静默丢失旧 JD。
+新模型 ResumeAnalysisRun/ResumeApplyReceipt/ResumeUpload/PracticeSession/AnswerRecord/EvaluationRun 及 InterviewQuestion 均为 Django 托管。`AIConversation` 增加 `summary`、`summary_upto` 内部字段，不改变公开聊天响应。Company/Job 兼容补字段，不读取 unmanaged `company_info_backup`。Job 的 `requirements` 兼容旧文本，`description` 保存完整 JD，技能规范化到 `skills`；成员1需明确旧字段回退规则，不能静默丢失旧 JD。
 
 ## 状态、并发和失败约定
 

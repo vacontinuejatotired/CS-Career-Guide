@@ -342,3 +342,9 @@
   "evidence": "backend/career_platform/resume/tests.py; frontend/tests/resume-optimization.test.mjs; output/resume-general-complete.json; output/playwright/resume-general-check.js（output为本机产物）"
 }
 ```
+
+## 2026-11-22 文件简历与练习快照边界
+
+文件简历只扩展自由面试的可选上下文，不创建 `PracticeSession`，也不改变逐题回答、反馈、结束总结或历史读取流程。创建正式练习时仍由 `PracticeRepository` 读取当前登录用户的平台 Resume，并保存 `edit_revision`、目标岗位、技能、自评及教育/经历/项目/证书/奖项字段。
+
+练习快照不包含 `Resume.file`、`file_name`、`parsed`、`parsed_degraded`、`file_url`，也不包含姓名、电话、邮箱、地址和头像等顶层私人字段。`ResumeUpload` 的迁移不把上传文件自动导入现有记录；历史 `PracticeSession.resume_snapshot` 保持原值，不能由上传解析结果反写。

@@ -15,8 +15,13 @@ from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ai_integration.interview.legacy import LegacyPromptInterview
-from ai_integration.interview.service import InterviewPrompt, InterviewService
+from ai_integration.interview.legacy import LegacyPromptInterview, ResumeContext
+from ai_integration.interview.service import (
+    InterviewPrompt,
+    InterviewService,
+    RESUME_MODE_ATTACHED,
+    RESUME_MODE_NONE,
+)
 
 
 class InterviewBehaviorTests(unittest.TestCase):
@@ -30,11 +35,9 @@ class InterviewBehaviorTests(unittest.TestCase):
         self.assertEqual(turn.user, '对话历史：\n用户：问题一\n面试官：回答一\n面试官：回答二\n本轮回答')
         self.assertTrue(turn.system.startswith('面试系统\n\n风格：极致理性的硬核技术深挖，针对底层原理进行连环追问。'))
         self.assertIn('只输出纯文本，不使用 Markdown', turn.system)
-        self.assertEqual(self.service.prepare_turn('字' * 3001, [], 'gentle').user, '字' * 3001)
-        latest = self.service.prepare_turn('最新回答：项目缓存设计', [{'user': '旧' * 13000, 'ai': '旧问题'}], 'technical')
-        self.assertTrue(latest.user.endswith('最新回答：项目缓存设计'))
-        self.assertIn('每轮只提出一个主问题', latest.system)
-        self.assertIn('自我介绍', latest.system)
+        long_turn = self.service.plan_turn('字' * 12000, [], 'gentle')
+        self.assertTrue(long_turn.meta['message_truncated'])
+        self.assertIn('后续内容因长度限制被截断', long_turn.prompt.user)
         self.assertIn('对面试人员使用及其压迫的提问方式，要求候选人在短时间内给出回答。', self.service.prepare_turn('回答', [], 'pressure').system)
         self.assertIn('关注过往经历中的决策、冲突处理及团队协作等软技能。', self.service.prepare_turn('回答', [], 'behavioral').system)
         self.assertEqual(self.service.prepare_turn('回答', [], 'unknown'), self.service.prepare_turn('回答', [], 'gentle'))
@@ -60,9 +63,31 @@ class InterviewBehaviorTests(unittest.TestCase):
         replacement.prepare_turn.return_value = InterviewPrompt('new system', 'new question')
         service = InterviewService(replacement)
         self.assertEqual(service.prepare_turn('answer', [], 'gentle').user, 'new question')
-        replacement.prepare_turn.assert_called_once_with('answer', [], 'gentle', review=False)
+        replacement.prepare_turn.assert_called_once_with(
+            'answer', [], 'gentle', review=False,
+            resume=None, resume_mode='auto', summary='', summary_upto=0,
+        )
         service.parse_review('new report')
         replacement.parse_review.assert_called_once_with('new report')
+
+    def test_selected_resume_is_rendered_only_when_attached(self):
+        resume = ResumeContext(
+            target_role='开发',
+            years='未提供',
+            skills='Python、Django',
+            experience=['示例公司、后端开发、负责接口'],
+            projects=['职业平台、后端、提供简历解析'],
+        )
+        attached = self.service.prepare_turn(
+            '回答', [], 'technical', resume=resume, resume_mode=RESUME_MODE_ATTACHED,
+        )
+        self.assertIn('目标岗位：开发', attached.system)
+        self.assertIn('Python、Django', attached.system)
+        self.assertIn('职业平台、后端、提供简历解析', attached.system)
+        disabled = self.service.prepare_turn(
+            '回答', [], 'technical', resume=resume, resume_mode=RESUME_MODE_NONE,
+        )
+        self.assertNotIn('目标岗位：开发', disabled.system)
 
 
 class ChatRouteIntegrationTests(unittest.TestCase):
@@ -144,8 +169,6 @@ class ChatRouteIntegrationTests(unittest.TestCase):
             with self.subTest(mode=mode), patch.dict(sys.modules, modules), patch('ai_integration.interview.get_interview_service', return_value=service):
                 model_factory.reset_mock()
                 service.reset_mock()
-                footer = '\n\n本轮题库检索参考：fixture https://example.invalid/q1' if mode == 'interview' else ''
-                service.prepare_turn.return_value = InterviewPrompt('策略系统提示', '策略输入', footer)
                 request = SimpleNamespace(method='POST', FILES={}, body=json.dumps({
                     'mode': mode, 'message': message, 'session_id': 'offline-session', 'interview_style': 'technical',
                 }).encode())
@@ -154,12 +177,8 @@ class ChatRouteIntegrationTests(unittest.TestCase):
                 model_factory.assert_not_called()  # No model invocation before consumption.
                 events = list(response.streaming_content)
                 self.assertIn('下一题', events[0])
-                self.assertIn('data: [DONE]', events[-2])
-                self.assertIn('"session_id": "offline-session"', events[-1])
-                if footer:
-                    self.assertEqual(json.loads(events[1][len('data: '):])['content'], footer)
-                else:
-                    self.assertEqual(len(events), 3)
+                self.assertIn('data: [DONE]', events[1])
+                self.assertIn('"session_id": "offline-session"', events[2])
                 if mode in ('normal', 'career'):
                     service.prepare_turn.assert_not_called()
                     model_factory.return_value.stream.assert_called_with([
@@ -170,9 +189,12 @@ class ChatRouteIntegrationTests(unittest.TestCase):
                     model_factory.return_value.stream.assert_called_with([
                         {'content': '策略系统提示'}, {'content': '策略输入'},
                     ])
-                    service.prepare_turn.assert_called_with(message, [], 'technical', review=mode == 'interview_review')
+                    service.prepare_turn.assert_called_with(
+                        message, [], 'technical', review=mode == 'interview_review',
+                        resume=None, resume_mode='none',
+                    )
                 self.assertEqual(pairs.create.call_args.kwargs['user_input'], message)
-                self.assertEqual(pairs.create.call_args.kwargs['ai_output'], '下一题' + footer)
+                self.assertEqual(pairs.create.call_args.kwargs['ai_output'], '下一题')
 
 
 if __name__ == '__main__':
