@@ -1,5 +1,79 @@
 # 演示部署验收状态与接手记录
 
+## 2026-11-16 MySQL知识点检索与BM25双端上线
+
+- PR #54合并至 `7c429bde8197f9af22f529b73dc463801ec66c1b`，功能提交为 `b4ab16c`。master运行 [43842334129](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/43842334129) 整体success，双端检查、SQLite/MySQL业务验收、双镜像、网关/持久化联调、双端发布、双端部署及summary成功。本次上传正常完成，不表示历史ACR卡顿根因已解决；180秒连续无CLI输出终止规则保留。
+- 下载核对两份publisher记录均complete=true、commit一致。服务器frontend/backend/gateway均running/healthy，前后端配置镜像引用与各自发布reference一致：frontend为 `sha256:c6068c3fdb7bc2c6b5b9c67150a5557d1940dc54b41e77c5e41838f71b440156`，backend为 `sha256:81592720271d470d8524b1770bc7fb6cd1bd61b8fae698dda06d02b9d99a1d42`；gateway仍为 `sha256:91fc9c3924b93f76adc9cd36a0bb93e53885ff8e97df10233caa45bb432789a5`。
+- 临时账号从后端容器通过实际gateway HTTP验证：目录mysql/MySQL/MYSQL均200、count=140；正式mysql检索200、5题、题目分类均为数据库，大小写变体排序和分数一致；Redis检索4题；未知知识点0题；仅按岗位浏览5题且score均0。mysql的5题分数约为0.583/0.511/0.502/0.460/0.459，是检索相关度，不是答题成绩。持原回执创建练习200、5道题目快照保留数据库分类；匿名目录401。账号和关联练习已删除，allowed题数仍943，未调用生成模型。
+- 开发电脑请求公网 `/resume?tab=optimize`、`/career-platform/practice` 及实际懒加载资源均200；简历资源含通用优化/岗位定向优化/无需JD/STAR，练习资源含“检索相关度”。后端只读检查确认JD可选、空JD进入general。这是HTTP、资源和代码检查，不是本轮登录后浏览器交互、App设备或真实模型验收；服务器内部gateway验证也不等同于公网带Token请求。
+- 正式检索当前为字段加权BM25词法排序，未启用Embedding/LanceDB。目录topic按规范分类优先、无分类则内容包含匹配；正式检索采用分词关键词约束，两个接口结果不保证相同。离线评估API的四种已注册策略仍为覆盖率基线，不能代表生产BM25质量。无关误召、语义召回、多worker共享回执和STAR子项写回仍有未完成边界。
+- 脱敏本机证据：`output/mysql-rag-release/`、`output/mysql-rag-live.json`、`output/mysql-rag-live-runtime.json`、`output/resume-and-practice-assets-live.json`（均为忽略目录产物）。App接口约定已同步至[接入文档](app-api.md)，历史失败及此前模型验收记录保留，不以本次成功覆盖。
+
+## 2026-11-16 后端发布补齐与推送卡顿核验
+
+- PR #52已合并为`b7206e66dc1bfc79a8c6ff5aa63c7129031bfe57`。运行43831847945的双端检查、镜像与网关/持久化联调通过，frontend发布/部署成功；backend发布失败、自动部署跳过，整条Actions结论仍为failure。
+- backend镜像load耗时4.7秒；第一次push仅完成2层、7层Waiting，最后一次输出后180秒终止（该次累计270秒），同标签重试后仍2层已存在、7层Waiting，再于累计210秒终止。固定类别诊断未观察到鉴权、限流或5xx；没有足够证据确定具体网络或仓库端根因。180秒按连续无新CLI输出计算，含前期进度及一次重试的job总时间可能更长。
+- 本次按用户要求补齐发布：核对该运行的失败发布记录与`backend-smoke-image-43831847945`归档，配置摘要均为`sha256:b45f60b56f426f82be2163a1448c8981a22328a5823faf224a0c6ef3aa05df4a`；与ACR已有`sha256:3e0d32ff90ad11c364e65ccb05672280f510c0a3dffe6e1aa5c6357f267be973`镜像的config、linux/amd64与全部RootFS diff_ids一致。使用官方校验和验证过的crane v0.22.1复用已有manifest，写入并回读`sha-b7206e6/latest`，标签发布3.8秒、含registry核验5.8秒，新增上传图层为0。未构建或改写镜像内容；原Actions失败记录保留。
+- 单组件锁定工具按该digest激活backend，耗时13秒。部署前SQLite在线备份quick_check为ok；部署后frontend/backend/gateway均running/healthy，frontend/gateway容器ID、backend卷挂载和`.env`元数据保持。943道allowed题及既有0004迁移存在，无新业务迁移。公网login/resume/interview为200、匿名分析401。应用内容与此前真实模型验收版本相同，本次未重复调用付费模型，也未重新执行浏览器交互验收。
+- 只读核验服务器Docker Hub mirror数量为0；仓库publisher配置只设置`max-concurrent-uploads=1`，保留runner原有daemon选项，不能据此断言runner原镜像配置。Docker Hub的`registry-mirrors`用于拉取缓存，不能给向私有ACR的push提供加速；此次失败阶段为push，非基础镜像拉取。180秒规则继续保留，具体网络根因和长期自动传输修复仍未完成。
+
+## 2026-11-16 通用简历优化已上线
+
+应用源码为`edb797ef26b8881b3ca2b2e94eaf1e7c17afb41d`（PR #48的通用优化与PR #49的发布配置）。`/resume?tab=optimize`默认通用优化，无需JD；可切换岗位定向优化。分析使用当前登录账号最后一次保存的简历，页面展示来源和版本，未保存编辑不自动加入分析。
+
+- 正式Actions运行43816175405、43820801261的后端发布失败；后者已应用单层上传配置，仍在180秒无CLI输出后退出，不能把缓解措施记为已解决。两次前端独立发布后均曾恢复旧digest，待后端就绪才重新激活新前端。
+- 最终交付复用43820801261的`backend-smoke-image-43820801261`归档，未在本机或服务器重建。跨引擎核对归档manifest/config摘要、linux/amd64及全部RootFS diff_ids；runner配置摘要为`sha256:b45f60b56f426f82be2163a1448c8981a22328a5823faf224a0c6ef3aa05df4a`。使用官方发布包校验和验证过的crane v0.22.1和csdeploy已有登录进行服务器侧备用发布；压缩传输846.1秒、图层合计297081113字节。远端manifest的config摘要及全部diff_ids与验证归档一致，SHA/latest解析到同一digest。
+- 已按不可变引用先激活backend，再激活frontend：backend为`sha256:8c5aab50e5ccfdc4d38f3c6f29544c907bbe91350d934b197d9712c958b14583`，frontend为`sha256:9629f4a6c1030040d3540d2585dd609302a8cabc3def79785bed90c2f3acfe8e`。三容器running/healthy；网关容器、命名卷挂载和`.env`元数据保持。无新增业务迁移，既有0004存在，943道allowed题保持；GLB资源缺失、VAD模型存在。
+- 部署后使用临时合成简历，经真实gateway HTTP调用已配置模型：省略JD分析200，`resume-star-extractive-v2`生效、无岗位匹配；STAR背景/任务/行动有原文依据，缺少成果时留空。分析回放、历史、建议确认应用200、版本递增到1及回执回放通过；伪造Redis/提升50%的编辑返回400。全流程22.2秒，账号及关联数据已删除。这是单样本验证，不代表总体质量评估。
+- 公网Chromium使用真实注册、简历、资料及历史API，无API拦截和模型调用：来源预览与实际保存版本一致、空JD分析按钮可用、草稿隔离、岗位模式空JD反馈通过；1440/390px无溢出或pageerror，无GLB请求。独立临时浏览器账号及关联简历已删除。真实分析/写回由上一项HTTP验收覆盖，未将两项合称浏览器模型全链路。
+- 公网`/login`、`/resume`、`/interview`为200；匿名分析接口401；入口资源`index-B17KHjN-.js`及简历资源`Index-BAAvTFnc.js`为200并包含本次功能。
+
+脱敏证据见[通用简历优化交付记录](releases/2026-11-16-resume-general.json)。PR #50曾将180秒无CLI输出改为提示并继续等待900秒总预算，预合并CI 43825887485/43825923832成功。master `3dac3c3`运行43827174324因frontend发布等待过久，已于2026-11-16按用户要求取消，结论为cancelled；frontend未执行激活，不能记为完整自动交付成功。本次恢复连续180秒无输出终止本次推送，保留900秒单次总预算及一次有限重试。
+
+当前应用边界：可确认写回`skills/self_evaluation`的保守文字整理；项目/工作STAR供预览及补充问题，尚不自动写回子记录，也不提供任意全文自动重写。
+
+后续自动发布核验：43827174324的backend发布和部署成功，当前backend为`sha256:3e0d32ff90ad11c364e65ccb05672280f510c0a3dffe6e1aa5c6357f267be973`，其config摘要与上述runner配置摘要相同；内容未改，但压缩表示不同使manifest digest不同。部署后用同一合成样例再次经真实gateway HTTP完成分析、应用和伪造编辑拒绝，29.5秒通过、账号已清理；这仍是单份样例的重复验证。该运行frontend publisher已取消，frontend部署也为cancelled。取消后再次只读核验，frontend保持上文已验收digest，frontend/backend/gateway均running/healthy，容器ID及环境文件元数据保持，GLB缺席、VAD存在。
+
+## 2026-11-16 简历分析入口与停用助手资源已上线
+
+- PR #46 合入 master `db2344686545936034c2fb654b1aaa912b2ab2b8`。分支/PR CI 43803050000 / 43803057044 成功；正式发布 43803661111 整体成功，含 SQLite/MySQL 五模块验收、双镜像、共享网关/持久化联调、双端发布与部署。
+- 前端移除停用 AIFloat 组件、头像 URL 配置和无效页脚链接；镜像仅保留面试 VAD，Actions 容器冒烟及部署后只读检查均确认无 GLB、VAD 模型存在。历史 GLB 源文件保留，未读取或修改。前端归档 133.3 MiB，发布 job 从 04:26:15Z 到 04:27:08Z 约 53 秒；这不是仅 push 子命令计时，也不能证明旧网络故障已根治。
+- 简历优化增加当前账号已保存简历的姓名/意向岗位/版本/内容预览；JD 为空时点击提示并聚焦，保存中明确等待。分析前重读版本，变化后先核对；编辑区未保存内容不参与分析，确认应用和历史流程保留。
+- 服务器 frontend RepoDigest 与发布一致 `sha256:0c8361edd14d92d57983ccaac07becf923fe064397a7b446c987e96bd93aa072`。backend 内容 digest 仍为 `sha256:878a41842a8a1f76cbd4edd68970d30d20d522f54752cbba6c4247aef6552736`，gateway 仍为 `sha256:91fc9c3924b93f76adc9cd36a0bb93e53885ff8e97df10233caa45bb432789a5`；三容器 running/healthy，无新增迁移。
+- 公网 login/resume/interview 为 200，未认证分析接口为 401；主资源 `index-Jc1-r2Bp.js`、简历懒加载资源 `Index-B9OaLd9f.js` 含本次来源预览与 JD 提示。已发布前端的隔离 Chromium 验证空 JD、来源预览、未保存草稿不改变来源、分析请求 revision=7、无旧助手入口与 GLB 请求，1440/390px 无溢出或运行时异常；该浏览器验证全部 API 使用样例拦截，没有读取真实用户简历、写生产数据或调用真实模型。
+- 本地 115 项前端测试、固定 complete 17 项及生产构建通过；交付工具 103 项中 89 通过、14 项 Windows 不适用跳过，Linux runner 由正式 CI 验证。本轮未修改真实模型提示词或事实校验规则；此前真实模型偶发 STAR 字段路径错误的限制继续保留，不能以入口验收代替模型质量验收。
+
+
+## 2026-11-16 授权题库与 STAR 简历候选
+
+用户已授权改完直接上线。PR #43 将题库集成及简历优化完整候选合入 master，提交 `809266651bd451cab9cdc0855993fffac5df68eb`；PR #42 的提交已包含其中。分支候选 `f379fd6a832f8fd577886c82297eea29a18e8800` 的 CI 43795944455 全部通过；master 发布运行见 [43797130336](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/43797130336)。
+
+- 迁移前完成 SQLite 在线备份 `/data/catalog-backups/before-resume-20261116T031505Z.sqlite3`，大小 5509120 字节，权限 0600，`quick_check=ok`，SHA256 `34450c2ae95562c955da0b95c8331e2f7dd79d4fe155f6f63e98055ad6400133`。保持现有 SQLite、卷和网关，不切换数据库。
+- 后端已发布并部署，运行镜像 RepoDigest 与发布记录匹配 `sha256:878a41842a8a1f76cbd4edd68970d30d20d522f54752cbba6c4247aef6552736`，容器 running/healthy；迁移 `0004_resumeapplyreceipt_input_payload` 已执行。
+- 部署后通过真实网关 HTTP 与已配置模型验证合成简历：分析 200，Java/MySQL 匹配而 Redis 为缺口；STAR 背景/任务/行动均逐字摘录，没有依据的结果为空。分析原键重放、历史查询、确认应用 200、版本递增到 1、应用回执重放均通过；添加 Redis 与提升 50% 的编辑返回 400。临时账号及关联数据已删除，943 道 allowed 题目保持。真实模型检查耗时 19.8 秒，为单份合成样本，不代表总体质量评估。
+- 原 master 运行 43797130336 的前端首次 SHA 标签 push 在900秒超时，重跑仍长时间未完成，随后取消旧运行；未将其记为发布成功。PR #40 补齐脱敏层进度、错误类别、180秒无CLI输出退出和一次有限超时重试，24项发布专项通过，分支与PR CI 43799603835/43799608316均成功后合入 `171adda617e406bf34cfc09b9416ed300aef36a1`。
+- 最终发布 [43800231536](https://github.com/vacontinuejatotired/CS-Career-Guide/actions/runs/43800231536) 整体成功：前后端检查、双镜像、交付检查、网关联调、双端发布、双端部署及summary均成功；本次仅修改CI工具，固定五模块业务验收按路径规则skipped，完整业务验收依据此前8092666运行的SQLite/MySQL通过结果。
+- 前端 SHA 标签推送22.8秒、latest推送7.0秒，12层完成，未触发重试；运行镜像 RepoDigest 匹配 `sha256:032b2d5bc41457b710398cb32c6125fc5d1df8c8fbc0ce836eebb1085b1acd4f`，后端digest保持上述值，三容器running/healthy。旧失败的sha-8092666 manifest不存在；不能据此确认具体网络或ACR根因，也不能把本次成功视作偶发故障已根治。
+- 最终公网 `/login`、`/resume`、`/interview` 返回200，简历懒加载资源 `Index-opwsJ7QP.js` 返回200且包含STAR/`star_reviews`；未登录分析接口返回401。此项为HTTP资源验收，不代替线上登录后的浏览器交互。
+- 双端部署后再次使用同类合成简历调用真实模型，分析返回400/VALIDATION_ERROR，未完成该次闭环，临时账号已删除。前一次真实模型分析/应用成功不能代表输出稳定；当前保守校验会拒绝不符合证据或结构约束的输出，需要继续优化模型契约及失败恢复体验，不能将本版本记为真实模型总体质量验收通过。
+- 随后的独立进程诊断复用已部署代码与真实模型，捕获 `invalid STAR source`：模型返回示例路径 `projects.1.description`，而非当前简历项目ID。该错误被拒绝且临时账号已删除；应将可选路径显式传给模型、避免示例ID被照抄，并继续验证STAR结果槽位语义。诊断不替换线上代码，也不证明此前HTTP400的每个具体原因完全相同。
+
+待完善：STAR 项目/经历确认写回、岗位与简历评测、检索质量调优、多 worker 共享回执和并发一致性。当前 STAR 仅预览，技能/个人自评可确认写回；保守文字规则不等于通用语义事实验证。普通简历 CRUD 跨页签版本协议尚未整体重构。此前本地离线浏览器验收通过，线上登录后的浏览器交互未重新验收。
+
+## 2026-11-16 授权题库导入完成
+
+本节是北京时间09:22首次导入的历史签收，晚于此时的来源显示调整、自由面试接入、BM25检索与双端发布见上方记录；原数据文件hash及当时未覆盖的范围不代表当前实现状态。本次合并只补齐记录，不再次导入数据或重启服务。
+
+用户确认943道小林coding题目已核实授权，可用于本项目线上题库和面试检索。本次通过既有严格核验的SSH通道，在现有后端容器调用正式管理命令，只导入questions，不重新部署或切换数据库。导入前后frontend/backend/gateway容器ID不变，均healthy。
+
+- 数据与环境：SQLite `/data/cs-career-guide.sqlite3`，题库由0条增加到943条，全部`allowed`、非演示数据，带来源/链接/采集时间。数据文件SHA-256：`d5b4d0834c70558d933367f71afe13453506c5499fc56819d2f463660b0f507c`。
+- 备份：北京时间09:22:28，以SQLite backup API生成 `/data/catalog-backups/before-xiaolincoding-20261116T012228Z.sqlite3`，权限0600、1,454,080字节，quick_check通过；备份SHA-256：`8b77a79f00de115353e86240bc33be81dd83a4f1f2a3332e7ec4cd2274672b41`。备份留在服务器持久卷，未下载或入库。不要用整库恢复覆盖后续用户数据；撤销本数据集应先评估当前数据，再按交接文档处理。
+- 执行结果：离线943条全部有效、无重复；线上dry-run预计新增943且零写入；正式新增943/更新0；复跑新增0/更新0/未变化943。无staff用户，管理命令使用已有系统actor行为，未创建管理员或变更权限。
+- 实际网关HTTP：匿名题库查询401；Token题库查询200，集合主题69条，来源和时间完整；正式ArrayList检索200、1条`origin=catalog`；利用检索回执创建练习会话200，重复请求返回同一会话。临时普通验收用户、Token和练习记录已清理并核对不存在。
+- 限制：这是实际数据库与网关/API验收；未执行浏览器点击、真实模型、MySQL、全主题检索质量或成员2评估基线重跑。`index_notification=not_configured`符合当前ORM检索架构，没有新建向量索引；自由模拟面试legacy主链路保持原实现。
+
+详细签收和复现入口见[授权题库导入交接](implementation/01-data-catalog-import-handover.md#2026-11-16-导入签收)。此记录反映本次实测；下方较早版本及业务状态均为对应日期历史快照。
+
 ## 2026-11-03 双端部署与独立审计通过
 
 按用户本次授权，现有应用改动已通过 GitHub Actions 部署到服务器；五模块完整业务验收跳过，原固定测试、业务变更路径规则及 SSH 校验继续保留。五模块仍为 `501 / FEATURE_NOT_IMPLEMENTED` 骨架，不将跳过写成业务通过。

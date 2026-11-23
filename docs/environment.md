@@ -103,7 +103,6 @@ python backend/migrate_vector_store.py --source backend/ai_integration/lancedb -
 | `VITE_COMPANY_API_BASE_URL` | 原项目独立企业查询服务的 API 前缀；未设置时使用主 API 前缀 |
 | `VITE_API_TIMEOUT_MS` / `VITE_COMPANY_API_TIMEOUT_MS` | Axios 请求超时，单位毫秒，默认 120000 / 30000 |
 | `VITE_VAD_ASSET_BASE_URL` | VAD ONNX、worklet、WASM 的资源目录；默认应用 public/models/vad/ |
-| `VITE_AVATAR_MODEL_URL` | 3D 数字人 GLB 文件地址 |
 | `VITE_ENABLE_TTS` | 浏览器侧语音合成开关；默认 False |
 | `VITE_GEOCODING_URL` | 可选的兼容 OpenCage 响应结构的逆地理编码接口，自动附加 q 和 language 参数 |
 | `VITE_IP_GEOLOCATION_URL` | 可选的 IP 定位接口，响应需有 status=success 及 city/regionName；可在 URL 中配置查询参数 |

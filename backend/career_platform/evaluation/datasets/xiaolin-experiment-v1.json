@@ -1,0 +1,1666 @@
+{
+  "created": "2026-11-16",
+  "corpus": {
+    "version": "xiaolin-corpus-v1",
+    "sha256": "f1c674139e44c6867fb2da5da3749ae9dec09f1212f532480db912837f9802a8",
+    "size": 943
+  },
+  "dataset_sha256": {
+    "dev": "9c92bc5986726f7685f1eed3ad603aa0d856c8e0039040451a02c296da357110",
+    "test": "6a7c581d51a62824a853a90798cc355097b6932fbf618a8be952049e256d2e25"
+  },
+  "limitations": "16条相关查询和2条无关查询，初步非穷尽标注；未经成员2独立复核；无模型、Embedding、线上或浏览器验收",
+  "selection_rule": "只按dev宏平均F1选择策略与K，同分保留先出现的基线；不据test反向调参",
+  "dev_runs": [
+    {
+      "strategy": "xiaolin-baseline",
+      "k": 3,
+      "metrics": {
+        "precision_at_k": 0.29166666666666663,
+        "recall_at_k": 0.875,
+        "f1_at_k": 0.4375,
+        "hit_rate_at_k": 0.875,
+        "mrr": 0.6666666666666666
+      },
+      "unrelated_predictions": 3,
+      "results": [
+        {
+          "query_id": "dev-01",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-cba03ca2cfda2310d5eb6490462f8444a2f746c7"
+          ],
+          "predicted_ids": [
+            "xl-57b579366046b03563b1cc525c67259ae89563e0",
+            "xl-174ed4e7b36c065c5d2c614a45c0b5d54d34f04c",
+            "xl-cba03ca2cfda2310d5eb6490462f8444a2f746c7"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.3333333333333333
+          }
+        },
+        {
+          "query_id": "dev-02",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a"
+          ],
+          "predicted_ids": [
+            "xl-4b65cea6caaed93ee390587598c0002622a328fc",
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a",
+            "xl-299507c12e0fa14201c1174b37b13031c651e10c"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-03",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439"
+          ],
+          "predicted_ids": [
+            "xl-0384d8c79c0c240cd2d3a42d909689b2280514b4",
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439",
+            "xl-2866b8ace0013ae61bc9369bb62477d8e917d187"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-04",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-078f94d83198f32c40c2191aeff1c24638c60066"
+          ],
+          "predicted_ids": [
+            "xl-3bab9c3eb4404d3fe22991a072941047776aa6f5",
+            "xl-98820704a68f425011aaf7f2f1217586feee38a4",
+            "xl-efa36531c140ca47617403f5a9de263c9eb7d37a"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        },
+        {
+          "query_id": "dev-05",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3"
+          ],
+          "predicted_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3",
+            "xl-445b3125b95c1f376853bb0ac020eae200be75a8",
+            "xl-32b757792ed39a43fb37864e0d662ac3ae177170"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-06",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6"
+          ],
+          "predicted_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6",
+            "xl-1e50a936372f943e21651c260a9b699e9c7b7cbc",
+            "xl-0b5f18c43f30533623b8fc0abbe6c3dd3783a38a"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-07",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f"
+          ],
+          "predicted_ids": [
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f",
+            "xl-dd78b86ba093d519a52c4198e2f1adf1ac2bfe72",
+            "xl-fb0fc3edf6778b13a4638e169375d2002230d65c"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-08",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717"
+          ],
+          "predicted_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717",
+            "xl-4c28f88328b7e5eb2b20130f90fcae187b69cdef",
+            "xl-af730d6dbe59eec04f96a22cc0ad13ce24b6885a"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-unrelated",
+          "group": "unrelated",
+          "relevant_ids": [],
+          "predicted_ids": [
+            "xl-031d467d060a6484b3e0f4a242adbc7f32b2b0ef",
+            "xl-0a197925839707fd5dae0d305809af983b9f54b6",
+            "xl-152d793c558adef6dc9baa593f885e9ae7082103"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "strategy": "xiaolin-baseline",
+      "k": 5,
+      "metrics": {
+        "precision_at_k": 0.175,
+        "recall_at_k": 0.875,
+        "f1_at_k": 0.29166666666666674,
+        "hit_rate_at_k": 0.875,
+        "mrr": 0.6666666666666666
+      },
+      "unrelated_predictions": 5,
+      "results": [
+        {
+          "query_id": "dev-01",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-cba03ca2cfda2310d5eb6490462f8444a2f746c7"
+          ],
+          "predicted_ids": [
+            "xl-57b579366046b03563b1cc525c67259ae89563e0",
+            "xl-174ed4e7b36c065c5d2c614a45c0b5d54d34f04c",
+            "xl-cba03ca2cfda2310d5eb6490462f8444a2f746c7",
+            "xl-79e4d54caf4bd606015826434d3ba470fbbf857e",
+            "xl-6295072de99ebf051fc0c036dddbced756cd6bc7"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.3333333333333333
+          }
+        },
+        {
+          "query_id": "dev-02",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a"
+          ],
+          "predicted_ids": [
+            "xl-4b65cea6caaed93ee390587598c0002622a328fc",
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a",
+            "xl-299507c12e0fa14201c1174b37b13031c651e10c",
+            "xl-5dcd64419b1f38ff205e08244cc6311b354711bb",
+            "xl-efd221add6df51c986d4c6ec179e5759e032b940"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-03",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439"
+          ],
+          "predicted_ids": [
+            "xl-0384d8c79c0c240cd2d3a42d909689b2280514b4",
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439",
+            "xl-2866b8ace0013ae61bc9369bb62477d8e917d187",
+            "xl-34ecbb492ef954dc2e783b0ab3fe15b05c62256e",
+            "xl-c49a169315a9eeacd13b9f1cc26f2cc5f86c8d73"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-04",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-078f94d83198f32c40c2191aeff1c24638c60066"
+          ],
+          "predicted_ids": [
+            "xl-3bab9c3eb4404d3fe22991a072941047776aa6f5",
+            "xl-98820704a68f425011aaf7f2f1217586feee38a4",
+            "xl-efa36531c140ca47617403f5a9de263c9eb7d37a",
+            "xl-90fd01a420ac593bfad4af542b3aea81706e467e",
+            "xl-e50ef55eca984770b8600770c5cce307c583be0a"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        },
+        {
+          "query_id": "dev-05",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3"
+          ],
+          "predicted_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3",
+            "xl-445b3125b95c1f376853bb0ac020eae200be75a8",
+            "xl-32b757792ed39a43fb37864e0d662ac3ae177170",
+            "xl-1c80ee36a199629ca1eb631173138e722c6af8a0",
+            "xl-419d94f70e50efee464fee43ac701f87ef5f2252"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-06",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6"
+          ],
+          "predicted_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6",
+            "xl-1e50a936372f943e21651c260a9b699e9c7b7cbc",
+            "xl-0b5f18c43f30533623b8fc0abbe6c3dd3783a38a",
+            "xl-6eb04bb43aae3481f83c106afa93fb5c3effe8f5",
+            "xl-41380b0f618caa18b807aaac59c6ccbfd94baf83"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-07",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f"
+          ],
+          "predicted_ids": [
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f",
+            "xl-dd78b86ba093d519a52c4198e2f1adf1ac2bfe72",
+            "xl-fb0fc3edf6778b13a4638e169375d2002230d65c",
+            "xl-4418c49cddef31a646aa3212f30750303b8db2a0",
+            "xl-4f1db8a01cb2de740799e3c664dca0c245f24e8d"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-08",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717"
+          ],
+          "predicted_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717",
+            "xl-4c28f88328b7e5eb2b20130f90fcae187b69cdef",
+            "xl-af730d6dbe59eec04f96a22cc0ad13ce24b6885a",
+            "xl-e3fecead94eefc1b57a132b51c35be2995f0994d",
+            "xl-310275487f57603a94ec5f69f8fe52c6847664c6"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-unrelated",
+          "group": "unrelated",
+          "relevant_ids": [],
+          "predicted_ids": [
+            "xl-031d467d060a6484b3e0f4a242adbc7f32b2b0ef",
+            "xl-0a197925839707fd5dae0d305809af983b9f54b6",
+            "xl-152d793c558adef6dc9baa593f885e9ae7082103",
+            "xl-487a18ae4e50aff20ccc71c1a28fb172ef8fd09b",
+            "xl-5b4161f5e985d2e1a5c9a50d7aa2628392aa8659"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "strategy": "xiaolin-baseline",
+      "k": 10,
+      "metrics": {
+        "precision_at_k": 0.0875,
+        "recall_at_k": 0.875,
+        "f1_at_k": 0.15909090909090912,
+        "hit_rate_at_k": 0.875,
+        "mrr": 0.6666666666666666
+      },
+      "unrelated_predictions": 10,
+      "results": [
+        {
+          "query_id": "dev-01",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-cba03ca2cfda2310d5eb6490462f8444a2f746c7"
+          ],
+          "predicted_ids": [
+            "xl-57b579366046b03563b1cc525c67259ae89563e0",
+            "xl-174ed4e7b36c065c5d2c614a45c0b5d54d34f04c",
+            "xl-cba03ca2cfda2310d5eb6490462f8444a2f746c7",
+            "xl-79e4d54caf4bd606015826434d3ba470fbbf857e",
+            "xl-6295072de99ebf051fc0c036dddbced756cd6bc7",
+            "xl-c433b40435b5da8d85ad6a029b569fe787498ce0",
+            "xl-8308839ec951ce7ab3c350a086c804af228aa28f",
+            "xl-db75b6cda9db48d62a3a6150b2b87a9113e892dd",
+            "xl-f76bc105316660c033d08072768f70e504e0a48a",
+            "xl-486cc888d07d4db8f5e238627ca3ba7c716cb7b9"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.3333333333333333
+          }
+        },
+        {
+          "query_id": "dev-02",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a"
+          ],
+          "predicted_ids": [
+            "xl-4b65cea6caaed93ee390587598c0002622a328fc",
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a",
+            "xl-299507c12e0fa14201c1174b37b13031c651e10c",
+            "xl-5dcd64419b1f38ff205e08244cc6311b354711bb",
+            "xl-efd221add6df51c986d4c6ec179e5759e032b940",
+            "xl-68b5767311272aa339fbfcee5b8a7616bf7af178",
+            "xl-90983b173d0ad1cc71968dac4ace8ac9a473c551",
+            "xl-90fd01a420ac593bfad4af542b3aea81706e467e",
+            "xl-ca903c9fbcba3606ba3c32eae53e5137c4643413",
+            "xl-ef283c456be44c91bac311a8fae2f0c51a733406"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-03",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439"
+          ],
+          "predicted_ids": [
+            "xl-0384d8c79c0c240cd2d3a42d909689b2280514b4",
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439",
+            "xl-2866b8ace0013ae61bc9369bb62477d8e917d187",
+            "xl-34ecbb492ef954dc2e783b0ab3fe15b05c62256e",
+            "xl-c49a169315a9eeacd13b9f1cc26f2cc5f86c8d73",
+            "xl-2ae43a915acf1fa9f38e6af286eed18f43270a76",
+            "xl-6c526d87185b0d31cf91d5b4e65e24c5cbe3b0a1",
+            "xl-164587b1538717bf978ab7268e67741dcea2f483",
+            "xl-e64e916aeaafe6f2ee3888c552b5e7820411c803",
+            "xl-efa36531c140ca47617403f5a9de263c9eb7d37a"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-04",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-078f94d83198f32c40c2191aeff1c24638c60066"
+          ],
+          "predicted_ids": [
+            "xl-3bab9c3eb4404d3fe22991a072941047776aa6f5",
+            "xl-98820704a68f425011aaf7f2f1217586feee38a4",
+            "xl-efa36531c140ca47617403f5a9de263c9eb7d37a",
+            "xl-90fd01a420ac593bfad4af542b3aea81706e467e",
+            "xl-e50ef55eca984770b8600770c5cce307c583be0a",
+            "xl-4728d1e995198ce4713339cc52a8eead2f10cbe6",
+            "xl-5db638c1f5c4056949962b710641e165f74c1c29",
+            "xl-68b5767311272aa339fbfcee5b8a7616bf7af178",
+            "xl-0ddcc407f44352885ab33464f81320635c9d38d1",
+            "xl-299507c12e0fa14201c1174b37b13031c651e10c"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        },
+        {
+          "query_id": "dev-05",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3"
+          ],
+          "predicted_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3",
+            "xl-445b3125b95c1f376853bb0ac020eae200be75a8",
+            "xl-32b757792ed39a43fb37864e0d662ac3ae177170",
+            "xl-1c80ee36a199629ca1eb631173138e722c6af8a0",
+            "xl-419d94f70e50efee464fee43ac701f87ef5f2252",
+            "xl-f943d0367eee4184cbcf473a375ff022f42ec478",
+            "xl-71c1cb3bd48412655ac77e3cb4626a3a2a59bd7a",
+            "xl-0820121d58f36a9de8d6bab3a2c681eebe23a174",
+            "xl-e72e6e3b0b9bef4cd44cc97ec56de872bbd33f5e",
+            "xl-487f3cac5de4f6438f1d05a2e84efba2279669f7"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-06",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6"
+          ],
+          "predicted_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6",
+            "xl-1e50a936372f943e21651c260a9b699e9c7b7cbc",
+            "xl-0b5f18c43f30533623b8fc0abbe6c3dd3783a38a",
+            "xl-6eb04bb43aae3481f83c106afa93fb5c3effe8f5",
+            "xl-41380b0f618caa18b807aaac59c6ccbfd94baf83",
+            "xl-a139d786a8829f08d66254339f35e6241f8303eb",
+            "xl-bbbbb5a322171fc4a7861c0db46ca5ef17dd4465",
+            "xl-4b65cea6caaed93ee390587598c0002622a328fc",
+            "xl-9874b96ba38327b240a42298709685d67c0135b5",
+            "xl-5db638c1f5c4056949962b710641e165f74c1c29"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-07",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f"
+          ],
+          "predicted_ids": [
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f",
+            "xl-dd78b86ba093d519a52c4198e2f1adf1ac2bfe72",
+            "xl-fb0fc3edf6778b13a4638e169375d2002230d65c",
+            "xl-4418c49cddef31a646aa3212f30750303b8db2a0",
+            "xl-4f1db8a01cb2de740799e3c664dca0c245f24e8d",
+            "xl-47ab8cc80457eeb41c7f1fa7c06f772e57c4cfba",
+            "xl-da65f9b7afed22076a288a17e5f92b744106861b",
+            "xl-f9190c4b5cbb2b03f23ef4465b628b4a4272ee22",
+            "xl-f99ee6617a26a2276dcad2afe6e102bdf6198617",
+            "xl-b95894777af35fbbd03a32752a34e497f955f23f"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-08",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717"
+          ],
+          "predicted_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717",
+            "xl-4c28f88328b7e5eb2b20130f90fcae187b69cdef",
+            "xl-af730d6dbe59eec04f96a22cc0ad13ce24b6885a",
+            "xl-e3fecead94eefc1b57a132b51c35be2995f0994d",
+            "xl-310275487f57603a94ec5f69f8fe52c6847664c6",
+            "xl-595f8152143e0bdf3473be8adf5dc60eb49cf894",
+            "xl-0bdd1673450ee6d74a5e17ad8e01364a2af9718b",
+            "xl-1780bfe1f1126d0a1cb17f76b0da936020843e33",
+            "xl-1e3a8036d3cbeb859d9e718108e5cffb792138a8",
+            "xl-265c64efe54c91f5f95d162f4eb99ea38281574d"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-unrelated",
+          "group": "unrelated",
+          "relevant_ids": [],
+          "predicted_ids": [
+            "xl-031d467d060a6484b3e0f4a242adbc7f32b2b0ef",
+            "xl-0a197925839707fd5dae0d305809af983b9f54b6",
+            "xl-152d793c558adef6dc9baa593f885e9ae7082103",
+            "xl-487a18ae4e50aff20ccc71c1a28fb172ef8fd09b",
+            "xl-5b4161f5e985d2e1a5c9a50d7aa2628392aa8659",
+            "xl-6d783a526448cac47c771861fd55f877970c0b23",
+            "xl-9012eb83ac561cae38f6bee57ba30b9946b73e88",
+            "xl-a3508dc642e8e45bab614a18771a847598efdade",
+            "xl-d2f85408809666785117ca07b33756fc96036411",
+            "xl-f94a92c4f59cee4b64999dfe71f689df1faa5a0c"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "strategy": "xiaolin-balanced",
+      "k": 3,
+      "metrics": {
+        "precision_at_k": 0.24999999999999997,
+        "recall_at_k": 0.75,
+        "f1_at_k": 0.375,
+        "hit_rate_at_k": 0.75,
+        "mrr": 0.5625
+      },
+      "unrelated_predictions": 3,
+      "results": [
+        {
+          "query_id": "dev-01",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-cba03ca2cfda2310d5eb6490462f8444a2f746c7"
+          ],
+          "predicted_ids": [
+            "xl-57b579366046b03563b1cc525c67259ae89563e0",
+            "xl-174ed4e7b36c065c5d2c614a45c0b5d54d34f04c",
+            "xl-79e4d54caf4bd606015826434d3ba470fbbf857e"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        },
+        {
+          "query_id": "dev-02",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a"
+          ],
+          "predicted_ids": [
+            "xl-4b65cea6caaed93ee390587598c0002622a328fc",
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a",
+            "xl-efd221add6df51c986d4c6ec179e5759e032b940"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-03",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439"
+          ],
+          "predicted_ids": [
+            "xl-0384d8c79c0c240cd2d3a42d909689b2280514b4",
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439",
+            "xl-2866b8ace0013ae61bc9369bb62477d8e917d187"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-04",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-078f94d83198f32c40c2191aeff1c24638c60066"
+          ],
+          "predicted_ids": [
+            "xl-3bab9c3eb4404d3fe22991a072941047776aa6f5",
+            "xl-4728d1e995198ce4713339cc52a8eead2f10cbe6",
+            "xl-5db638c1f5c4056949962b710641e165f74c1c29"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        },
+        {
+          "query_id": "dev-05",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3"
+          ],
+          "predicted_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3",
+            "xl-1c80ee36a199629ca1eb631173138e722c6af8a0",
+            "xl-32b757792ed39a43fb37864e0d662ac3ae177170"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-06",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6"
+          ],
+          "predicted_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6",
+            "xl-0b5f18c43f30533623b8fc0abbe6c3dd3783a38a",
+            "xl-1e50a936372f943e21651c260a9b699e9c7b7cbc"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-07",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f"
+          ],
+          "predicted_ids": [
+            "xl-dd78b86ba093d519a52c4198e2f1adf1ac2bfe72",
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f",
+            "xl-fb0fc3edf6778b13a4638e169375d2002230d65c"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-08",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717"
+          ],
+          "predicted_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717",
+            "xl-0bdd1673450ee6d74a5e17ad8e01364a2af9718b",
+            "xl-4c28f88328b7e5eb2b20130f90fcae187b69cdef"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-unrelated",
+          "group": "unrelated",
+          "relevant_ids": [],
+          "predicted_ids": [
+            "xl-00a9a2c9b17ee0bd7e128616f0aec681d8b98841",
+            "xl-031d467d060a6484b3e0f4a242adbc7f32b2b0ef",
+            "xl-0a197925839707fd5dae0d305809af983b9f54b6"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "strategy": "xiaolin-balanced",
+      "k": 5,
+      "metrics": {
+        "precision_at_k": 0.175,
+        "recall_at_k": 0.875,
+        "f1_at_k": 0.29166666666666674,
+        "hit_rate_at_k": 0.875,
+        "mrr": 0.59375
+      },
+      "unrelated_predictions": 5,
+      "results": [
+        {
+          "query_id": "dev-01",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-cba03ca2cfda2310d5eb6490462f8444a2f746c7"
+          ],
+          "predicted_ids": [
+            "xl-57b579366046b03563b1cc525c67259ae89563e0",
+            "xl-174ed4e7b36c065c5d2c614a45c0b5d54d34f04c",
+            "xl-79e4d54caf4bd606015826434d3ba470fbbf857e",
+            "xl-cba03ca2cfda2310d5eb6490462f8444a2f746c7",
+            "xl-6295072de99ebf051fc0c036dddbced756cd6bc7"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.25
+          }
+        },
+        {
+          "query_id": "dev-02",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a"
+          ],
+          "predicted_ids": [
+            "xl-4b65cea6caaed93ee390587598c0002622a328fc",
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a",
+            "xl-efd221add6df51c986d4c6ec179e5759e032b940",
+            "xl-299507c12e0fa14201c1174b37b13031c651e10c",
+            "xl-90983b173d0ad1cc71968dac4ace8ac9a473c551"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-03",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439"
+          ],
+          "predicted_ids": [
+            "xl-0384d8c79c0c240cd2d3a42d909689b2280514b4",
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439",
+            "xl-2866b8ace0013ae61bc9369bb62477d8e917d187",
+            "xl-34ecbb492ef954dc2e783b0ab3fe15b05c62256e",
+            "xl-c49a169315a9eeacd13b9f1cc26f2cc5f86c8d73"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-04",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-078f94d83198f32c40c2191aeff1c24638c60066"
+          ],
+          "predicted_ids": [
+            "xl-3bab9c3eb4404d3fe22991a072941047776aa6f5",
+            "xl-4728d1e995198ce4713339cc52a8eead2f10cbe6",
+            "xl-5db638c1f5c4056949962b710641e165f74c1c29",
+            "xl-98820704a68f425011aaf7f2f1217586feee38a4",
+            "xl-efa36531c140ca47617403f5a9de263c9eb7d37a"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        },
+        {
+          "query_id": "dev-05",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3"
+          ],
+          "predicted_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3",
+            "xl-1c80ee36a199629ca1eb631173138e722c6af8a0",
+            "xl-32b757792ed39a43fb37864e0d662ac3ae177170",
+            "xl-419d94f70e50efee464fee43ac701f87ef5f2252",
+            "xl-f943d0367eee4184cbcf473a375ff022f42ec478"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-06",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6"
+          ],
+          "predicted_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6",
+            "xl-0b5f18c43f30533623b8fc0abbe6c3dd3783a38a",
+            "xl-1e50a936372f943e21651c260a9b699e9c7b7cbc",
+            "xl-5db638c1f5c4056949962b710641e165f74c1c29",
+            "xl-6eb04bb43aae3481f83c106afa93fb5c3effe8f5"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-07",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f"
+          ],
+          "predicted_ids": [
+            "xl-dd78b86ba093d519a52c4198e2f1adf1ac2bfe72",
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f",
+            "xl-fb0fc3edf6778b13a4638e169375d2002230d65c",
+            "xl-4f1db8a01cb2de740799e3c664dca0c245f24e8d",
+            "xl-f9190c4b5cbb2b03f23ef4465b628b4a4272ee22"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-08",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717"
+          ],
+          "predicted_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717",
+            "xl-0bdd1673450ee6d74a5e17ad8e01364a2af9718b",
+            "xl-4c28f88328b7e5eb2b20130f90fcae187b69cdef",
+            "xl-af730d6dbe59eec04f96a22cc0ad13ce24b6885a",
+            "xl-e3fecead94eefc1b57a132b51c35be2995f0994d"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-unrelated",
+          "group": "unrelated",
+          "relevant_ids": [],
+          "predicted_ids": [
+            "xl-00a9a2c9b17ee0bd7e128616f0aec681d8b98841",
+            "xl-031d467d060a6484b3e0f4a242adbc7f32b2b0ef",
+            "xl-0a197925839707fd5dae0d305809af983b9f54b6",
+            "xl-152d793c558adef6dc9baa593f885e9ae7082103",
+            "xl-487a18ae4e50aff20ccc71c1a28fb172ef8fd09b"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "strategy": "xiaolin-balanced",
+      "k": 10,
+      "metrics": {
+        "precision_at_k": 0.0875,
+        "recall_at_k": 0.875,
+        "f1_at_k": 0.15909090909090912,
+        "hit_rate_at_k": 0.875,
+        "mrr": 0.59375
+      },
+      "unrelated_predictions": 10,
+      "results": [
+        {
+          "query_id": "dev-01",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-cba03ca2cfda2310d5eb6490462f8444a2f746c7"
+          ],
+          "predicted_ids": [
+            "xl-57b579366046b03563b1cc525c67259ae89563e0",
+            "xl-174ed4e7b36c065c5d2c614a45c0b5d54d34f04c",
+            "xl-79e4d54caf4bd606015826434d3ba470fbbf857e",
+            "xl-cba03ca2cfda2310d5eb6490462f8444a2f746c7",
+            "xl-6295072de99ebf051fc0c036dddbced756cd6bc7",
+            "xl-c433b40435b5da8d85ad6a029b569fe787498ce0",
+            "xl-db75b6cda9db48d62a3a6150b2b87a9113e892dd",
+            "xl-f76bc105316660c033d08072768f70e504e0a48a",
+            "xl-8308839ec951ce7ab3c350a086c804af228aa28f",
+            "xl-120573383d6a3e05798b1d2486eba9476d342871"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.25
+          }
+        },
+        {
+          "query_id": "dev-02",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a"
+          ],
+          "predicted_ids": [
+            "xl-4b65cea6caaed93ee390587598c0002622a328fc",
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a",
+            "xl-efd221add6df51c986d4c6ec179e5759e032b940",
+            "xl-299507c12e0fa14201c1174b37b13031c651e10c",
+            "xl-90983b173d0ad1cc71968dac4ace8ac9a473c551",
+            "xl-3cf54a2ca8a1a8b4619da19f8bdb6c90955d3e28",
+            "xl-68b5767311272aa339fbfcee5b8a7616bf7af178",
+            "xl-90fd01a420ac593bfad4af542b3aea81706e467e",
+            "xl-ca903c9fbcba3606ba3c32eae53e5137c4643413",
+            "xl-ef283c456be44c91bac311a8fae2f0c51a733406"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-03",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439"
+          ],
+          "predicted_ids": [
+            "xl-0384d8c79c0c240cd2d3a42d909689b2280514b4",
+            "xl-68ecbc23e7d40dfc722cda99ece6729d40e0a439",
+            "xl-2866b8ace0013ae61bc9369bb62477d8e917d187",
+            "xl-34ecbb492ef954dc2e783b0ab3fe15b05c62256e",
+            "xl-c49a169315a9eeacd13b9f1cc26f2cc5f86c8d73",
+            "xl-2ae43a915acf1fa9f38e6af286eed18f43270a76",
+            "xl-164587b1538717bf978ab7268e67741dcea2f483",
+            "xl-6c526d87185b0d31cf91d5b4e65e24c5cbe3b0a1",
+            "xl-e64e916aeaafe6f2ee3888c552b5e7820411c803",
+            "xl-efa36531c140ca47617403f5a9de263c9eb7d37a"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-04",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-078f94d83198f32c40c2191aeff1c24638c60066"
+          ],
+          "predicted_ids": [
+            "xl-3bab9c3eb4404d3fe22991a072941047776aa6f5",
+            "xl-4728d1e995198ce4713339cc52a8eead2f10cbe6",
+            "xl-5db638c1f5c4056949962b710641e165f74c1c29",
+            "xl-98820704a68f425011aaf7f2f1217586feee38a4",
+            "xl-efa36531c140ca47617403f5a9de263c9eb7d37a",
+            "xl-0ddcc407f44352885ab33464f81320635c9d38d1",
+            "xl-c6b4955c5d1203951cef5bf689ba9716d02dbf2d",
+            "xl-299507c12e0fa14201c1174b37b13031c651e10c",
+            "xl-90fd01a420ac593bfad4af542b3aea81706e467e",
+            "xl-df7a6c6fc7febe56dcd2471aa1b1c3159ccb9f34"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        },
+        {
+          "query_id": "dev-05",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3"
+          ],
+          "predicted_ids": [
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3",
+            "xl-1c80ee36a199629ca1eb631173138e722c6af8a0",
+            "xl-32b757792ed39a43fb37864e0d662ac3ae177170",
+            "xl-419d94f70e50efee464fee43ac701f87ef5f2252",
+            "xl-f943d0367eee4184cbcf473a375ff022f42ec478",
+            "xl-445b3125b95c1f376853bb0ac020eae200be75a8",
+            "xl-4a06195d21af5be4c60431a5807cd89bc538861c",
+            "xl-71c1cb3bd48412655ac77e3cb4626a3a2a59bd7a",
+            "xl-aacc1ae12af891e9f12b80aee03882ee2c1d53c4",
+            "xl-ced62a947777877a90ceb4f2cd3306f0faf68b9a"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-06",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6"
+          ],
+          "predicted_ids": [
+            "xl-7d252409160687afad99fafa2513e88c259af6d6",
+            "xl-0b5f18c43f30533623b8fc0abbe6c3dd3783a38a",
+            "xl-1e50a936372f943e21651c260a9b699e9c7b7cbc",
+            "xl-5db638c1f5c4056949962b710641e165f74c1c29",
+            "xl-6eb04bb43aae3481f83c106afa93fb5c3effe8f5",
+            "xl-41380b0f618caa18b807aaac59c6ccbfd94baf83",
+            "xl-4b65cea6caaed93ee390587598c0002622a328fc",
+            "xl-9874b96ba38327b240a42298709685d67c0135b5",
+            "xl-a139d786a8829f08d66254339f35e6241f8303eb",
+            "xl-bbbbb5a322171fc4a7861c0db46ca5ef17dd4465"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-07",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f"
+          ],
+          "predicted_ids": [
+            "xl-dd78b86ba093d519a52c4198e2f1adf1ac2bfe72",
+            "xl-b4bce82c42a03d5f9dcff1736764992c4d864e4f",
+            "xl-fb0fc3edf6778b13a4638e169375d2002230d65c",
+            "xl-4f1db8a01cb2de740799e3c664dca0c245f24e8d",
+            "xl-f9190c4b5cbb2b03f23ef4465b628b4a4272ee22",
+            "xl-4418c49cddef31a646aa3212f30750303b8db2a0",
+            "xl-47ab8cc80457eeb41c7f1fa7c06f772e57c4cfba",
+            "xl-f99ee6617a26a2276dcad2afe6e102bdf6198617",
+            "xl-da65f9b7afed22076a288a17e5f92b744106861b",
+            "xl-47524f4a447e557a150217985cf80f732778da3f"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "dev-08",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717"
+          ],
+          "predicted_ids": [
+            "xl-0fd57dd0b5bc0be2f2cc0c607fa5caad05357717",
+            "xl-0bdd1673450ee6d74a5e17ad8e01364a2af9718b",
+            "xl-4c28f88328b7e5eb2b20130f90fcae187b69cdef",
+            "xl-af730d6dbe59eec04f96a22cc0ad13ce24b6885a",
+            "xl-e3fecead94eefc1b57a132b51c35be2995f0994d",
+            "xl-352fb980ca46e39fd628147f10aa105b868308a2",
+            "xl-6252507eacb1dae65e1ccfeb0b70d0cc213cc946",
+            "xl-7efa21330cf3b715d0fc0925436a34efa9d765f5",
+            "xl-31f15ecf65d46c060df9af5c54b8754156e1c3f1",
+            "xl-9f11a931177ae3866b66402f81751f6047af6e74"
+          ],
+          "metrics": {
+            "precision_at_k": 0.1,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.18181818181818182,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "dev-unrelated",
+          "group": "unrelated",
+          "relevant_ids": [],
+          "predicted_ids": [
+            "xl-00a9a2c9b17ee0bd7e128616f0aec681d8b98841",
+            "xl-031d467d060a6484b3e0f4a242adbc7f32b2b0ef",
+            "xl-0a197925839707fd5dae0d305809af983b9f54b6",
+            "xl-152d793c558adef6dc9baa593f885e9ae7082103",
+            "xl-487a18ae4e50aff20ccc71c1a28fb172ef8fd09b",
+            "xl-5b4161f5e985d2e1a5c9a50d7aa2628392aa8659",
+            "xl-6d783a526448cac47c771861fd55f877970c0b23",
+            "xl-9012eb83ac561cae38f6bee57ba30b9946b73e88",
+            "xl-a3508dc642e8e45bab614a18771a847598efdade",
+            "xl-d2f85408809666785117ca07b33756fc96036411"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        }
+      ]
+    }
+  ],
+  "selected": {
+    "strategy": "xiaolin-baseline",
+    "k": 3
+  },
+  "test_runs": [
+    {
+      "strategy": "xiaolin-baseline",
+      "k": 5,
+      "metrics": {
+        "precision_at_k": 0.175,
+        "recall_at_k": 0.875,
+        "f1_at_k": 0.29166666666666674,
+        "hit_rate_at_k": 0.875,
+        "mrr": 0.7291666666666666
+      },
+      "unrelated_predictions": 5,
+      "results": [
+        {
+          "query_id": "test-01",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-89090a56f463a6ce89dd2c7c4778b45eebc4b298"
+          ],
+          "predicted_ids": [
+            "xl-89090a56f463a6ce89dd2c7c4778b45eebc4b298",
+            "xl-8308839ec951ce7ab3c350a086c804af228aa28f",
+            "xl-c43a5bf4064f5b908590b1b2bbf3558d0c58c548",
+            "xl-031d467d060a6484b3e0f4a242adbc7f32b2b0ef",
+            "xl-bb9a429274d4dcfb61580d4102bb8677be9606e1"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "test-02",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-07d0f70866539414e3bcb498fda8146167c3aac2"
+          ],
+          "predicted_ids": [
+            "xl-34839a7bcaea85fb5eba07f208905db09b5b10a9",
+            "xl-07d0f70866539414e3bcb498fda8146167c3aac2",
+            "xl-4728d1e995198ce4713339cc52a8eead2f10cbe6",
+            "xl-5db638c1f5c4056949962b710641e165f74c1c29",
+            "xl-69411483131d70ba72c08c2fe715355f0ba6739a"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "test-03",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-b442b61967d90ebc8b75e0eb6471dfbc10485683"
+          ],
+          "predicted_ids": [
+            "xl-e0ff5dde415877cab83fbae008e7e8c172c24dd1",
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3",
+            "xl-9900674225e0fb307eefec0d0a0699699372a67d",
+            "xl-efd221add6df51c986d4c6ec179e5759e032b940",
+            "xl-05990e5e93e6d72fb765b08803eb098610af30b1"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        },
+        {
+          "query_id": "test-04",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-c6b4955c5d1203951cef5bf689ba9716d02dbf2d"
+          ],
+          "predicted_ids": [
+            "xl-c6b4955c5d1203951cef5bf689ba9716d02dbf2d",
+            "xl-3bab9c3eb4404d3fe22991a072941047776aa6f5",
+            "xl-0b5f18c43f30533623b8fc0abbe6c3dd3783a38a",
+            "xl-7ce935f7c8600fdcf38df8bfdb4f8cf968197711",
+            "xl-0f87bcb805dc596b179d1cb7e9dfb680c97d38d1"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "test-05",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-85de96c8468ccf0faf62d694ee8e9bff4e024e63"
+          ],
+          "predicted_ids": [
+            "xl-85de96c8468ccf0faf62d694ee8e9bff4e024e63",
+            "xl-3b8e20c7f348aa6f853ec12db0afd2265dee3eed",
+            "xl-f092e894c17133b045047d5de477cc3e2a0fc398",
+            "xl-4577871bf03c27be58c977da0d665ad233d66701",
+            "xl-6cf00a2fd10d3c20c1946500178fe8bdef21b638"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "test-06",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-2aacf90753d4f650162ff10fa2e816f5ac0374bb"
+          ],
+          "predicted_ids": [
+            "xl-2aacf90753d4f650162ff10fa2e816f5ac0374bb",
+            "xl-effa9c6730d84405244f0f69114621c2bdcd9aa5",
+            "xl-9b1f2afe1123543cb5d3f35d5eef048debee240a",
+            "xl-31c7f484274f9a6ed35dfa6eaaca764c5b1db0a2",
+            "xl-57f01ab9f676872dbc92bb7f8bcc71f17d0894bf"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "test-07",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-4a06195d21af5be4c60431a5807cd89bc538861c"
+          ],
+          "predicted_ids": [
+            "xl-4a06195d21af5be4c60431a5807cd89bc538861c",
+            "xl-9fe6b759bc923ea7f5b83d6764567042e1d21969",
+            "xl-c115f4220dea10b186c6fa9259ad079c97fbfd23",
+            "xl-422f06da5472701b3fb9f518b8d2f9b39e844a37",
+            "xl-0874a54bc7ca7d0b3c4018c4704f7935f63aac86"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "test-08",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-e770b01d304b0067d170bbbeef0d1f5474aa7862"
+          ],
+          "predicted_ids": [
+            "xl-e3fecead94eefc1b57a132b51c35be2995f0994d",
+            "xl-f90794727096694e923952b98c7d90e0c3f5260a",
+            "xl-e770b01d304b0067d170bbbeef0d1f5474aa7862",
+            "xl-b41240209879408e6f6b3aef8d37f545c4890694",
+            "xl-265c64efe54c91f5f95d162f4eb99ea38281574d"
+          ],
+          "metrics": {
+            "precision_at_k": 0.2,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.33333333333333337,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.3333333333333333
+          }
+        },
+        {
+          "query_id": "test-unrelated",
+          "group": "unrelated",
+          "relevant_ids": [],
+          "predicted_ids": [
+            "xl-78ef0d1e0134660afceb484c43485e28282607bb",
+            "xl-d3c5de1713cc13ab31efc36d196d011e3b6d9b52",
+            "xl-fb0fc3edf6778b13a4638e169375d2002230d65c",
+            "xl-0c6f8d96ef905f5b14634ac2f7395bbbc1101eec",
+            "xl-e63d16f668df7697f10c825f5e6a0dd9a21f54d4"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "strategy": "xiaolin-baseline",
+      "k": 3,
+      "metrics": {
+        "precision_at_k": 0.29166666666666663,
+        "recall_at_k": 0.875,
+        "f1_at_k": 0.4375,
+        "hit_rate_at_k": 0.875,
+        "mrr": 0.7291666666666666
+      },
+      "unrelated_predictions": 3,
+      "results": [
+        {
+          "query_id": "test-01",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-89090a56f463a6ce89dd2c7c4778b45eebc4b298"
+          ],
+          "predicted_ids": [
+            "xl-89090a56f463a6ce89dd2c7c4778b45eebc4b298",
+            "xl-8308839ec951ce7ab3c350a086c804af228aa28f",
+            "xl-c43a5bf4064f5b908590b1b2bbf3558d0c58c548"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "test-02",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-07d0f70866539414e3bcb498fda8146167c3aac2"
+          ],
+          "predicted_ids": [
+            "xl-34839a7bcaea85fb5eba07f208905db09b5b10a9",
+            "xl-07d0f70866539414e3bcb498fda8146167c3aac2",
+            "xl-4728d1e995198ce4713339cc52a8eead2f10cbe6"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.5
+          }
+        },
+        {
+          "query_id": "test-03",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-b442b61967d90ebc8b75e0eb6471dfbc10485683"
+          ],
+          "predicted_ids": [
+            "xl-e0ff5dde415877cab83fbae008e7e8c172c24dd1",
+            "xl-dc155633e2e3931394de525fde38964fdbe314a3",
+            "xl-9900674225e0fb307eefec0d0a0699699372a67d"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        },
+        {
+          "query_id": "test-04",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-c6b4955c5d1203951cef5bf689ba9716d02dbf2d"
+          ],
+          "predicted_ids": [
+            "xl-c6b4955c5d1203951cef5bf689ba9716d02dbf2d",
+            "xl-3bab9c3eb4404d3fe22991a072941047776aa6f5",
+            "xl-0b5f18c43f30533623b8fc0abbe6c3dd3783a38a"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "test-05",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-85de96c8468ccf0faf62d694ee8e9bff4e024e63"
+          ],
+          "predicted_ids": [
+            "xl-85de96c8468ccf0faf62d694ee8e9bff4e024e63",
+            "xl-3b8e20c7f348aa6f853ec12db0afd2265dee3eed",
+            "xl-f092e894c17133b045047d5de477cc3e2a0fc398"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "test-06",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-2aacf90753d4f650162ff10fa2e816f5ac0374bb"
+          ],
+          "predicted_ids": [
+            "xl-2aacf90753d4f650162ff10fa2e816f5ac0374bb",
+            "xl-effa9c6730d84405244f0f69114621c2bdcd9aa5",
+            "xl-9b1f2afe1123543cb5d3f35d5eef048debee240a"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "test-07",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-4a06195d21af5be4c60431a5807cd89bc538861c"
+          ],
+          "predicted_ids": [
+            "xl-4a06195d21af5be4c60431a5807cd89bc538861c",
+            "xl-9fe6b759bc923ea7f5b83d6764567042e1d21969",
+            "xl-c115f4220dea10b186c6fa9259ad079c97fbfd23"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 1.0
+          }
+        },
+        {
+          "query_id": "test-08",
+          "group": "relevant",
+          "relevant_ids": [
+            "xl-e770b01d304b0067d170bbbeef0d1f5474aa7862"
+          ],
+          "predicted_ids": [
+            "xl-e3fecead94eefc1b57a132b51c35be2995f0994d",
+            "xl-f90794727096694e923952b98c7d90e0c3f5260a",
+            "xl-e770b01d304b0067d170bbbeef0d1f5474aa7862"
+          ],
+          "metrics": {
+            "precision_at_k": 0.3333333333333333,
+            "recall_at_k": 1.0,
+            "f1_at_k": 0.5,
+            "hit_rate_at_k": 1.0,
+            "mrr": 0.3333333333333333
+          }
+        },
+        {
+          "query_id": "test-unrelated",
+          "group": "unrelated",
+          "relevant_ids": [],
+          "predicted_ids": [
+            "xl-78ef0d1e0134660afceb484c43485e28282607bb",
+            "xl-d3c5de1713cc13ab31efc36d196d011e3b6d9b52",
+            "xl-fb0fc3edf6778b13a4638e169375d2002230d65c"
+          ],
+          "metrics": {
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "f1_at_k": 0.0,
+            "hit_rate_at_k": 0.0,
+            "mrr": 0.0
+          }
+        }
+      ]
+    }
+  ]
+}

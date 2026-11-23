@@ -1,6 +1,7 @@
 """成员四的纯内存测试；所有题目均为虚构，不是正式题库或评估集。"""
 
 import inspect
+import math
 import re
 import sys
 import unittest
@@ -122,6 +123,37 @@ class TextRetrievalTests(unittest.TestCase):
         self.assertEqual(retrieve(TextRetrievalStrategy([row], min_score=.41), query='迭代器'), [])
         results = retrieve(TextRetrievalStrategy([row], field_weights={'question': 1}), query='迭代器')
         self.assertEqual(results[0].score, 1)
+
+    def test_bm25_scoring_distinguishes_term_frequency_and_document_length(self):
+        rows = [
+            question(1, question='MySQL 索引', tags=['MySQL'], key_points=[], reference_answer=''),
+            question(2, question='MySQL MySQL 索引', tags=['MySQL'], key_points=[], reference_answer=''),
+            question(3, question='MySQL', tags=['数据库'], key_points=['MySQL'], reference_answer=''),
+        ]
+        results = retrieve(TextRetrievalStrategy(rows, scoring='bm25'), query='MySQL')
+        self.assertEqual([item.question_id for item in results[:2]], [str(rows[1]['id']), str(rows[0]['id'])])
+        self.assertGreater(results[0].score, results[1].score)
+        self.assertNotEqual(results[0].score, results[1].score)
+
+    def test_bm25_matches_independently_calculated_idf_and_length_normalization(self):
+        rows = [question(1, question='common rare'), question(2, question='common'),
+                question(3, question='common filler')]
+        strategy = TextRetrievalStrategy(rows, scoring='bm25', field_weights={'question': 1})
+        ranked = retrieve(strategy, query='rare common')
+        # 3 documents, average length 5/3, rare occurs in 1 document and common in 3.
+        idf = math.log(1 + 2.5 / 1.5) + math.log(1 + .5 / 3.5)
+        raw = idf * 2.2 / (1 + 1.2 * (.25 + .75 * 2 / (5 / 3)))
+        self.assertEqual(ranked[0].question_id, str(rows[0]['id']))
+        self.assertAlmostEqual(ranked[0].score, raw / (1 + raw))
+        self.assertEqual(ranked, retrieve(TextRetrievalStrategy(reversed(rows), scoring='bm25',
+                         field_weights={'question': 1}), query='rare common'))
+
+    def test_bm25_unapproved_and_missing_source_rows_do_not_change_scores(self):
+        row = question()
+        original = retrieve(TextRetrievalStrategy([row], scoring='bm25'))
+        mixed = [row, question(2, permission_status='restricted'), question(3, source='')]
+        self.assertEqual(original, retrieve(TextRetrievalStrategy(mixed, scoring='bm25')))
+        self.assertEqual(retrieve(TextRetrievalStrategy(mixed, scoring='bm25'), query='nohit'), [])
 
     def test_invalid_parameters_raise_instead_of_looking_like_no_match(self):
         strategy = TextRetrievalStrategy([])

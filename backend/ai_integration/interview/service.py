@@ -12,6 +12,7 @@ RESUME_MODE_NONE = "none"
 class InterviewPrompt:
     system: str
     user: str
+    source_footer: str = ''
 
 
 class InterviewImplementation(Protocol):

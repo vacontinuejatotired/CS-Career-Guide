@@ -58,6 +58,13 @@ class EvaluationService(UnavailableService):
         if expected_task and expected_task != task:
             raise ValidationError({'task': f'评估集 {version} 属于 {expected_task} 任务'})
         strategy, _corpus = self._strategy(name)
+        corpus = getattr(strategy, 'corpus_summary', {})
+        if corpus:
+            if dataset.get('corpus_version') != corpus['version']:
+                raise ValidationError({'strategy': '策略语料与评估集不匹配，请选择相同语料版本'})
+            if dataset.get('corpus_sha256') and dataset['corpus_sha256'] != corpus['sha256']:
+                raise ValidationError({'dataset_version': '评估集的语料指纹与实际策略不一致'})
+            dataset['actual_corpus'] = corpus
 
         results, failures = self._execute(strategy, dataset, parameters['k'])
         if failures and not [item for item in results if item['metrics'] is not None]:
@@ -160,6 +167,9 @@ class EvaluationService(UnavailableService):
             stored['dataset_sha256'] = dataset['sha256']
         if dataset.get('corpus_version'):
             stored['corpus_version'] = dataset['corpus_version']
+        if dataset.get('actual_corpus'):
+            stored['corpus_sha256'] = dataset['actual_corpus']['sha256']
+            stored['corpus_size'] = dataset['actual_corpus']['size']
         try:
             with transaction.atomic():
                 return EvaluationRun.objects.create(

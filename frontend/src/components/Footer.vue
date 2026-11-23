@@ -10,7 +10,7 @@
         <div class="flex flex-col gap-4">
           <a class="text-slate-500 hover:text-indigo-600 font-bold transition-colors text-sm" href="#">关于我们</a>
           <a class="text-slate-500 hover:text-indigo-600 font-bold transition-colors text-sm" href="#">职业路径</a>
-          <a class="text-slate-500 hover:text-indigo-600 font-bold transition-colors text-sm" href="#">AI 助手</a>
+          <router-link class="text-slate-500 hover:text-indigo-600 font-bold transition-colors text-sm" to="/interview">模拟面试</router-link>
         </div>
       </div>
       <div class="flex flex-col gap-6">

@@ -42,7 +42,7 @@
 - `frontend/src/router/guard.js`、`frontend/src/router/index.js`：默认拦截所有业务页，并在进入前校验 Token。
 - `frontend/src/App.vue`、`frontend/src/components/Navbar.vue`：公开页隐藏 AI 浮窗并避免旧 Token 资料请求；退出统一清理。
 - `frontend/src/views/auth/Login.vue`、`Register.vue`：安全回跳，登录与注册相互切换时保留目标。
-- `frontend/src/components/AIFloat.vue`、`frontend/src/views/interview/Index.vue`、`frontend/src/views/company-reviews/Index.vue`：业务 fetch 统一附带 Token 和处理 401。
+- `frontend/src/views/interview/Index.vue`、`frontend/src/views/company-reviews/Index.vue`：业务 fetch 统一附带 Token 和处理 401。
 - `frontend/src/views/career-paths/SelfIntroduction.vue`：提交前必须完成已登录用户资料更新。
 - `frontend/src/views/users/Index.vue`：移除重复的局部 401 跳转，交由统一处理保留原目标。
 
