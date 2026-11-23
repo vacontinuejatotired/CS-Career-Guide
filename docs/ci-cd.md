@@ -9,7 +9,10 @@
 - 服务器已保留 `~/cs-career-guide-pilot.git` 浅种子。试验只接受本 fork 工作流 `391258355` 的 `master` push 运行，Run 须已完成，同一 attempt 的 `CI validation (no publication)` 必须成功，运行 SHA 与最新拉取的 `master` 必须一致。若 SHA 尚未通过或已落后，停止试验，选择新的合格 Run；旧 Run `45121132369` 缺少新 Job，仍会被拦下；新 Run 的 ACR 发布失败不影响该门禁。
 - 使用现有 SSH 登录服务器，将审核过的 `ci/tencent_pilot.sh` 和 `ci/tencent_pilot_gate.py` 放进同一个运维目录。TCR 凭据使用 `~/.docker-tcr-pilot` 专用配置，目录仅当前用户可访问，交互输入镜像仓库密码；验证完成后退出试验登录。脚本需要 `sudo -n docker`，应由有宿主机运维权限的用户手动调用，避免把这条命令直接交给 PR 工作流。
 
+- 源码通过 `cs-career-tcr-github` 专用 SSH 别名拉取。服务器在 `~/.ssh/cs_career_tcr_github_config` 设置 GitHub SSH 443、固定主机指纹和此仓库的只读 Deploy Key。`source-only` 验证 Run 门禁、最新 SHA 和检出权限，无需 TCR 登录，也不操作 Docker。临时目录保持私有；检出的配置文件保留容器运行用户所需的读权限。
+
 ```bash
+bash ./tencent_pilot.sh <FULL_MASTER_SHA> <MASTER_PUSH_RUN_ID> source-only
 sudo -n docker --config "$HOME/.docker-tcr-pilot" login ccr.ccs.tencentyun.com --username <TCR_USERNAME>
 bash ./tencent_pilot.sh <FULL_MASTER_SHA> <MASTER_PUSH_RUN_ID> frontend
 # 同一提交可手动选 backend 或 all；all 会串行执行，分别打印试验仓 digest。
