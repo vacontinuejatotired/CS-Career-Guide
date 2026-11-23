@@ -2,6 +2,24 @@
 
 本分支自 2026-11-01 拆为组件交付；当前 Actions 与服务器状态须分别确认，不能沿用历史绿色结果。完整边界见[单仓库独立交付](split-delivery.md)。
 
+## 腾讯云本机发布旁路（试验）
+
+目标：GitHub Actions 继续跑 PR 与 `master` CI，`tencent-123` 按固定 SHA 串行构建、冒烟并推 TCR 私有试验仓。旧 ACR 发布、生产部署及 QQ 通知规则保持现状。本段命令只验证旁路，不安装定时器、不触发生产部署。
+
+- 服务器已保留 `~/cs-career-guide-pilot.git` 浅种子。试验只接受本 fork 工作流 `391258355` 的 `master` push 运行，Run 须已完成，同一 attempt 的 `CI validation (no publication)` 必须成功，运行 SHA 与最新拉取的 `master` 必须一致。若 SHA 尚未通过或已落后，停止试验，选择新的合格 Run；旧 Run `45121132369` 缺少新 Job，仍会被拦下；新 Run 的 ACR 发布失败不影响该门禁。
+- 使用现有 SSH 登录服务器，将审核过的 `ci/tencent_pilot.sh` 和 `ci/tencent_pilot_gate.py` 放进同一个运维目录。TCR 凭据使用 `~/.docker-tcr-pilot` 专用配置，目录仅当前用户可访问，交互输入镜像仓库密码；验证完成后退出试验登录。脚本需要 `sudo -n docker`，应由有宿主机运维权限的用户手动调用，避免把这条命令直接交给 PR 工作流。
+
+```bash
+sudo -n docker --config "$HOME/.docker-tcr-pilot" login ccr.ccs.tencentyun.com --username <TCR_USERNAME>
+bash ./tencent_pilot.sh <FULL_MASTER_SHA> <MASTER_PUSH_RUN_ID> frontend
+# 同一提交可手动选 backend 或 all；all 会串行执行，分别打印试验仓 digest。
+sudo -n docker --config "$HOME/.docker-tcr-pilot" logout ccr.ccs.tencentyun.com
+```
+
+临时 Buildx builder 使用腾讯云基础镜像加速，限制 2 CPU、2 GiB。后端通过 `USE_TENCENT_BUILD_MIRRORS=1` 在构建阶段为 APT/PyPI 选择腾讯云镜像；普通 Actions 默认仍使用原来的源。冒烟使用临时前端回环端口或无宿主端口和无持久卷的 SQLite 后端。脚本只推 `cs-career-guide-pilot/{frontend,backend}-pilot:sha-<完整提交>`，按仓库返回的 digest 拉取并比对本机镜像身份。拉取复用本机层缓存；试验镜像标签保留供后续审计。
+
+2026-11-23 手工旁路证据：`5228a21` 前端构建 83 秒、TCR 推送 3.2 秒；后端切换容器内 APT/PyPI 源后构建 115 秒、TCR 推送 8.3 秒。两者都经过相应冒烟和按 digest 拉取。手工旁路由运维显式执行，没有通过本节新增的 GitHub Run 门禁。正式切换前应验证含新 Git 对象的增量拉取、成功 Run 门禁、双端网关联调和发布回滚；确认 Actions 上新 CI Job 与旧发布各自报告结果，再接自动触发、部署与正式群通知。
+
 ## 触发与选择
 
 push 覆盖所有分支，PR 目标为本 fork master。主题分支和 PR 仅 build-only；只有 `vacontinuejatotired/CS-Career-Guide` 的 master push/手动事件且 `SPLIT_DELIVERY_RELEASE_ENABLED=true` 时能发布。新发布开关默认关闭，首次合并保持 build-only，先协调旧自动更新和服务器拓扑，再显式开启。手动 `component=frontend/backend/all`，默认 all，可附加合法 `extra_tag`。
@@ -19,6 +37,7 @@ changes -> frontend-test --------------------> publish-frontend -> deploy-fronte
         -> platform-gates -------------------^（两个publisher均要求）
 两端均选中 -> integration（等待双image + delivery-checks；真实网关/持久化、合成SSE/IP）
                          两个publisher均要求integration成功
+仅 CI Jobs -> ci-validation（不等待发布或部署）
 全部结果 -> release-summary（always；严格区分 required、skipped 与 failure）
 ```
 

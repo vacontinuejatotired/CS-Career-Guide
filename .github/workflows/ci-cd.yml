@@ -475,6 +475,29 @@ jobs:
           path: ${{ runner.temp }}/demo-smoke-logs
           if-no-files-found: warn
           retention-days: 7
+  ci-validation:
+    name: CI validation (no publication)
+    needs:
+      - changes
+      - platform-gates
+      - delivery-checks
+      - backend-test
+      - frontend-test
+      - backend-image
+      - frontend-image
+      - integration
+    if: always() && !cancelled()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate selected CI checks independently
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: printf '%s' "$NEEDS_JSON" | python3 ci/ci_validation.py --summary "$GITHUB_STEP_SUMMARY"
   publish-backend:
     name: Publish verified backend image
     needs:
