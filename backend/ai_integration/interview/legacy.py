@@ -271,8 +271,9 @@ def check_reply_length(
 # 6. 主类
 # ---------------------------------------------------------------------------
 class LegacyPromptInterview:
-    def __init__(self, prompt_loader):
+    def __init__(self, prompt_loader, catalog_context=None):
         self.prompt_loader = prompt_loader
+        self.catalog_context = catalog_context
 
     # ---------------- 对外入口 ----------------
 
@@ -317,7 +318,9 @@ class LegacyPromptInterview:
         summary = (summary or "").strip()
 
         resume_block, resume_meta = self._resolve_resume(resume, resume_mode)
-        system = self._system_prompt(style, review, resume_block)
+        system, source_footer = self._system_prompt(
+            style, review, resume_block, message, history,
+        )
 
         system_tokens = estimate_tokens(system)
         summary_tokens = estimate_tokens(summary)
@@ -358,7 +361,7 @@ class LegacyPromptInterview:
             compaction_prompt = self._compaction_prompt(summary, dropped)
 
         user = self._user_prompt(message, summary, used, review)
-        prompt = InterviewPrompt(system=system, user=user)
+        prompt = InterviewPrompt(system=system, user=user, source_footer=source_footer)
 
         meta = {
             "review": review,
@@ -389,17 +392,36 @@ class LegacyPromptInterview:
 
     # ---------------- system ----------------
 
-    def _system_prompt(self, style, review, resume_block) -> str:
+    def _system_prompt(self, style, review, resume_block, message, history):
         # 复盘路径继续保持 chat 作为 system，兼容旧行为。
         base = self.prompt_loader("chat" if review else "interview") or ""
         parts = [base]
+        source_footer = ""
         if not review:
             parts.append("风格：" + STYLE_DESCRIPTIONS.get(style, DEFAULT_STYLE_DESCRIPTION))
+            parts.append(
+                "面试节奏约束（优先于泛化提问要求）：开场只邀请候选人做自我介绍，"
+                "完成后邀请介绍一个最熟悉的项目与个人职责，再围绕真实回答逐步追问。"
+                "每轮只提出一个主问题，最多附带一个紧密相关的小点，然后等待回答。"
+                "不一次列出多道题，不输出长篇参考答案，不代替候选人回答。"
+            )
             parts.append(QUESTION_RULES)
+            if self.catalog_context is not None:
+                try:
+                    catalog = self.catalog_context(message, history)
+                    if catalog.prompt:
+                        parts.append(catalog.prompt)
+                    source_footer = catalog.source_footer
+                except Exception:
+                    parts.append(
+                        "题库检索暂不可用。可基于实际回答继续追问，"
+                        "但不得声称已检索题库或编造题库来源。"
+                    )
+                    source_footer = "\n\n本轮题库检索暂不可用，追问由模型结合回答生成。"
         if resume_block:
             parts.append(resume_block)
         parts.append(OUTPUT_RULES)
-        return "\n\n".join(part for part in parts if part)
+        return "\n\n".join(part for part in parts if part), source_footer
 
     def _resolve_resume(self, resume, resume_mode):
         """把三态选择解析成简历块，并把降级原因带出去。"""
