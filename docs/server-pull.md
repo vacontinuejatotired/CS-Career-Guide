@@ -43,6 +43,20 @@ watchtower（仅显式启用 updates profile） -> Docker socket + 独立 ACR �
 
 SQLite 只适合低并发演示，不是正式生产数据库方案。
 
+## 腾讯云 TCR 拉取凭据
+
+`csdeploy` 是服务器上的 Linux 部署账号。私有 TCR 仓库需要配置 Registry 登录，与部署账号自身的 SSH 登录分开。优先使用有两个试验仓拉取权限的专用腾讯云凭据；保持旧 ACR 登录原样，供回滚使用。
+
+将审核过的 `ci/tencent_deploy_login.sh` 放在服务器可信工具目录，在有终端的管理员 SSH 会话执行：
+
+```bash
+sudo bash /opt/cs-career-tcr-publisher/tencent_deploy_login.sh <TCR_USERNAME> <FRONTEND_SHA256_DIGEST> <BACKEND_SHA256_DIGEST>
+```
+
+输入 TCR Registry 密码时终端不回显。脚本以 `csdeploy` 登录，按 digest 验证两次拉取；两次均成功才更新 `/etc/cs-career-guide/tcr/config.json`。它只拉镜像，不推镜像或重建服务。TCR 激活命令以 `csdeploy` 执行并显式设置 `DOCKER_CONFIG=/etc/cs-career-guide/tcr`；服务器专用 `/etc/cs-career-guide/tcr-deploy.env` 只保存该路径。切回旧 ACR digest 时使用原 ACR 凭据配置。
+
+2026-11-23 隔离验收：在腾讯云以 `csdeploy` 新建独立 Compose 项目，使用空 SQLite 卷和回环临时端口，先以在用 ACR digest 启动，再逐端切换到 TCR `0b210a1` 的两个 digest，最后逐端回滚到原 ACR digest。每次核对目标镜像和容器健康，切换与回滚后网关首页均可访问，隔离网关未重建。演练容器和独立卷已清理，生产容器 ID、镜像和健康状态保持不变。生产数据及自动激活未参与本次演练。
+
 ## ACR 登录
 
 GitHub Actions 使用公网 Registry：
