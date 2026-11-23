@@ -40,12 +40,16 @@ def verify_ci_job(run, jobs_page):
         raise ValueError('GitHub gate requires one successful CI validation job in this attempt')
 
 
-def github_json(path):
-    request = Request(f'https://api.github.com/repos/{REPOSITORY}/actions/runs/{path}',
+def repository_json(path):
+    request = Request(f'https://api.github.com/repos/{REPOSITORY}/{path}',
                       headers={'Accept': 'application/vnd.github+json',
                                'User-Agent': 'cs-career-guide-tcr-pilot'})
     with urlopen(request, timeout=15) as response:
         return json.load(response)
+
+
+def github_json(path):
+    return repository_json(f'actions/runs/{path}')
 
 
 def main():
