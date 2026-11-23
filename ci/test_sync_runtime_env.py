@@ -92,6 +92,19 @@ class TransportTests(unittest.TestCase):
             with self.subTest(image=image), self.assertRaises(ValueError):
                 validate_image('frontend', image)
 
+    def test_reused_tcr_repositories_are_exact_and_component_scoped(self):
+        registry = 'ccr.ccs.tencentyun.com/cs-career-guide-pilot'
+        digest = 'sha256:' + 'a' * 64
+        for component, other in (('frontend', 'backend'), ('backend', 'frontend')):
+            target = f'{registry}/{component}-pilot'
+            validate_image(component, f'{target}@{digest}')
+            for bad in (f'{target}:latest', f'{target}@{digest[:-1]}',
+                        f'{registry}/{other}-pilot@{digest}',
+                        f'{target.replace("ccr.ccs.tencentyun.com", "other.invalid")}@{digest}',
+                        f'{target.replace("cs-career-guide-pilot", "other-namespace")}@{digest}'):
+                with self.subTest(component=component, bad=bad), self.assertRaises(ValueError):
+                    validate_image(component, bad)
+
     def test_missing_secrets_fail_before_network(self):
         with patch.dict(os.environ, {}, clear=True), patch('sync_runtime_env.subprocess.run') as run:
             with self.assertRaises(ValueError):

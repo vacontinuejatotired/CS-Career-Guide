@@ -81,9 +81,13 @@ def compose_run(command, *, capture=False):
 
 def validate_image(component, image):
     # Deployment/rollback accepts immutable references for this component only.
-    if not re.fullmatch(r'[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]+)?/'
-                        r'[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*/cs-career-guide-'
-                        + component + r'@sha256:[0-9a-f]{64}', image):
+    if component not in ('frontend', 'backend'):
+        raise ValueError('Unsupported deployment component')
+    repository = (r'[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]+)?/'
+                  r'[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*/cs-career-guide-'
+                  + component)
+    tcr_repository = re.escape(f'ccr.ccs.tencentyun.com/cs-career-guide-pilot/{component}-pilot')
+    if not re.fullmatch(rf'(?:{repository}|{tcr_repository})@sha256:[0-9a-f]{{64}}', image):
         raise ValueError('An immutable repository digest for the selected component is required')
 
 

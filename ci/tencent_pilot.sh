@@ -2,13 +2,16 @@
 # Manual Tencent-host pilot. Writes only to dedicated test image repositories.
 set -euo pipefail
 umask 077
-if [[ $# != 3 || ! $1 =~ ^[0-9a-f]{40}$ || ! $2 =~ ^[1-9][0-9]*$ || ! $3 =~ ^(frontend|backend|all)$ ]]; then
-  echo 'Usage: tencent_pilot.sh FULL_MASTER_SHA MASTER_PUSH_RUN_ID frontend|backend|all' >&2
+if [[ $# != 3 || ! $1 =~ ^[0-9a-f]{40}$ || ! $2 =~ ^[1-9][0-9]*$ || ! $3 =~ ^(frontend|backend|all|source-only)$ ]]; then
+  echo 'Usage: tencent_pilot.sh FULL_MASTER_SHA MASTER_PUSH_RUN_ID frontend|backend|all|source-only' >&2
   exit 2
 fi
 sha=$1 run=$2 selected=$3
 repo=$HOME/cs-career-guide-pilot.git
-origin=https://github.com/vacontinuejatotired/CS-Career-Guide.git
+origin=git@cs-career-tcr-github:vacontinuejatotired/CS-Career-Guide.git
+ssh_config=$HOME/.ssh/cs_career_tcr_github_config
+[[ -f $ssh_config && -r $ssh_config ]] || { echo 'Missing dedicated GitHub SSH config' >&2; exit 1; }
+export GIT_SSH_COMMAND='ssh -F "$HOME/.ssh/cs_career_tcr_github_config"'
 cfg=$HOME/.docker-tcr-pilot
 registry=ccr.ccs.tencentyun.com
 script_dir=$(cd -- "$(dirname -- "$0")" && pwd)
@@ -19,7 +22,6 @@ G() { git --git-dir="$repo" "$@"; }
 D() { sudo -n docker "$@"; }
 T() { sudo -n timeout -k 10 "$1" docker --config "$cfg" "${@:2}"; }
 GIT_TERMINAL_PROMPT=0 timeout -k 5 90 git --git-dir="$repo" -c protocol.version=2 \
-  -c http.version=HTTP/1.1 -c http.lowSpeedLimit=1024 -c http.lowSpeedTime=20 \
   fetch --no-tags "$origin" refs/heads/master:refs/remotes/origin/master
 [[ $(G rev-parse 'refs/remotes/origin/master^{commit}') == "$sha" ]] || {
   echo 'Requested SHA is not the fetched master tip; stop' >&2; exit 1;
@@ -27,21 +29,31 @@ GIT_TERMINAL_PROMPT=0 timeout -k 5 90 git --git-dir="$repo" -c protocol.version=
 work=$(mktemp -d /tmp/cs-tcr-pilot.XXXXXXXX)
 builder=cs-tcr-pilot-${work##*.}
 container=
+builder_initialized=false
 cleanup() {
   if [[ -n $container ]]; then D rm -f "$container" >/dev/null 2>&1 || :; fi
-  D buildx rm "$builder" >/dev/null 2>&1 || :
+  if "$builder_initialized"; then D buildx rm "$builder" >/dev/null 2>&1 || :; fi
   if [[ -d $work/source ]]; then G worktree remove --force "$work/source" || :; fi
   rm -f -- "$work/buildkit.toml" "$work/push.log" "$work/page.html"
   rmdir -- "$work" || :
 }
 trap cleanup EXIT
-G worktree add -q --detach "$work/source" "$sha"
+# The parent is 0700; runtime users still need to read files copied into images.
+( umask 022; G worktree add -q --detach "$work/source" "$sha" )
+[[ $(stat -c '%a' "$work/source/frontend/nginx.conf") == 644 ]] || {
+  echo 'Unexpected checkout permissions for frontend/nginx.conf' >&2; exit 1;
+}
+if [[ $selected == source-only ]]; then
+  printf 'PILOT_SOURCE_VERIFIED %s %s\n' "$sha" "$run"
+  exit 0
+fi
 cat >"$work/buildkit.toml" <<'TOML'
 [registry."docker.io"]
   mirrors = ["mirror.ccs.tencentyun.com"]
 [worker.oci]
   max-parallelism = 2
 TOML
+builder_initialized=true
 D buildx create --name "$builder" --driver docker-container \
   --driver-opt image=mirror.ccs.tencentyun.com/moby/buildkit:buildx-stable-1,memory=2g,cpu-period=100000,cpu-quota=200000 \
   --buildkitd-config "$work/buildkit.toml"

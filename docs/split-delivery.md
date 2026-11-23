@@ -92,6 +92,8 @@ python3 /srv/career-tools/ci/deploy_component.py \
 
 config/pull 失败保留原 `.env` 和 pin，删除候选文件；激活/健康失败保留已写入的新配置与 pin并报错，不自动恢复旧容器、数据库或环境。后端入口沿用 collectstatic/migrate：后端发布或回滚前必须检查 schema 兼容与备份，前端操作不会运行后端入口。应用镜像回滚不等于数据/schema 回滚。
 
+腾讯云正式验收沿用 `ccr.ccs.tencentyun.com/cs-career-guide-pilot/{frontend,backend}-pilot`。激活校验只接受该完整仓库路径下与组件相符的 digest，原 ACR digest 路径继续可用于回滚。复用后应保留当前部署和回滚所依赖的镜像版本，清理测试标签前先核对对应 digest 的引用。此适配只放行镜像引用，正式切换、自动发布和 QQ 通知仍需分别验收。
+
 ## 验证证据分层
 
 - 本地：Windows/WSL 离线单元测试、虚构 SSH/Compose、原鉴权/API/面试回归、离线缓存 npm 安装和前端构建；没有本机 Docker。
