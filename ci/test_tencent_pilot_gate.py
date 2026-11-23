@@ -1,7 +1,12 @@
 import copy
+import io
+import os
+from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import MagicMock, patch
 
-from tencent_pilot_gate import GATE_NAME, REPOSITORY, WORKFLOW_ID, verify_ci_job, verify_run
+from tencent_pilot_gate import GATE_NAME, REPOSITORY, WORKFLOW_ID, github_token, repository_json, verify_ci_job, verify_run
 
 SHA = 'a' * 40
 RUN_ID = 12345
@@ -42,3 +47,34 @@ class TencentPilotGateTest(unittest.TestCase):
             verify_ci_job(dict(GOOD, conclusion='cancelled'), dict(total_count=1, jobs=[gate]))
         with self.assertRaises(ValueError):
             verify_ci_job(GOOD, dict(total_count=2, jobs=[gate]))
+
+
+class GithubCredentialTest(unittest.TestCase):
+    def test_anonymous_without_configuration(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertIsNone(github_token())
+
+    def test_reads_systemd_credential_or_explicit_file_and_refuses_invalid_file(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'github-token'
+            with patch.dict(os.environ, {'CREDENTIALS_DIRECTORY': root}, clear=True):
+                with self.assertRaisesRegex(ValueError, 'Cannot read'):
+                    github_token()
+                path.write_text('fake_token\n', encoding='ascii')
+                self.assertEqual(github_token(), 'fake_token')
+                override = Path(root) / 'override'
+                override.write_text('invalid token', encoding='ascii')
+                with patch.dict(os.environ, {'CS_CAREER_GITHUB_TOKEN_FILE': str(override)}):
+                    with self.assertRaisesRegex(ValueError, 'Invalid'):
+                        github_token()
+
+    def test_uses_bearer_header_on_https_api(self):
+        opener = MagicMock()
+        opener.open.return_value = io.BytesIO(b'{"ok": true}')
+        with patch('tencent_pilot_gate.github_token', return_value='fake_token'), patch(
+            'tencent_pilot_gate.build_opener', return_value=opener,
+        ):
+            self.assertEqual(repository_json('actions/runs/1'), {'ok': True})
+        request = opener.open.call_args.args[0]
+        self.assertEqual(request.full_url, f'https://api.github.com/repos/{REPOSITORY}/actions/runs/1')
+        self.assertEqual(request.unredirected_hdrs['Authorization'], 'Bearer fake_token')
