@@ -2,10 +2,12 @@
 
 import argparse
 import json
+import os
+from pathlib import Path
 import re
 import sys
 from urllib.error import URLError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 REPOSITORY = 'vacontinuejatotired/CS-Career-Guide'
 WORKFLOW_ID = 391258355
@@ -40,11 +42,34 @@ def verify_ci_job(run, jobs_page):
         raise ValueError('GitHub gate requires one successful CI validation job in this attempt')
 
 
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def github_token():
+    path = os.environ.get('CS_CAREER_GITHUB_TOKEN_FILE')
+    if not path and os.environ.get('CREDENTIALS_DIRECTORY'):
+        path = Path(os.environ['CREDENTIALS_DIRECTORY']) / 'github-token'
+    if not path:
+        return None
+    try:
+        token = Path(path).read_text(encoding='ascii').strip()
+    except (OSError, UnicodeError):
+        raise ValueError('Cannot read configured GitHub API credential') from None
+    if not re.fullmatch(r'[A-Za-z0-9_]{1,512}', token):
+        raise ValueError('Invalid GitHub API credential file')
+    return token
+
+
 def repository_json(path):
     request = Request(f'https://api.github.com/repos/{REPOSITORY}/{path}',
                       headers={'Accept': 'application/vnd.github+json',
                                'User-Agent': 'cs-career-guide-tcr-pilot'})
-    with urlopen(request, timeout=15) as response:
+    token = github_token()
+    if token is not None:
+        request.add_unredirected_header('Authorization', f'Bearer {token}')
+    with build_opener(NoRedirect()).open(request, timeout=15) as response:
         return json.load(response)
 
 

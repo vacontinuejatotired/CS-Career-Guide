@@ -110,5 +110,8 @@ for component in "${components[@]}"; do
   [[ $digest =~ ^sha256:[0-9a-f]{64}$ ]]
   time T 120 pull "$target@$digest"
   [[ $(D image inspect --format '{{.Id}}' "$target@$digest") == "$expected" ]]
+  if [[ -n ${CS_CAREER_TCR_RECEIPT_FILE:-} ]]; then
+    printf '%s %s@%s\n' "$component" "$target" "$digest" >> "$CS_CAREER_TCR_RECEIPT_FILE"
+  fi
   printf 'PILOT_VERIFIED %s %s %s@%s\n' "$sha" "$component" "$target" "$digest"
 done

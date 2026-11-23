@@ -1,6 +1,7 @@
 """Check the current master once; optionally publish the CI-selected components to TCR."""
 
 import argparse
+import json
 import os
 from pathlib import Path
 import re
@@ -11,6 +12,7 @@ from urllib.error import URLError
 from tencent_pilot_gate import WORKFLOW_ID, github_json, repository_json, verify_ci_job, verify_run
 
 JOBS = {'Frontend image': 'frontend', 'Backend image': 'backend'}
+TCR = 'ccr.ccs.tencentyun.com/cs-career-guide-pilot'
 
 
 def candidate(read=repository_json, read_run=github_json):
@@ -48,6 +50,20 @@ def candidate(read=repository_json, read_run=github_json):
     return sha, str(run_id), 'all' if len(selected) == 2 else selected[0]
 
 
+def verified_images(path, components):
+    expected = set(JOBS.values()) if components == 'all' else {components}
+    images = {}
+    for line in path.read_text(encoding='ascii').splitlines():
+        component, sep, ref = line.partition(' ')
+        if (not sep or component not in expected or component in images
+                or not re.fullmatch(rf'{re.escape(TCR)}/{component}-pilot@sha256:[0-9a-f]{{64}}', ref)):
+            raise ValueError('Invalid or duplicate TCR receipt entry')
+        images[component] = ref
+    if images.keys() != expected:
+        raise ValueError('Missing verified TCR images')
+    return images
+
+
 def publish(selection, state, run=subprocess.run):
     state.mkdir(mode=0o700, exist_ok=True)
     info = state.lstat()
@@ -63,8 +79,18 @@ def publish(selection, state, run=subprocess.run):
     print(f'PUBLISH_CLAIMED {sha} {run_id} {components}', flush=True)
     script = Path(__file__).resolve().with_name('tencent_pilot.sh')
     # A failed/interrupted attempt leaves its claim for manual reconciliation.
-    run(['bash', str(script), *selection], check=True)
-    (claim / 'published').write_text(f'{sha} {run_id} {components}\n', encoding='ascii')
+    refs = claim / 'verified-images'
+    run(['bash', str(script), *selection], check=True,
+        env={**os.environ, 'CS_CAREER_TCR_RECEIPT_FILE': str(refs.resolve())})
+    receipt = {'sha': sha, 'run_id': int(run_id), 'images': verified_images(refs, components)}
+    pending = claim / 'published.next'
+    with pending.open('x', encoding='ascii') as f:
+        json.dump(receipt, f, sort_keys=True)
+        f.write('\n')
+        f.flush()
+        os.fsync(f.fileno())
+    pending.rename(claim / 'published')
+    print(f'PUBLISH_VERIFIED {sha} {run_id} {components}', flush=True)
 
 
 def main():

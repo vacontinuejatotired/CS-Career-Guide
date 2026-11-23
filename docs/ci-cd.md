@@ -21,7 +21,11 @@ sudo -n docker --config "$HOME/.docker-tcr-pilot" logout ccr.ccs.tencentyun.com
 
 轮询入口 `python3 -B ci/tencent_publish_once.py` 每次只检查当前 `master` 对应的最新 push Run，默认只打印候选。`--source-check` 额外执行 SSH 拉取与检出检查；`--publish-state <私有目录>` 才构建并发布同一次 Run 中实际构建成功的组件。同一 SHA 先占位再发布，成功写回执；失败或中断时保留占位，由运维结合日志和仓库 digest 核对后处理，避免自动重复推送。定时器尚未安装，入口不部署生产容器或发送 QQ 消息。
 
+正式启用轮询时，GitHub API 建议使用仅授权本仓库的 fine-grained PAT：`Actions: Read-only`、`Contents: Read-only`，元数据保留默认只读。systemd 用 `LoadCredential=github-token:<root 专用凭据文件>` 加载，手工验收可将 `CS_CAREER_GITHUB_TOKEN_FILE` 指向有权限读取的专用文件。环境变量只写文件路径。凭据已配置但缺失或格式无效时查询直接失败；未配置时仍允许匿名干跑。SSH Deploy Key 和 TCR 凭据用途不变。
+
 临时 Buildx builder 使用腾讯云基础镜像加速，限制 2 CPU、2 GiB。后端通过 `USE_TENCENT_BUILD_MIRRORS=1` 在构建阶段为 APT/PyPI 选择腾讯云镜像；普通 Actions 默认仍使用原来的源。冒烟使用临时前端回环端口或无宿主端口和无持久卷的 SQLite 后端。脚本只推 `cs-career-guide-pilot/{frontend,backend}-pilot:sha-<完整提交>`，按仓库返回的 digest 拉取并比对本机镜像身份。拉取复用本机层缓存；试验镜像标签保留供后续审计。
+
+`tencent_publish_once.py --publish-state <私有目录>` 按提交 SHA 领取发布任务。每个组件通过冒烟、推送和 digest 回拉后写入 `verified-images`；所有预期组件都核验后，以原子替换创建 `published` JSON，包含 SHA、Run ID 和完整组件镜像引用。中断或部分成功保留现场，须核对 TCR 与日志后人工处理。同 SHA 已领取则跳过；早期试运行的文本回执保留用于去重，激活前另行核对其 digest。只读发现服务不写发布回执。
 
 2026-11-23 手工旁路证据：`5228a21` 前端构建 83 秒、TCR 推送 3.2 秒；后端切换容器内 APT/PyPI 源后构建 115 秒、TCR 推送 8.3 秒。两者都经过相应冒烟和按 digest 拉取。手工旁路由运维显式执行，没有通过本节新增的 GitHub Run 门禁。正式切换前应验证含新 Git 对象的增量拉取、成功 Run 门禁、双端网关联调和发布回滚；确认 Actions 上新 CI Job 与旧发布各自报告结果，再接自动触发、部署与正式群通知。
 

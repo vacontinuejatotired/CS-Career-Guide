@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -6,8 +7,11 @@ import unittest
 from unittest.mock import Mock
 
 from tencent_pilot_gate import GATE_NAME
-from tencent_publish_once import candidate, publish
+from tencent_publish_once import TCR, candidate, publish, verified_images
 from test_tencent_pilot_gate import GOOD, RUN_ID, SHA
+
+FRONT = f'{TCR}/frontend-pilot@sha256:' + 'a' * 64
+BACK = f'{TCR}/backend-pilot@sha256:' + 'b' * 64
 
 
 class TencentPublishOnceTest(unittest.TestCase):
@@ -39,7 +43,13 @@ class TencentPublishOnceTest(unittest.TestCase):
         for fails in (False, True):
             with self.subTest(fails=fails), tempfile.TemporaryDirectory() as directory:
                 state = Path(directory) / 'state'
-                runner = Mock(side_effect=subprocess.CalledProcessError(1, 'bash') if fails else None)
+                def run(_command, *, check, env):
+                    self.assertTrue(check)
+                    Path(env['CS_CAREER_TCR_RECEIPT_FILE']).write_text(f'frontend {FRONT}\n', encoding='ascii')
+                    if fails:
+                        raise subprocess.CalledProcessError(1, 'bash')
+
+                runner = Mock(side_effect=run)
                 if fails:
                     with self.assertRaises(subprocess.CalledProcessError):
                         publish(selection, state, runner)
@@ -47,4 +57,20 @@ class TencentPublishOnceTest(unittest.TestCase):
                     publish(selection, state, runner)
                 publish(selection, state, runner)
                 self.assertEqual(runner.call_count, 1)
-                self.assertEqual((state / SHA / 'published').exists(), not fails)
+                receipt = state / SHA / 'published'
+                self.assertEqual(receipt.exists(), not fails)
+                if not fails:
+                    self.assertEqual(json.loads(receipt.read_text(encoding='ascii')),
+                                     {'sha': SHA, 'run_id': RUN_ID, 'images': {'frontend': FRONT}})
+
+    def test_receipt_requires_exact_component_set_and_digest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'images'
+            good = f'frontend {FRONT}\nbackend {BACK}\n'
+            path.write_text(good, encoding='ascii')
+            self.assertEqual(verified_images(path, 'all'), {'frontend': FRONT, 'backend': BACK})
+            for invalid in (f'frontend {FRONT}\n', f'backend {FRONT}\nfrontend {FRONT}\n',
+                            good + f'backend {BACK}\n', good.replace(TCR, 'other/repository')):
+                with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                    path.write_text(invalid, encoding='ascii')
+                    verified_images(path, 'all')
